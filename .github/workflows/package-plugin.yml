@@ -23,7 +23,7 @@ jobs:
         run: zip -r eventon-apify.zip eventon-apify
 
       - name: Upload release asset
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: eventon-apify.zip
         env:
