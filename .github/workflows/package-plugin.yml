@@ -1,0 +1,30 @@
+name: Build Release Zip
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare plugin folder
+        run: |
+          mkdir eventon-apify
+          cp -r eventon-apify.php uninstall.php readme.txt README.md SECURITY.md LICENSE eventon-apify/
+
+      - name: Zip it
+        run: zip -r eventon-apify.zip eventon-apify
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: eventon-apify.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,5 @@
+.DS_Store
+*.zip
+.claude/settings.local.json
+.claude/agents/
+.claude/skills/
