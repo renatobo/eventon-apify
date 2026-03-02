@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1400"
+   height="280"
+   viewBox="0 0 1400 280"
+   fill="none"
+   version="1.1"
+   id="svg27"
+   sodipodi:docname="eventon-apify-settings-banner.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview27"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.62685109"
+     inkscape:cx="378.08022"
+     inkscape:cy="74.180296"
+     inkscape:window-width="1736"
+     inkscape:window-height="1102"
+     inkscape:window-x="0"
+     inkscape:window-y="39"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg27" />
+  <defs
+     id="defs4">
+    <linearGradient
+       id="bannerLogoBg"
+       x1="0"
+       y1="0"
+       x2="144"
+       y2="144"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         stop-color="#FF7A45"
+         id="stop1" />
+      <stop
+         offset="1"
+         stop-color="#0F7AC9"
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
+       id="bannerLogoPanel"
+       x1="26"
+       y1="28"
+       x2="118"
+       y2="118"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         stop-color="#FFFFFF"
+         id="stop3" />
+      <stop
+         offset="1"
+         stop-color="#EAF2F8"
+         id="stop4" />
+    </linearGradient>
+    <linearGradient
+       id="eventonApifyLogoBg"
+       x1="76"
+       y1="64"
+       x2="430"
+       y2="440"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(-340,-200)">
+      <stop
+         stop-color="#FF7A45"
+         id="stop1-9" />
+      <stop
+         offset="1"
+         stop-color="#0F7AC9"
+         id="stop2-0" />
+    </linearGradient>
+    <linearGradient
+       id="eventonApifyLogoPanel"
+       x1="136"
+       y1="136"
+       x2="376"
+       y2="376"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(-340,-200)">
+      <stop
+         stop-color="#FFFFFF"
+         id="stop3-5" />
+      <stop
+         offset="1"
+         stop-color="#EAF2F8"
+         id="stop4-2" />
+    </linearGradient>
+  </defs>
+  <rect
+     width="1400"
+     height="280"
+     fill="#F0F0F1"
+     id="rect4" />
+  <rect
+     y="278"
+     width="1400"
+     height="2"
+     fill="#C3C4C7"
+     id="rect5" />
+  <g
+     transform="translate(208 56)"
+     id="g25">
+    <text
+       x="0"
+       y="58"
+       fill="#071C4D"
+       font-family="Verdana, Arial, sans-serif"
+       font-size="72"
+       font-weight="700"
+       id="text24"
+       style="-inkscape-font-specification:'Sukhumvit Set, Bold';font-family:'Sukhumvit Set';font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:72px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#071c4d">EventON APIfy</text>
+  </g>
+  <g
+     transform="translate(215.17969,158.5)"
+     id="g27">
+    <rect
+       width="825.26642"
+       height="63.858547"
+       fill="#ffffff"
+       stroke="#c3c4c7"
+       id="rect25"
+       x="0.070726566"
+       y="0.070726566"
+       style="stroke-width:1.14145" />
+    <rect
+       width="6"
+       height="64"
+       fill="#72aee6"
+       id="rect26"
+       x="0"
+       y="0" />
+    <text
+       x="26"
+       y="28"
+       fill="#1d2327"
+       font-family="Verdana, Arial, sans-serif"
+       font-size="20px"
+       font-weight="400"
+       id="text26"
+       inkscape:label="text26">Control EventON API access, compatibility routes, and MCP schema discovery.</text>
+    <text
+       x="26"
+       y="49"
+       fill="#50575e"
+       font-family="Verdana, Arial, sans-serif"
+       font-size="15px"
+       font-weight="400"
+       id="text27">Administrator-only request tooling for WordPress sites.</text>
+  </g>
+  <g
+     id="g1"
+     transform="matrix(0.37352145,0,0,0.37352145,135.3758,86.798917)">
+    <rect
+       x="-276"
+       y="-136"
+       width="384"
+       height="384"
+       rx="88"
+       fill="url(#eventonApifyLogoBg)"
+       id="rect5-7"
+       style="fill:url(#eventonApifyLogoBg)" />
+    <rect
+       x="-242"
+       y="-94"
+       width="316"
+       height="300"
+       rx="48"
+       fill="url(#eventonApifyLogoPanel)"
+       id="rect6-3"
+       style="fill:url(#eventonApifyLogoPanel)" />
+    <rect
+       x="-242"
+       y="-94"
+       width="316"
+       height="72"
+       rx="48"
+       fill="#071c4d"
+       id="rect7-7" />
+    <rect
+       x="-242"
+       y="-58"
+       width="316"
+       height="36"
+       fill="#071c4d"
+       id="rect8-9" />
+    <rect
+       x="-186"
+       y="-124"
+       width="28"
+       height="72"
+       rx="14"
+       fill="#f26c1f"
+       id="rect9-0" />
+    <rect
+       x="-10"
+       y="-124"
+       width="28"
+       height="72"
+       rx="14"
+       fill="#f26c1f"
+       id="rect10-2" />
+    <circle
+       cx="-135.5"
+       cy="-58"
+       r="8"
+       fill="#ffd3c2"
+       id="circle10" />
+    <circle
+       cx="-105.5"
+       cy="-58"
+       r="8"
+       fill="#ffe7a6"
+       id="circle11-3" />
+    <circle
+       cx="-75.5"
+       cy="-58"
+       r="8"
+       fill="#87e6c1"
+       id="circle12-9" />
+    <rect
+       x="-214"
+       y="72.453705"
+       width="92"
+       height="20"
+       rx="10"
+       fill="#d6e4f0"
+       id="rect12"
+       style="stroke:#808080" />
+    <rect
+       x="-214"
+       y="8.6985931"
+       width="112"
+       height="20"
+       rx="10"
+       fill="#d6e4f0"
+       id="rect13-9"
+       style="stroke:#808080" />
+    <rect
+       x="-214"
+       y="104.33127"
+       width="98"
+       height="20"
+       rx="10"
+       fill="#d6e4f0"
+       id="rect15-7"
+       style="fill:#b3b3b3;stroke:#808080" />
+    <rect
+       x="-75.5"
+       y="6"
+       width="124"
+       height="118"
+       rx="28"
+       fill="#071c4d"
+       id="rect16-0" />
+    <path
+       d="m -35.5,41 c -7.333,5.333 -11,13 -11,23 0,10 3.667,17.667 11,23"
+       stroke="#ffffff"
+       stroke-width="10"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       id="path16-3" />
+    <path
+       d="m 8.5,41 c 7.333,5.333 11,13 11,23 0,10 -3.667,17.667 -11,23"
+       stroke="#ffffff"
+       stroke-width="10"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       id="path17-9" />
+    <path
+       d="m -7.5,36 -12,56"
+       stroke="#60b3ff"
+       stroke-width="10"
+       stroke-linecap="round"
+       id="path18-8" />
+    <rect
+       x="-214"
+       y="41.576157"
+       width="80"
+       height="18"
+       rx="9"
+       fill="#60b3ff"
+       id="rect18"
+       style="stroke:#808080" />
+    <path
+       id="circle18-6"
+       d="m -247.58203,152 a 18,18 0 0 0 -18,18 18,18 0 0 0 18,18 18,18 0 0 0 16.76172,-11.56641 6.6801,6.6801 0 0 0 1.23828,0.2461 h 128.35742 a 6.6801,6.6801 0 0 0 0.51563,-0.10157 A 18,18 0 0 0 -90,186.92383 V 238 a 6,6 0 0 0 0.13477,1.02539 A 18,18 0 0 0 -102,256 18,18 0 0 0 -84,274 18,18 0 0 0 -66,256 18,18 0 0 0 -78.13086,238.98828 6,6 0 0 0 -78,238 V 186.92383 A 18,18 0 0 0 -66.78125,175.21289 6,6 0 0 0 -63.95898,176 H 36.95898 A 6,6 0 0 0 38.94141,175.64062 18,18 0 0 0 56,188 18,18 0 0 0 74,170 18,18 0 0 0 56,152 18,18 0 0 0 38.94531,164.34766 6,6 0 0 0 36.95898,164 H -63.95898 a 6,6 0 0 0 -2.81446,0.7832 A 18,18 0 0 0 -84,152 a 18,18 0 0 0 -16.70898,11.42188 6.6801,6.6801 0 0 0 -0.51563,-0.10157 h -128.35742 a 6.6801,6.6801 0 0 0 -1.19727,0.23828 A 18,18 0 0 0 -247.58203,152 Z"
+       style="fill:#ffffff;stroke:#000000" />
+    <circle
+       cx="-247.5817"
+       cy="170"
+       r="8"
+       fill="#f26c1f"
+       id="circle22-5" />
+    <circle
+       cx="56"
+       cy="170"
+       r="8"
+       fill="#f26c1f"
+       id="circle23-7" />
+    <circle
+       cx="-84"
+       cy="256"
+       r="8"
+       fill="#0f7ac9"
+       id="circle24-6" />
+    <circle
+       cx="-84"
+       cy="170"
+       r="8"
+       fill="#0f7ac9"
+       id="circle24-3" />
+  </g>
+</svg>

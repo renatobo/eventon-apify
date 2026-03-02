@@ -278,84 +278,152 @@ function eventon_apify_render_settings_page() {
     $wp_v2_compat_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
     $manifest_collection_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema';
     $manifest_type_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema/ajde_events';
+    $project_url = 'https://github.com/renatobo/eventon-apify';
+    $author_url = 'https://github.com/renatobo';
+    $git_updater_url = 'https://github.com/afragen/git-updater';
+    $banner_url = plugins_url('assets/eventon-apify-settings-banner.svg', __FILE__);
     ?>
     <div class="wrap">
-        <h1>EventON APIfy Settings</h1>
-        <p class="description">
-            Control the availability of the custom REST API endpoints for EventON events. The API is designed for
-            administrator-authenticated integrations and works well with WordPress Application Passwords.
-        </p>
+        <div class="eventon-apify-admin">
+            <div class="eventon-apify-hero">
+                <img
+                    src="<?php echo esc_url($banner_url); ?>"
+                    alt="EventON APIfy settings banner"
+                    class="eventon-apify-hero-image"
+                />
+            </div>
 
-        <div style="background: #eaf6ff; border-left: 4px solid #2271b1; padding: 12px 16px; margin-bottom: 20px;">
-            <strong>Automatic Updates:</strong>
-            <br>
-            This plugin supports automatic updates through
-            <a href="https://github.com/afragen/github-updater" target="_blank" rel="noopener noreferrer">GitHub Updater</a>.
-            Install GitHub Updater to receive update notifications and one-click updates from this repository.
-        </div>
+            <div class="eventon-apify-meta">
+                <a href="<?php echo esc_url($project_url); ?>" target="_blank" rel="noopener noreferrer">
+                    Project URL
+                </a>
+                <span>Version <?php echo esc_html(EVENTON_APIFY_VERSION); ?></span>
+                <a href="<?php echo esc_url($author_url); ?>" target="_blank" rel="noopener noreferrer">
+                    Renato Bonomini on GitHub
+                </a>
+                <span>
+                    Updates via
+                    <a href="<?php echo esc_url($git_updater_url); ?>" target="_blank" rel="noopener noreferrer">
+                        Git Updater
+                    </a>
+                </span>
+            </div>
 
-        <?php if (!eventon_apify_is_eventon_available()) : ?>
-            <div class="notice notice-warning inline">
-                <p>
-                    <strong>EventON not detected.</strong>
-                    Activate EventON so the <code>ajde_events</code> post type is available before using these endpoints.
+            <div class="eventon-apify-headline">
+                <h1>EventON APIfy Settings</h1>
+                <p class="eventon-apify-intro">
+                Control the availability of the custom EventON REST API surface, the standard <code>wp/v2</code>
+                compatibility layer, and the discovery docs that compatible clients use to build correct requests.
                 </p>
             </div>
-        <?php endif; ?>
 
-        <form method="post" action="options.php">
-            <?php settings_fields('eventon_apify_settings_group'); ?>
-            <?php do_settings_sections('eventon_apify_settings_group'); ?>
+            <?php settings_errors(); ?>
 
-            <table class="form-table">
-                <tr valign="top">
-                    <th scope="row">
-                        Event API
-                        <span class="dashicons dashicons-editor-help" title="Enable or disable the REST endpoints under /wp-json/eventonapify/v1/events."></span>
-                    </th>
-                    <td>
-                        <label>
-                            <input
-                                type="checkbox"
-                                name="<?php echo esc_attr(EVENTON_APIFY_OPTION_ENABLE_API); ?>"
-                                value="1"
-                                <?php checked(true, (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false), true); ?>
-                            />
-                            Enable the EventON events API
-                        </label>
-                        <p class="description">
-                            When enabled, administrator-authenticated requests can list, create, update, and delete
-                            EventON events through the WordPress REST API. Use the capability list below to enable or
-                            disable specific operations without turning off the entire API.
-                            <br><br>
-                            <strong>Namespace:</strong><br>
-                            <code>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code>
-                            <br><br>
-                            <strong>Routes:</strong><br>
-                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events</code><br>
-                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code><br>
-                            <code>POST <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events</code><br>
-                            <code>PUT/PATCH <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code><br>
+            <?php if (!eventon_apify_is_eventon_available()) : ?>
+                <div class="notice notice-warning inline">
+                    <p>
+                        <strong>EventON not detected.</strong>
+                        Activate EventON so the <code>ajde_events</code> post type is available before using these endpoints.
+                    </p>
+                </div>
+            <?php endif; ?>
+
+            <nav class="nav-tab-wrapper eventon-apify-tabs" role="tablist" aria-label="EventON APIfy sections">
+                <a href="#api" class="nav-tab eventon-apify-tab nav-tab-active" role="tab" aria-selected="true" data-panel="api">
+                    Event API
+                </a>
+                <a href="#compat" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="compat">
+                    WP v2 compatibility
+                </a>
+                <a href="#manifest" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="manifest">
+                    MCP schema manifest
+                </a>
+                <a href="#fields" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="fields">
+                    Request fields
+                </a>
+                <a href="#passwords" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="passwords">
+                    Application Passwords
+                </a>
+            </nav>
+
+            <form method="post" action="options.php" class="eventon-apify-shell">
+                <?php settings_fields('eventon_apify_settings_group'); ?>
+                <?php do_settings_sections('eventon_apify_settings_group'); ?>
+
+                <section class="eventon-apify-panel is-active" id="api" data-panel="api" role="tabpanel">
+                    <div class="eventon-apify-panel-header">
+                        <div>
+                            <h2>Event API and capability toggles</h2>
+                            <p>
+                                Gate the custom <code><?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code> REST
+                                surface without changing authentication requirements.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card eventon-apify-card-accent">
+                        <div class="eventon-apify-switch-row">
+                            <div>
+                                <h3>Event API</h3>
+                                <p>
+                                    Enable or disable the protected REST endpoints under
+                                    <code>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code>.
+                                </p>
+                            </div>
+                            <label class="eventon-apify-toggle">
+                                <input
+                                    type="checkbox"
+                                    name="<?php echo esc_attr(EVENTON_APIFY_OPTION_ENABLE_API); ?>"
+                                    value="1"
+                                    <?php checked(true, $api_enabled, true); ?>
+                                />
+                                <span>Enable EventON events API</span>
+                            </label>
+                        </div>
+
+                        <div class="eventon-apify-grid eventon-apify-grid-two">
+                            <div class="eventon-apify-code-card">
+                                <strong>Namespace</strong>
+                                <code>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code>
+                            </div>
+                            <div class="eventon-apify-code-card">
+                                <strong>Authentication</strong>
+                                <span>Administrator access using WordPress credentials or Application Passwords.</span>
+                            </div>
+                        </div>
+
+                        <div class="eventon-apify-route-list">
+                            <strong>Routes</strong>
+                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events</code>
+                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code>
+                            <code>POST <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events</code>
+                            <code>PUT/PATCH <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code>
                             <code>DELETE <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code>
-                            <br><br>
-                            <strong>Examples:</strong><br>
+                        </div>
+
+                        <div class="eventon-apify-example-grid">
                             <div class="eventon-apify-example">
+                                <strong>Collection example</strong>
                                 <code id="eventon-apify-example-get"><?php echo esc_html($site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/events?per_page=10&page=1'); ?></code>
                                 <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-get'); return false;">Copy</button>
                             </div>
                             <div class="eventon-apify-example">
+                                <strong>Authenticated curl example</strong>
                                 <code id="eventon-apify-example-curl">curl -u your_username:your_app_password "<?php echo esc_html($site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/events?search=ride'); ?>"</code>
                                 <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-curl'); return false;">Copy</button>
                             </div>
-                        </p>
-                    </td>
-                </tr>
-                <tr valign="top">
-                    <th scope="row">
-                        API capabilities
-                        <span class="dashicons dashicons-editor-help" title="Choose which REST operations are allowed when the Event API is enabled."></span>
-                    </th>
-                    <td>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card">
+                        <div class="eventon-apify-panel-copy">
+                            <h3>API capabilities</h3>
+                            <p>
+                                Disable specific REST operations without turning off the entire API. Requests still
+                                require administrator authentication, and disabled capabilities return <code>403</code>.
+                            </p>
+                        </div>
+
                         <fieldset class="eventon-apify-capabilities">
                             <legend class="screen-reader-text">API capabilities</legend>
                             <?php foreach ($definitions as $capability => $definition) : ?>
@@ -386,83 +454,109 @@ function eventon_apify_render_settings_page() {
                                 </label>
                             <?php endforeach; ?>
                         </fieldset>
-                        <p class="description">
-                            All requests still require administrator authentication. Disabling a capability returns
-                            <code>403</code> for that operation only.
-                        </p>
-                    </td>
-                </tr>
-                <tr valign="top">
-                    <th scope="row">
-                        WP v2 compatibility
-                        <span class="dashicons dashicons-editor-help" title="Expose EventON events and taxonomies through the standard /wp-json/wp/v2 API so generic WordPress tools such as MCP content servers can discover them."></span>
-                    </th>
-                    <td>
-                        <label>
-                            <input
-                                type="checkbox"
-                                name="<?php echo esc_attr(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT); ?>"
-                                value="1"
-                                <?php checked(true, $wp_v2_compat_enabled, true); ?>
-                            />
-                            Enable standard <code>wp/v2</code> compatibility for EventON events
-                        </label>
-                        <p class="description">
-                            When enabled, the plugin exposes <code>ajde_events</code> through the standard WordPress
-                            REST API at <code>/wp-json/wp/v2/ajde_events</code> and exposes
-                            <code>event_type</code>, <code>event_location</code>, and <code>event_organizer</code>
-                            taxonomies under <code>wp/v2</code> as well.
-                            <br><br>
-                            This is intended for generic WordPress clients such as
-                            <a href="https://github.com/InstaWP/mcp-wp" target="_blank" rel="noopener noreferrer">InstaWP mcp-wp</a>.
-                            The custom <code><?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code> namespace remains unchanged.
-                            <br><br>
-                            <strong>Compatibility routes:</strong><br>
-                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/types/ajde_events</code><br>
-                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/ajde_events</code><br>
-                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/event_location</code><br>
+                    </div>
+                </section>
+
+                <section class="eventon-apify-panel" id="compat" data-panel="compat" role="tabpanel" hidden>
+                    <div class="eventon-apify-panel-header">
+                        <div>
+                            <h2>WP v2 compatibility</h2>
+                            <p>
+                                Expose EventON content through the standard WordPress REST API so generic WordPress
+                                tools can discover and operate on it.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card">
+                        <div class="eventon-apify-switch-row">
+                            <div>
+                                <h3>Standard <code>wp/v2</code> compatibility</h3>
+                                <p>
+                                    Publish <code>ajde_events</code> and related taxonomies under the standard
+                                    WordPress REST namespace while preserving EventON APIfy's custom namespace.
+                                </p>
+                            </div>
+                            <label class="eventon-apify-toggle">
+                                <input
+                                    type="checkbox"
+                                    name="<?php echo esc_attr(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT); ?>"
+                                    value="1"
+                                    <?php checked(true, $wp_v2_compat_enabled, true); ?>
+                                />
+                                <span>Enable <code>wp/v2</code> compatibility</span>
+                            </label>
+                        </div>
+
+                        <div class="eventon-apify-route-list">
+                            <strong>Compatibility routes</strong>
+                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/types/ajde_events</code>
+                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/ajde_events</code>
+                            <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/event_location</code>
                             <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/event_organizer</code>
-                            <br><br>
-                            <strong>Important:</strong> these routes are restricted to administrator-authenticated
-                            requests, and compatibility responses redact sensitive fields such as virtual access
-                            secrets and notification email metadata.
+                        </div>
+
+                        <p class="eventon-apify-note">
+                            Intended for generic WordPress clients such as
+                            <a href="https://github.com/InstaWP/mcp-wp" target="_blank" rel="noopener noreferrer">InstaWP mcp-wp</a>.
+                            These routes remain administrator-only, and compatibility responses redact sensitive
+                            fields like virtual access secrets and notification email metadata.
                         </p>
-                    </td>
-                </tr>
-                <tr valign="top">
-                    <th scope="row">
-                        MCP schema manifest
-                        <span class="dashicons dashicons-editor-help" title="Read-only discovery endpoints that publish the EventON field contract for compatible MCP servers."></span>
-                    </th>
-                    <td>
-                        <p class="description">
-                            Use the manifest endpoints below when you want an MCP server to discover how this plugin
-                            expects EventON events to be created and updated.
-                            <br><br>
-                            <strong>Manifest routes:</strong><br>
-                            <code>GET <?php echo esc_html($manifest_collection_url); ?></code><br>
-                            <code>GET <?php echo esc_html($manifest_type_url); ?></code>
-                            <br><br>
+                    </div>
+                </section>
+
+                <section class="eventon-apify-panel" id="manifest" data-panel="manifest" role="tabpanel" hidden>
+                    <div class="eventon-apify-panel-header">
+                        <div>
+                            <h2>MCP schema manifest</h2>
+                            <p>
+                                Publish the executable EventON field contract for compatible MCP servers and other
+                                structured clients.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card">
+                        <div class="eventon-apify-example-grid">
+                            <div class="eventon-apify-example">
+                                <strong>Manifest collection</strong>
+                                <code id="eventon-apify-manifest-collection"><?php echo esc_html($manifest_collection_url); ?></code>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-collection'); return false;">Copy</button>
+                            </div>
+                            <div class="eventon-apify-example">
+                                <strong>Content type detail</strong>
+                                <code id="eventon-apify-manifest-type"><?php echo esc_html($manifest_type_url); ?></code>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-type'); return false;">Copy</button>
+                            </div>
+                        </div>
+
+                        <p>
                             The manifest is read-only and safe to expose. It describes the executable EventON field
                             contract using <code>preferred_endpoint</code>, <code>preferred_write_mode</code>,
                             structured <code>fields</code>, executable <code>validation_rules</code>, and normalized
-                            <code>examples.create</code>/<code>examples.update</code> payloads for
+                            <code>examples.create</code> and <code>examples.update</code> payloads for
                             <code>ajde_events</code>.
-                            <br><br>
-                            <strong>Important:</strong> the manifest does not replace <code>wp/v2</code> writes. It
-                            exists to inform compatible clients how to use
-                            <code>/wp-json/wp/v2/ajde_events</code> correctly.
                         </p>
-                    </td>
-                </tr>
-            </table>
+                        <p class="eventon-apify-note">
+                            The manifest does not replace <code>wp/v2</code> writes. It exists to inform compatible
+                            clients how to use <code>/wp-json/wp/v2/ajde_events</code> correctly.
+                        </p>
+                    </div>
+                </section>
 
-            <?php submit_button(); ?>
-        </form>
+                <section class="eventon-apify-panel" id="fields" data-panel="fields" role="tabpanel" hidden>
+                    <div class="eventon-apify-panel-header">
+                        <div>
+                            <h2>Request fields</h2>
+                            <p>
+                                Preferred JSON payloads use EventON-style nested objects. Legacy flat aliases such as
+                                <code>location_name</code> are still accepted for backward compatibility.
+                            </p>
+                        </div>
+                    </div>
 
-        <h2>Request fields</h2>
-        <p>For <code>POST</code> and <code>PUT/PATCH</code> requests, the preferred JSON payload uses EventON-style nested objects. Legacy flat aliases such as <code>location_name</code> are still accepted for backward compatibility.</p>
-        <pre>{
+                    <div class="eventon-apify-card">
+                        <pre>{
   "title": "Ride to Big Bear",
   "description": "Optional HTML content",
   "excerpt": "Short summary",
@@ -505,40 +599,201 @@ function eventon_apify_render_settings_page() {
     "capacity_count": 75
   }
 }</pre>
+                    </div>
+                </section>
 
-        <h2>How to set up an Application Password</h2>
-        <ol>
-            <li>Log in to your WordPress Admin Dashboard.</li>
-            <li>Go to <strong>Users -> Profile</strong>.</li>
-            <li>Scroll down to the <strong>Application Passwords</strong> section.</li>
-            <li>Enter a name like <em>EventON API Access</em> and click <strong>Add New Application Password</strong>.</li>
-            <li>Copy the generated password.</li>
-            <li>Use it with your WordPress username in Basic Auth requests.</li>
-        </ol>
-        <p><strong>Note:</strong> Your site should use HTTPS for Application Passwords.</p>
+                <section class="eventon-apify-panel" id="passwords" data-panel="passwords" role="tabpanel" hidden>
+                    <div class="eventon-apify-panel-header">
+                        <div>
+                            <h2>How to set up an Application Password</h2>
+                            <p>
+                                Use WordPress Application Passwords for administrator-authenticated requests to the
+                                custom EventON API or the compatibility routes.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card">
+                        <ol class="eventon-apify-steps">
+                            <li>Log in to your WordPress Admin Dashboard.</li>
+                            <li>Go to <strong>Users -> Profile</strong>.</li>
+                            <li>Scroll down to the <strong>Application Passwords</strong> section.</li>
+                            <li>Enter a name like <em>EventON API Access</em> and click <strong>Add New Application Password</strong>.</li>
+                            <li>Copy the generated password.</li>
+                            <li>Use it with your WordPress username in Basic Auth requests.</li>
+                        </ol>
+                        <p class="eventon-apify-note">
+                            Your site should use HTTPS for Application Passwords. Store the generated password once,
+                            because WordPress will not show it again.
+                        </p>
+                    </div>
+                </section>
+
+                <div class="eventon-apify-footer">
+                    <?php submit_button('Save settings', 'primary', 'submit', false); ?>
+                </div>
+            </form>
+        </div>
 
         <style>
-            .form-table th {
+            .eventon-apify-admin {
+                max-width: 1120px;
+                margin-top: 18px;
+            }
+
+            .eventon-apify-hero {
+                margin: 0 0 16px;
+                border: 1px solid #c8ccd0;
+                background: #f6f7f7;
+            }
+
+            .eventon-apify-hero-image {
+                display: block;
+                width: 100%;
+                height: auto;
+            }
+
+            .eventon-apify-headline {
+                margin: 8px 0 20px;
+            }
+
+            .eventon-apify-headline h1 {
+                margin: 0 0 8px;
+                font-size: 42px;
+                line-height: 1.1;
+                color: #0f172a;
+                font-weight: 400;
+            }
+
+            .eventon-apify-intro,
+            .eventon-apify-panel-header p,
+            .eventon-apify-panel-copy p,
+            .eventon-apify-note,
+            .eventon-apify-switch-row p {
+                margin: 0;
+                color: #475569;
+                font-size: 14px;
+                line-height: 1.65;
+            }
+
+            .eventon-apify-meta {
                 display: flex;
-                align-items: center;
-            }
-
-            .form-table th .dashicons-editor-help {
-                margin-left: 5px;
-                cursor: help;
-                color: #666;
-            }
-
-            .form-table th .dashicons-editor-help:hover {
-                color: #0073aa;
-            }
-
-            .eventon-apify-example {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 8px;
                 flex-wrap: wrap;
+                gap: 10px;
+                margin: 16px 0 10px;
+            }
+
+            .eventon-apify-meta a,
+            .eventon-apify-meta span {
+                display: inline-flex;
+                align-items: center;
+                min-height: 36px;
+                padding: 0 14px;
+                background: #f6f7f7;
+                border: 1px solid #c3c4c7;
+                color: #0f172a;
+                text-decoration: none;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            }
+
+            .eventon-apify-meta a:hover {
+                border-color: #2271b1;
+                color: #2271b1;
+            }
+
+            .eventon-apify-intro {
+                margin-bottom: 20px;
+                max-width: 76ch;
+            }
+
+            .eventon-apify-tabs {
+                margin: 24px 0 0;
+            }
+
+            .eventon-apify-tabs .eventon-apify-tab {
+                display: inline-block;
+                float: none;
+            }
+
+            .eventon-apify-tabs .eventon-apify-tab:focus {
+                box-shadow: 0 0 0 1px #2271b1;
+            }
+
+            .eventon-apify-shell {
+                display: grid;
+                gap: 18px;
+                padding-top: 20px;
+            }
+
+            .eventon-apify-panel {
+                display: grid;
+                gap: 18px;
+            }
+
+            .eventon-apify-panel-header h2,
+            .eventon-apify-panel-copy h3,
+            .eventon-apify-switch-row h3 {
+                margin: 0 0 8px;
+                color: #0f172a;
+            }
+
+            .eventon-apify-card {
+                padding: 22px;
+                border: 1px solid #c3c4c7;
+                background: #ffffff;
+            }
+
+            .eventon-apify-card-accent {
+                border-left: 4px solid #72aee6;
+                background: #f6f7f7;
+            }
+
+            .eventon-apify-switch-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 18px;
+                margin-bottom: 18px;
+            }
+
+            .eventon-apify-toggle {
+                display: inline-flex;
+                gap: 10px;
+                align-items: center;
+                background: #ffffff;
+                border: 1px solid #c3c4c7;
+                padding: 12px 14px;
+                font-weight: 600;
+                color: #0f172a;
+            }
+
+            .eventon-apify-grid {
+                display: grid;
+                gap: 14px;
+            }
+
+            .eventon-apify-grid-two,
+            .eventon-apify-example-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .eventon-apify-code-card,
+            .eventon-apify-example {
+                display: grid;
+                gap: 8px;
+                padding: 14px;
+                border: 1px solid #dcdcde;
+                background: #ffffff;
+            }
+
+            .eventon-apify-example .button {
+                width: fit-content;
+            }
+
+            .eventon-apify-route-list {
+                display: grid;
+                gap: 8px;
+                margin: 18px 0;
             }
 
             .eventon-apify-capabilities {
@@ -589,9 +844,24 @@ function eventon_apify_render_settings_page() {
 
             .eventon-apify-capability-meta {
                 display: grid;
-                gap: 2px;
+                gap: 4px;
                 margin-left: 26px;
                 color: #50575e;
+            }
+
+            .eventon-apify-footer {
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .eventon-apify-steps {
+                margin: 0;
+                padding-left: 18px;
+                color: #1e293b;
+            }
+
+            .eventon-apify-steps li + li {
+                margin-top: 8px;
             }
 
             code,
@@ -608,6 +878,20 @@ function eventon_apify_render_settings_page() {
                 padding: 12px;
                 overflow-x: auto;
             }
+
+            @media (max-width: 960px) {
+                .eventon-apify-hero,
+                .eventon-apify-grid-two,
+                .eventon-apify-example-grid,
+                .eventon-apify-switch-row {
+                    grid-template-columns: 1fr;
+                    display: grid;
+                }
+
+                .eventon-apify-switch-row {
+                    justify-content: stretch;
+                }
+            }
         </style>
         <script>
         function eventonApifyCopy(elementId) {
@@ -619,6 +903,33 @@ function eventon_apify_render_settings_page() {
 
             navigator.clipboard.writeText(source.textContent);
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabs = document.querySelectorAll('.eventon-apify-tab');
+            const panels = document.querySelectorAll('.eventon-apify-panel');
+
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function (event) {
+                    event.preventDefault();
+
+                    const targetPanel = tab.getAttribute('data-panel');
+
+                    tabs.forEach(function (item) {
+                        item.classList.remove('nav-tab-active');
+                        item.setAttribute('aria-selected', 'false');
+                    });
+
+                    panels.forEach(function (panel) {
+                        const isTarget = panel.getAttribute('data-panel') === targetPanel;
+                        panel.classList.toggle('is-active', isTarget);
+                        panel.hidden = !isTarget;
+                    });
+
+                    tab.classList.add('nav-tab-active');
+                    tab.setAttribute('aria-selected', 'true');
+                });
+            });
+        });
         </script>
     </div>
     <?php
