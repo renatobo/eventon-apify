@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="1400"
-   height="280"
-   viewBox="0 0 1400 280"
+   width="749.65717"
+   height="200.49138"
+   viewBox="0 0 749.65717 200.49138"
    fill="none"
    version="1.1"
    id="svg27"
@@ -21,14 +21,14 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="0.62685109"
-     inkscape:cx="378.08022"
-     inkscape:cy="74.180296"
-     inkscape:window-width="1736"
-     inkscape:window-height="1102"
+     inkscape:zoom="0.93794952"
+     inkscape:cx="381.68365"
+     inkscape:cy="305.45354"
+     inkscape:window-width="1664"
+     inkscape:window-height="1034"
      inkscape:window-x="0"
      inkscape:window-y="39"
-     inkscape:window-maximized="1"
+     inkscape:window-maximized="0"
      inkscape:current-layer="svg27" />
   <defs
      id="defs4">
@@ -96,18 +96,16 @@
     </linearGradient>
   </defs>
   <rect
-     width="1400"
-     height="280"
-     fill="#F0F0F1"
-     id="rect4" />
-  <rect
-     y="278"
-     width="1400"
-     height="2"
-     fill="#C3C4C7"
-     id="rect5" />
+     width="749.65717"
+     height="200.49138"
+     fill="#f0f0f1"
+     id="rect4"
+     x="0"
+     y="0"
+     style="stroke-width:0.619208"
+     ry="36" />
   <g
-     transform="translate(208 56)"
+     transform="translate(225.07684,59.633689)"
      id="g25">
     <text
        x="0"
@@ -117,48 +115,11 @@
        font-size="72"
        font-weight="700"
        id="text24"
-       style="-inkscape-font-specification:'Sukhumvit Set, Bold';font-family:'Sukhumvit Set';font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:72px;font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#071c4d">EventON APIfy</text>
-  </g>
-  <g
-     transform="translate(215.17969,158.5)"
-     id="g27">
-    <rect
-       width="825.26642"
-       height="63.858547"
-       fill="#ffffff"
-       stroke="#c3c4c7"
-       id="rect25"
-       x="0.070726566"
-       y="0.070726566"
-       style="stroke-width:1.14145" />
-    <rect
-       width="6"
-       height="64"
-       fill="#72aee6"
-       id="rect26"
-       x="0"
-       y="0" />
-    <text
-       x="26"
-       y="28"
-       fill="#1d2327"
-       font-family="Verdana, Arial, sans-serif"
-       font-size="20px"
-       font-weight="400"
-       id="text26"
-       inkscape:label="text26">Control EventON API access, compatibility routes, and MCP schema discovery.</text>
-    <text
-       x="26"
-       y="49"
-       fill="#50575e"
-       font-family="Verdana, Arial, sans-serif"
-       font-size="15px"
-       font-weight="400"
-       id="text27">Administrator-only request tooling for WordPress sites.</text>
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:72px;font-family:'Sukhumvit Set';-inkscape-font-specification:'Sukhumvit Set, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#071c4d">EventON APIfy</text>
   </g>
   <g
      id="g1"
-     transform="matrix(0.37352145,0,0,0.37352145,135.3758,86.798917)">
+     transform="matrix(0.37352145,0,0,0.37352145,142.83889,74.379329)">
     <rect
        x="-276"
        y="-136"

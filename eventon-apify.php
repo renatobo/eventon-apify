@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('EVENTON_APIFY_VERSION', '1.2.1');
+define('EVENTON_APIFY_VERSION', '1.2.2');
 define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
@@ -295,18 +295,15 @@ function eventon_apify_render_settings_page() {
 
             <div class="eventon-apify-meta">
                 <a href="<?php echo esc_url($project_url); ?>" target="_blank" rel="noopener noreferrer">
-                    Project URL
+                    Plugin Repository
                 </a>
                 <span>Version <?php echo esc_html(EVENTON_APIFY_VERSION); ?></span>
                 <a href="<?php echo esc_url($author_url); ?>" target="_blank" rel="noopener noreferrer">
                     Renato Bonomini on GitHub
                 </a>
-                <span>
-                    Updates via
-                    <a href="<?php echo esc_url($git_updater_url); ?>" target="_blank" rel="noopener noreferrer">
-                        Git Updater
-                    </a>
-                </span>
+                <a href="<?php echo esc_url($git_updater_url); ?>" target="_blank" rel="noopener noreferrer">
+                    Updates via Git Updater
+                </a>
             </div>
 
             <div class="eventon-apify-headline">
@@ -314,6 +311,10 @@ function eventon_apify_render_settings_page() {
                 <p class="eventon-apify-intro">
                 Control the availability of the custom EventON REST API surface, the standard <code>wp/v2</code>
                 compatibility layer, and the discovery docs that compatible clients use to build correct requests.
+                </p>
+                <p class="eventon-apify-intro eventon-apify-intro-secondary">
+                    This plugin enables using MCP, with an extended MCP server available at
+                    <a href="https://github.com/renatobo/mcp-wp-cpt" target="_blank" rel="noopener noreferrer">renatobo/mcp-wp-cpt</a>.
                 </p>
             </div>
 
@@ -706,6 +707,10 @@ function eventon_apify_render_settings_page() {
                 max-width: 76ch;
             }
 
+            .eventon-apify-intro-secondary {
+                margin-top: -8px;
+            }
+
             .eventon-apify-tabs {
                 margin: 24px 0 0;
             }
@@ -728,6 +733,10 @@ function eventon_apify_render_settings_page() {
             .eventon-apify-panel {
                 display: grid;
                 gap: 18px;
+            }
+
+            .eventon-apify-panel[hidden] {
+                display: none;
             }
 
             .eventon-apify-panel-header h2,
@@ -908,26 +917,40 @@ function eventon_apify_render_settings_page() {
             const tabs = document.querySelectorAll('.eventon-apify-tab');
             const panels = document.querySelectorAll('.eventon-apify-panel');
 
+            function activateTab(targetPanel, updateHash) {
+                let hasMatch = false;
+
+                tabs.forEach(function (item) {
+                    const isTarget = item.getAttribute('data-panel') === targetPanel;
+                    item.classList.toggle('nav-tab-active', isTarget);
+                    item.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+                    hasMatch = hasMatch || isTarget;
+                });
+
+                panels.forEach(function (panel) {
+                    const isTarget = panel.getAttribute('data-panel') === targetPanel;
+                    panel.classList.toggle('is-active', isTarget);
+                    panel.hidden = !isTarget;
+                });
+
+                if (hasMatch && updateHash) {
+                    window.location.hash = targetPanel;
+                }
+            }
+
             tabs.forEach(function (tab) {
                 tab.addEventListener('click', function (event) {
                     event.preventDefault();
-
-                    const targetPanel = tab.getAttribute('data-panel');
-
-                    tabs.forEach(function (item) {
-                        item.classList.remove('nav-tab-active');
-                        item.setAttribute('aria-selected', 'false');
-                    });
-
-                    panels.forEach(function (panel) {
-                        const isTarget = panel.getAttribute('data-panel') === targetPanel;
-                        panel.classList.toggle('is-active', isTarget);
-                        panel.hidden = !isTarget;
-                    });
-
-                    tab.classList.add('nav-tab-active');
-                    tab.setAttribute('aria-selected', 'true');
+                    activateTab(tab.getAttribute('data-panel'), true);
                 });
+            });
+
+            const initialPanel = window.location.hash ? window.location.hash.replace('#', '') : 'api';
+            activateTab(initialPanel, false);
+
+            window.addEventListener('hashchange', function () {
+                const hashPanel = window.location.hash ? window.location.hash.replace('#', '') : 'api';
+                activateTab(hashPanel, false);
             });
         });
         </script>
