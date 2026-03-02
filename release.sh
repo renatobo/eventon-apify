@@ -69,7 +69,7 @@ assert_versions_match() {
 
 update_file "readme.txt" "^Stable tag: .*" "Stable tag: $VERSION"
 update_file "eventon-apify.php" "^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*.*" " * Version:           $VERSION"
-update_file "eventon-apify.php" "^define\\('EVENTON_APIFY_VERSION', '.*'\\);$" "define('EVENTON_APIFY_VERSION', '$VERSION');"
+update_file "eventon-apify.php" "^define('EVENTON_APIFY_VERSION', '.*');$" "define('EVENTON_APIFY_VERSION', '$VERSION');"
 
 assert_versions_match
 
