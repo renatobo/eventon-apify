@@ -2,7 +2,7 @@
 
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
-[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-6.8.1-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-6.9-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Release](https://img.shields.io/github/v/release/renatobo/eventon-apify?label=release)](https://github.com/renatobo/eventon-apify/releases)
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
