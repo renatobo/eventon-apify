@@ -49,4 +49,12 @@
 
 ## Maintenance
 
+- The plugin updates row should use the standard WordPress plugin asset filenames:
+  - `assets/icon.svg`
+  - `assets/icon-128x128.png`
+  - `assets/icon-256x256.png`
+- Keep those icon assets aligned with the primary logo artwork in `assets/eventon-apify-logo.svg`.
+- The compatibility label shown in the updates UI depends on `readme.txt` metadata:
+  - `Tested up to` should be updated when the plugin is verified on a newer WordPress release
+  - `Unknown` is expected when the site version is newer than the published `Tested up to` value
 - When the header or tabs design changes, update this file in the same change.
