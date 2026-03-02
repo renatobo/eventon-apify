@@ -36,9 +36,42 @@ update_file() {
   mv "$tmp_file" "$file_path"
 }
 
+extract_plugin_header_version() {
+  sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' "eventon-apify.php" | head -n 1
+}
+
+extract_plugin_constant_version() {
+  sed -n "s/^define('EVENTON_APIFY_VERSION', '\\(.*\\)');$/\\1/p" "eventon-apify.php" | head -n 1
+}
+
+extract_stable_tag_version() {
+  sed -n 's/^Stable tag: //p' "readme.txt" | head -n 1
+}
+
+assert_versions_match() {
+  local header_version
+  local constant_version
+  local stable_tag_version
+
+  header_version="$(extract_plugin_header_version)"
+  constant_version="$(extract_plugin_constant_version)"
+  stable_tag_version="$(extract_stable_tag_version)"
+
+  if [[ "$header_version" != "$VERSION" || "$constant_version" != "$VERSION" || "$stable_tag_version" != "$VERSION" ]]; then
+    echo "Version mismatch detected after update:"
+    echo "  Plugin header: ${header_version:-missing}"
+    echo "  EVENTON_APIFY_VERSION: ${constant_version:-missing}"
+    echo "  Stable tag: ${stable_tag_version:-missing}"
+    echo "Expected all three to equal $VERSION."
+    exit 1
+  fi
+}
+
 update_file "readme.txt" "^Stable tag: .*" "Stable tag: $VERSION"
 update_file "eventon-apify.php" "^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*.*" " * Version:           $VERSION"
 update_file "eventon-apify.php" "^define\\('EVENTON_APIFY_VERSION', '.*'\\);$" "define('EVENTON_APIFY_VERSION', '$VERSION');"
+
+assert_versions_match
 
 git add readme.txt eventon-apify.php
 git commit -m "Bump version to $VERSION"

@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('EVENTON_APIFY_VERSION', '1.2.3');
+define('EVENTON_APIFY_VERSION', '1.2.4');
 define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
@@ -41,6 +41,7 @@ add_action('rest_api_init', 'eventon_apify_register_wp_v2_compatibility_fields')
 add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_wp_v2_compat', 10, 2);
 add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
 add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
 
 /**
  * Show an admin notice when PHP is too old for this plugin.
@@ -64,6 +65,27 @@ function eventon_apify_add_settings_page() {
         'eventon-apify-settings',
         'eventon_apify_render_settings_page'
     );
+}
+
+/**
+ * Add a Settings link on the Plugins screen.
+ *
+ * @param array<int, string> $links Existing action links.
+ * @return array<int, string>
+ */
+function eventon_apify_add_plugin_action_links($links) {
+    $settings_url = admin_url('options-general.php?page=eventon-apify-settings');
+
+    array_unshift(
+        $links,
+        sprintf(
+            '<a href="%s">%s</a>',
+            esc_url($settings_url),
+            esc_html__('Settings', 'eventon-apify')
+        )
+    );
+
+    return $links;
 }
 
 /**
@@ -646,11 +668,14 @@ function eventon_apify_render_settings_page() {
                 margin: 0 0 16px;
                 border: 1px solid #c8ccd0;
                 background: #f6f7f7;
+                display: block;
+                max-width: 750px;
+                width: fit-content;
             }
 
             .eventon-apify-hero-image {
                 display: block;
-                width: 100%;
+                width: min(100%, 750px);
                 height: auto;
             }
 
@@ -889,7 +914,6 @@ function eventon_apify_render_settings_page() {
             }
 
             @media (max-width: 960px) {
-                .eventon-apify-hero,
                 .eventon-apify-grid-two,
                 .eventon-apify-example-grid,
                 .eventon-apify-switch-row {

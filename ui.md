@@ -3,6 +3,9 @@
 ## Settings Header
 
 - Use the banner image at `assets/eventon-apify-settings-banner.svg` at the top of the settings page.
+- Render the banner at its intended width instead of stretching it to the full admin container.
+  - keep the header image capped near the SVG's native width (`~750px`)
+  - allow it to shrink on narrower screens without scaling larger than its authored size
 - The banner should keep the current visual direction:
   - EventON APIfy wordmark
   - calendar/API logo treatment
@@ -54,6 +57,10 @@
   - `assets/icon-128x128.png`
   - `assets/icon-256x256.png`
 - Keep those icon assets aligned with the primary logo artwork in `assets/eventon-apify-logo.svg`.
+- When cutting a release, keep these version references synchronized:
+  - `eventon-apify.php` plugin header `Version`
+  - `eventon-apify.php` constant `EVENTON_APIFY_VERSION`
+  - `readme.txt` `Stable tag`
 - The compatibility label shown in the updates UI depends on `readme.txt` metadata:
   - `Tested up to` should be updated when the plugin is verified on a newer WordPress release
   - `Unknown` is expected when the site version is newer than the published `Tested up to` value
