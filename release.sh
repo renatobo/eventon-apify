@@ -1,6 +1,12 @@
 #!/bin/bash
 
-read -p "Enter new version (e.g. 1.1.0): " VERSION
+set -euo pipefail
+
+VERSION="${1:-}"
+
+if [[ -z "$VERSION" ]]; then
+  read -r -p "Enter new version (e.g. 1.2.1): " VERSION
+fi
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Invalid version format. Use semantic versioning: X.Y.Z"
@@ -9,23 +15,41 @@ fi
 
 TAG="v$VERSION"
 
-sed -i '' "s/^Stable tag: .*/Stable tag: $VERSION/" readme.txt
-sed -i '' "s/^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*.*/ * Version:           $VERSION/" eventon-apify.php
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Working tree is not clean. Commit or stash changes before running a release."
+  exit 1
+fi
+
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+  echo "Tag $TAG already exists."
+  exit 1
+fi
+
+update_file() {
+  local file_path="$1"
+  local search_pattern="$2"
+  local replacement="$3"
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  sed "s/${search_pattern}/${replacement}/" "$file_path" > "$tmp_file"
+  mv "$tmp_file" "$file_path"
+}
+
+update_file "readme.txt" "^Stable tag: .*" "Stable tag: $VERSION"
+update_file "eventon-apify.php" "^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*.*" " * Version:           $VERSION"
 
 git add readme.txt eventon-apify.php
 git commit -m "Bump version to $VERSION"
+git tag -a "$TAG" -m "Release $VERSION"
 git push origin main
+git push origin "$TAG"
 
-echo "Version updated to $VERSION and pushed to main."
-echo "Waiting for GitHub Action to auto-tag version $TAG..."
+cat <<EOF
+Release prepared for $TAG.
 
-if command -v gh &> /dev/null; then
-  if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-    CHANGELOG=$(git log "$(git describe --tags --abbrev=0)..HEAD" --pretty=format:"- %s" --no-merges)
-  else
-    CHANGELOG=$(git log --pretty=format:"- %s" --no-merges)
-  fi
-  gh release create "$TAG" --title "EventON APIfy $VERSION" --notes "$CHANGELOG" || echo "GitHub release creation failed or already exists."
-else
-  echo "GitHub CLI (gh) not found. Skipping release creation."
-fi
+GitHub Actions will now:
+- build the WordPress plugin zip with ./build.sh
+- create or update the GitHub Release for $TAG
+- attach the generated versioned zip asset
+EOF

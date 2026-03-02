@@ -63,6 +63,23 @@ Build an installable plugin zip from the repo root:
 
 That creates a file like `eventon-apify-1.2.0.zip` in the project root, ready to upload in **Plugins -> Add New -> Upload Plugin**.
 
+## Releases
+
+To publish a GitHub release with the WordPress-ready zip attached:
+
+```bash
+./release.sh 1.2.1
+```
+
+That script:
+
+- updates the plugin version in `eventon-apify.php`
+- updates the stable tag in `readme.txt`
+- commits the version bump
+- creates and pushes the git tag `v1.2.1`
+
+Pushing the tag triggers GitHub Actions, which runs `./build.sh`, creates or updates the GitHub Release for that tag, and uploads the generated zip asset automatically.
+
 ## Authentication
 
 This API requires WordPress authentication and checks for the `manage_options` capability.

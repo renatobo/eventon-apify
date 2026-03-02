@@ -1,0 +1,90 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="1220" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAF4EE"/>
+      <stop offset="0.52" stop-color="#F4F7FB"/>
+      <stop offset="1" stop-color="#EEF5F2"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="120" y1="110" x2="1160" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDFB" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.88"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="808" y1="138" x2="1104" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF7A59"/>
+      <stop offset="1" stop-color="#0F7AC9"/>
+    </linearGradient>
+    <filter id="shadow" x="56" y="56" width="1168" height="528" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="14"/>
+      <feGaussianBlur stdDeviation="16"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0745098 0 0 0 0 0.109804 0 0 0 0 0.180392 0 0 0 0.12 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <circle cx="120" cy="74" r="180" fill="#FF7A59" fill-opacity="0.08"/>
+  <circle cx="1136" cy="546" r="208" fill="#0F7AC9" fill-opacity="0.08"/>
+  <path d="M0 126H1280" stroke="#D75A3B" stroke-opacity="0.09" stroke-width="2"/>
+  <path d="M0 540H1280" stroke="#0F7AC9" stroke-opacity="0.08" stroke-width="2"/>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="72" width="1136" height="496" rx="34" fill="url(#panel)"/>
+    <rect x="72.75" y="72.75" width="1134.5" height="494.5" rx="33.25" stroke="#E7E3DD" stroke-width="1.5"/>
+  </g>
+
+  <rect x="120" y="118" width="228" height="38" rx="19" fill="#111827"/>
+  <text x="234" y="142" text-anchor="middle" fill="#F9FAFB" font-family="Verdana" font-size="17" font-weight="700" letter-spacing="1.6">WORDPRESS PLUGIN</text>
+
+  <text x="120" y="238" fill="#111827" font-family="Verdana" font-size="74" font-weight="800">EventON</text>
+  <text x="120" y="314" fill="#111827" font-family="Verdana" font-size="74" font-weight="800">APIfy</text>
+
+  <text x="120" y="370" fill="#334155" font-family="Verdana" font-size="28" font-weight="600">Protected REST API for EventON events</text>
+  <text x="120" y="416" fill="#475569" font-family="Verdana" font-size="21" font-weight="500">CRUD endpoints, admin-auth integrations,</text>
+  <text x="120" y="446" fill="#475569" font-family="Verdana" font-size="21" font-weight="500">WP v2 compatibility, and MCP-friendly</text>
+  <text x="120" y="476" fill="#475569" font-family="Verdana" font-size="21" font-weight="500">schema discovery for WordPress workflows.</text>
+
+  <rect x="120" y="498" width="108" height="40" rx="20" fill="#FFE4DB"/>
+  <text x="174" y="523" text-anchor="middle" fill="#C2410C" font-family="Verdana" font-size="18" font-weight="700">CRUD</text>
+
+  <rect x="240" y="498" width="182" height="40" rx="20" fill="#DCEEFE"/>
+  <text x="331" y="523" text-anchor="middle" fill="#0F5E9C" font-family="Verdana" font-size="18" font-weight="700">Admin Auth</text>
+
+  <rect x="434" y="498" width="150" height="40" rx="20" fill="#DCF4E9"/>
+  <text x="509" y="523" text-anchor="middle" fill="#0F766E" font-family="Verdana" font-size="18" font-weight="700">MCP Ready</text>
+
+  <text x="120" y="548" fill="#64748B" font-family="Courier" font-size="19" font-weight="600">eventonapify/v1</text>
+
+  <g>
+    <rect x="774" y="138" width="362" height="336" rx="34" fill="url(#hero)"/>
+    <rect x="794" y="160" width="322" height="292" rx="28" fill="#0F172A" fill-opacity="0.12"/>
+
+    <rect x="828" y="200" width="174" height="144" rx="24" fill="#F8FAFC"/>
+    <rect x="828" y="200" width="174" height="36" rx="24" fill="#111827"/>
+    <circle cx="857" cy="218" r="6" fill="#FF7A59"/>
+    <circle cx="879" cy="218" r="6" fill="#FDBA74"/>
+    <circle cx="901" cy="218" r="6" fill="#34D399"/>
+    <rect x="852" y="258" width="34" height="20" rx="8" fill="#DCEEFE"/>
+    <rect x="894" y="258" width="34" height="20" rx="8" fill="#FFE4DB"/>
+    <rect x="936" y="258" width="34" height="20" rx="8" fill="#DCF4E9"/>
+    <rect x="852" y="288" width="118" height="12" rx="6" fill="#CBD5E1"/>
+    <rect x="852" y="310" width="86" height="12" rx="6" fill="#E2E8F0"/>
+
+    <rect x="946" y="286" width="126" height="92" rx="22" fill="#111827"/>
+    <text x="1009" y="323" text-anchor="middle" fill="#F8FAFC" font-family="Courier" font-size="24" font-weight="700">{ }</text>
+    <path d="M972 351C982 342.333 988.667 342.333 998 351C1007.33 359.667 1014 359.667 1024 351C1034 342.333 1040.67 342.333 1050 351" stroke="#60A5FA" stroke-width="6" stroke-linecap="round"/>
+
+    <path d="M1008 232C1069.86 232 1120 282.144 1120 344" stroke="#FDE68A" stroke-width="8" stroke-linecap="round" stroke-dasharray="12 16"/>
+    <path d="M1116 338L1120 344L1112 346" stroke="#FDE68A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="812" y="386" width="138" height="38" rx="19" fill="#F8FAFC"/>
+    <text x="881" y="410" text-anchor="middle" fill="#111827" font-family="Verdana" font-size="18" font-weight="800">GET  POST</text>
+
+    <rect x="964" y="386" width="132" height="38" rx="19" fill="#F8FAFC"/>
+    <text x="1030" y="410" text-anchor="middle" fill="#111827" font-family="Verdana" font-size="18" font-weight="800">PATCH  DELETE</text>
+  </g>
+
+  <text x="1136" y="118" text-anchor="end" fill="#94A3B8" font-family="Verdana" font-size="18" font-weight="700">renatobo/eventon-apify</text>
+</svg>

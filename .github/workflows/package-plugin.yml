@@ -1,4 +1,4 @@
-name: Build Release Zip
+name: Release Plugin Zip
 
 on:
   push:
@@ -13,18 +13,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Prepare plugin folder
+      - name: Build plugin package
+        id: build
         run: |
-          mkdir eventon-apify
-          cp -r eventon-apify.php uninstall.php readme.txt README.md SECURITY.md LICENSE eventon-apify/
+          chmod +x build.sh
+          ZIP_PATH="$(./build.sh | sed -n 's/^Created //p')"
+          if [[ -z "$ZIP_PATH" || ! -f "$ZIP_PATH" ]]; then
+            echo "Failed to locate built zip file."
+            exit 1
+          fi
+          echo "zip_path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Zip it
-        run: zip -r eventon-apify.zip eventon-apify
-
-      - name: Upload release asset
+      - name: Create GitHub release and upload asset
         uses: softprops/action-gh-release@v2
         with:
-          files: eventon-apify.zip
+          files: ${{ steps.build.outputs.zip_path }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
