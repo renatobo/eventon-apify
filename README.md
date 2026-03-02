@@ -53,6 +53,16 @@ curl -u your_username:your_app_password \
 5. Enable the capabilities you want available to administrators.
 6. If you are using a generic WordPress client such as `mcp-wp`, also enable **WP v2 compatibility**.
 
+## Packaging
+
+Build an installable plugin zip from the repo root:
+
+```bash
+./build.sh
+```
+
+That creates a file like `eventon-apify-1.2.0.zip` in the project root, ready to upload in **Plugins -> Add New -> Upload Plugin**.
+
 ## Authentication
 
 This API requires WordPress authentication and checks for the `manage_options` capability.
