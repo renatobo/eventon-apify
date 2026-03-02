@@ -13,7 +13,8 @@
  * Text Domain:       eventon-apify
  *
  * GitHub Plugin URI: https://github.com/renatobo/eventon-apify
- * GitHub Branch:     main
+ * Primary Branch:    main
+ * Release Asset:     true
  *
  * @package EventON_APIfy
  */
@@ -22,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('EVENTON_APIFY_VERSION', '1.2.0');
+define('EVENTON_APIFY_VERSION', '1.2.1');
 define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');

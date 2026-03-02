@@ -38,6 +38,7 @@ update_file() {
 
 update_file "readme.txt" "^Stable tag: .*" "Stable tag: $VERSION"
 update_file "eventon-apify.php" "^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*.*" " * Version:           $VERSION"
+update_file "eventon-apify.php" "^define\\('EVENTON_APIFY_VERSION', '.*'\\);$" "define('EVENTON_APIFY_VERSION', '$VERSION');"
 
 git add readme.txt eventon-apify.php
 git commit -m "Bump version to $VERSION"
