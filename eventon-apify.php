@@ -42,6 +42,8 @@ add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_w
 add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
 add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
+add_filter('plugin_action_links', 'eventon_apify_filter_plugin_action_links', 10, 2);
+add_filter('network_admin_plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
 
 /**
  * Show an admin notice when PHP is too old for this plugin.
@@ -86,6 +88,23 @@ function eventon_apify_add_plugin_action_links($links) {
     );
 
     return $links;
+}
+
+/**
+ * Add the Settings link through the generic plugin_action_links filter too.
+ *
+ * Some plugin list contexts do not reliably hit only the plugin-specific hook.
+ *
+ * @param array<int, string> $links Existing action links.
+ * @param string             $plugin_file Plugin basename for the current row.
+ * @return array<int, string>
+ */
+function eventon_apify_filter_plugin_action_links($links, $plugin_file) {
+    if ($plugin_file !== plugin_basename(__FILE__)) {
+        return $links;
+    }
+
+    return eventon_apify_add_plugin_action_links($links);
 }
 
 /**
@@ -1173,6 +1192,16 @@ function eventon_apify_register_wp_v2_compatibility_fields() {
             array(
                 'get_callback' => 'eventon_apify_get_wp_v2_rest_field',
                 'update_callback' => 'eventon_apify_update_wp_v2_rest_field',
+            )
+        );
+    }
+
+    foreach (eventon_apify_get_wp_v2_wrapper_field_names() as $field_name) {
+        register_rest_field(
+            'ajde_events',
+            $field_name,
+            array(
+                'update_callback' => 'eventon_apify_update_wp_v2_wrapped_rest_field',
             )
         );
     }
@@ -2446,6 +2475,15 @@ function eventon_apify_get_wp_v2_mutable_field_names() {
 }
 
 /**
+ * Return wrapper field names that generic wp/v2 clients may use for EventON payloads.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_wp_v2_wrapper_field_names() {
+    return array('custom_fields', 'fields');
+}
+
+/**
  * Return an EventON payload safe for the shared wp/v2 compatibility surface.
  *
  * @return array<string, mixed>
@@ -2576,6 +2614,27 @@ function eventon_apify_update_wp_v2_rest_field($value, $object, $field_name, $re
     }
 
     return true;
+}
+
+/**
+ * Update EventON compatibility data when a client sends wrapper objects such as custom_fields or fields.
+ *
+ * @param mixed                       $value      Submitted wrapper object.
+ * @param array<string, mixed>|object $object     REST callback object.
+ * @param string                      $field_name Field name.
+ * @param WP_REST_Request|null        $request    Current REST request.
+ * @return true|WP_Error
+ */
+function eventon_apify_update_wp_v2_wrapped_rest_field($value, $object, $field_name, $request = null) {
+    if (!is_array($value)) {
+        return new WP_Error(
+            'eventon_apify_invalid_wrapped_fields',
+            $field_name . ' must be an object of EventON field values.',
+            array('status' => 400)
+        );
+    }
+
+    return eventon_apify_update_wp_v2_rest_field($value, $object, $field_name, $request instanceof WP_REST_Request ? $request : null);
 }
 
 /**
@@ -3437,7 +3496,7 @@ function eventon_apify_get_request_payload(WP_REST_Request $request) {
  * @return array<string, mixed>
  */
 function eventon_apify_normalize_request_payload(array $params) {
-    $normalized = $params;
+    $normalized = eventon_apify_flatten_wrapped_request_payload($params);
 
     if (!array_key_exists('description', $normalized) && array_key_exists('content', $params)) {
         $normalized['description'] = $params['content'];
@@ -3661,6 +3720,30 @@ function eventon_apify_normalize_request_payload(array $params) {
     }
 
     return $normalized;
+}
+
+/**
+ * Flatten generic wrapper payloads into the top-level request body while preserving explicit top-level values.
+ *
+ * @param array<string, mixed> $params Raw request payload.
+ * @return array<string, mixed>
+ */
+function eventon_apify_flatten_wrapped_request_payload(array $params) {
+    $flattened = $params;
+
+    foreach (eventon_apify_get_wp_v2_wrapper_field_names() as $wrapper_key) {
+        if (!isset($params[$wrapper_key]) || !is_array($params[$wrapper_key])) {
+            continue;
+        }
+
+        foreach ($params[$wrapper_key] as $key => $value) {
+            if (!array_key_exists($key, $flattened)) {
+                $flattened[$key] = $value;
+            }
+        }
+    }
+
+    return $flattened;
 }
 
 /**
