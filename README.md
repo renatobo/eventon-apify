@@ -53,6 +53,8 @@ curl -u your_username:your_app_password \
 5. Enable the capabilities you want available to administrators.
 6. If you are using a generic WordPress client such as `mcp-wp`, also enable **WP v2 compatibility**.
 
+Upgrade note: from `1.3.2` onward, the plugin keeps a backup copy of the API and `WP v2 compatibility` settings so future upgrades can restore them if those options go missing during an update.
+
 ## Packaging
 
 Build an installable plugin zip from the repo root:

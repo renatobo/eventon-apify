@@ -55,6 +55,9 @@ Automatic updates:
 7. If you use a generic WordPress client such as `mcp-wp`, enable "WP v2 compatibility".
 8. (Optional) Install GitHub Updater for one-click updates from GitHub.
 
+Upgrade note:
+- Starting with `1.3.2`, the plugin keeps a backup copy of the API and `WP v2 compatibility` settings so upgrades can restore them if those options go missing during an update.
+
 == Usage ==
 
 List endpoint:
@@ -159,6 +162,10 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 1.3.2 =
+* Preserved the Event API toggle, capability map, and `WP v2 compatibility` toggle across future upgrades by keeping and restoring a backup snapshot of those settings.
+* Added activation and runtime bootstrap safeguards so missing settings are recreated from the backup instead of silently falling back to disabled defaults.
+
 = 1.3.1 =
 * Accepted EventON `wp/v2` write payloads nested under `custom_fields` and `fields`, matching the documented MCP compatibility formats.
 * Clarified MCP and `wp/v2` documentation around wrapped EventON field payloads for date/time writes.
@@ -182,6 +189,9 @@ The API responds with a `400` error explaining which date/time combination could
 * GitHub Updater compatibility metadata and packaging docs.
 
 == Upgrade Notice ==
+
+= 1.3.2 =
+Prevents future upgrades from silently disabling the Event API or `WP v2 compatibility` when the saved options go missing.
 
 = 1.3.1 =
 Fixes `wp/v2` compatibility writes for EventON date and other field payloads sent inside `custom_fields` or `fields`.

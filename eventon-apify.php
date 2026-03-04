@@ -28,6 +28,8 @@ define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
 define('EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT', 'eventon_apify_enable_wp_v2_compat');
+define('EVENTON_APIFY_OPTION_SETTINGS_BACKUP', 'eventon_apify_settings_backup');
+define('EVENTON_APIFY_OPTION_INSTALLED_VERSION', 'eventon_apify_installed_version');
 
 if (version_compare(PHP_VERSION, '8.0.0', '<')) {
     add_action('admin_notices', 'eventon_apify_php_version_notice');
@@ -38,12 +40,16 @@ add_action('admin_menu', 'eventon_apify_add_settings_page');
 add_action('admin_init', 'eventon_apify_register_settings');
 add_action('rest_api_init', 'eventon_apify_register_routes');
 add_action('rest_api_init', 'eventon_apify_register_wp_v2_compatibility_fields');
+add_action('plugins_loaded', 'eventon_apify_bootstrap_settings');
 add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_wp_v2_compat', 10, 2);
 add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
 add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
 add_filter('plugin_action_links', 'eventon_apify_filter_plugin_action_links', 10, 2);
 add_filter('network_admin_plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
+add_action('updated_option', 'eventon_apify_sync_settings_backup_on_option_change', 10, 3);
+add_action('added_option', 'eventon_apify_sync_settings_backup_on_option_add', 10, 2);
+register_activation_hook(__FILE__, 'eventon_apify_activate');
 
 /**
  * Show an admin notice when PHP is too old for this plugin.
@@ -139,6 +145,115 @@ function eventon_apify_register_settings() {
             'sanitize_callback' => 'eventon_apify_sanitize_checkbox',
             'default' => false,
         )
+    );
+}
+
+/**
+ * Seed and restore plugin settings so upgrades do not silently disable the API surface.
+ */
+function eventon_apify_bootstrap_settings() {
+    $backup = get_option(EVENTON_APIFY_OPTION_SETTINGS_BACKUP, array());
+    if (!is_array($backup)) {
+        $backup = array();
+    }
+
+    $api_enabled = get_option(EVENTON_APIFY_OPTION_ENABLE_API, null);
+    if (null === $api_enabled) {
+        if (array_key_exists('enable_api', $backup)) {
+            update_option(EVENTON_APIFY_OPTION_ENABLE_API, !empty($backup['enable_api']));
+        } else {
+            add_option(EVENTON_APIFY_OPTION_ENABLE_API, false);
+        }
+    }
+
+    $capabilities = get_option(EVENTON_APIFY_OPTION_API_CAPABILITIES, null);
+    if (!is_array($capabilities)) {
+        if (isset($backup['api_capabilities']) && is_array($backup['api_capabilities'])) {
+            update_option(EVENTON_APIFY_OPTION_API_CAPABILITIES, eventon_apify_sanitize_capabilities($backup['api_capabilities']));
+        } else {
+            add_option(EVENTON_APIFY_OPTION_API_CAPABILITIES, eventon_apify_get_default_api_capabilities());
+        }
+    }
+
+    $wp_v2_compat = get_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, null);
+    if (null === $wp_v2_compat) {
+        if (array_key_exists('enable_wp_v2_compat', $backup)) {
+            update_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, !empty($backup['enable_wp_v2_compat']));
+        } else {
+            add_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, false);
+        }
+    }
+
+    eventon_apify_sync_settings_backup();
+}
+
+/**
+ * Ensure settings are bootstrapped on activation too.
+ */
+function eventon_apify_activate() {
+    eventon_apify_bootstrap_settings();
+}
+
+/**
+ * Persist a backup copy of the plugin settings so future upgrades can restore them if needed.
+ */
+function eventon_apify_sync_settings_backup() {
+    $backup = array(
+        'version' => EVENTON_APIFY_VERSION,
+        'enable_api' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+        'api_capabilities' => eventon_apify_get_api_capabilities(),
+        'enable_wp_v2_compat' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, false),
+    );
+
+    update_option(EVENTON_APIFY_OPTION_SETTINGS_BACKUP, $backup, false);
+    update_option(EVENTON_APIFY_OPTION_INSTALLED_VERSION, EVENTON_APIFY_VERSION, false);
+}
+
+/**
+ * Refresh the backup snapshot when a tracked option changes.
+ *
+ * @param string $option    Updated option name.
+ * @param mixed  $old_value Previous option value.
+ * @param mixed  $value     New option value.
+ */
+function eventon_apify_sync_settings_backup_on_option_change($option, $old_value, $value) {
+    unset($old_value, $value);
+
+    if (!eventon_apify_is_tracked_settings_option($option)) {
+        return;
+    }
+
+    eventon_apify_sync_settings_backup();
+}
+
+/**
+ * Refresh the backup snapshot when a tracked option is added.
+ *
+ * @param string $option Option name.
+ * @param mixed  $value  Stored option value.
+ */
+function eventon_apify_sync_settings_backup_on_option_add($option, $value) {
+    unset($value);
+
+    if (!eventon_apify_is_tracked_settings_option($option)) {
+        return;
+    }
+
+    eventon_apify_sync_settings_backup();
+}
+
+/**
+ * Return true when the option should trigger a settings-backup refresh.
+ */
+function eventon_apify_is_tracked_settings_option($option) {
+    return in_array(
+        (string) $option,
+        array(
+            EVENTON_APIFY_OPTION_ENABLE_API,
+            EVENTON_APIFY_OPTION_API_CAPABILITIES,
+            EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT,
+        ),
+        true
     );
 }
 
