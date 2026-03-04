@@ -116,7 +116,7 @@ That exposes EventON through the standard WordPress REST API so the MCP server c
 Recommended `mcp-wp` usage:
 
 - Use `content_type: "ajde_events"` for content operations
-- Use `custom_fields` for EventON-specific fields such as `start_date`, `start_time`, `end_date`, `end_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`
+- Send EventON-specific fields either at the top level or inside `custom_fields` / `fields`, including `start_date`, `start_time`, `end_date`, `end_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`
 - Use the MCP taxonomy tools for `event_type`, `event_location`, and `event_organizer` when you want direct taxonomy-level operations
 - Fetch the EventON APIfy MCP manifest first if your MCP server supports plugin-published content contracts
 
@@ -139,6 +139,8 @@ The manifest describes:
 - runtime availability such as whether `WP v2 compatibility` is currently enabled
 
 Important: the manifest is discovery-only. Compatible clients should still create and update events through `/wp-json/wp/v2/ajde_events`. The contract examples are client-facing normalized payloads, not raw WordPress REST requests.
+
+When using `wp/v2`, clients may send those normalized EventON fields directly on the request body or nest them inside `fields` / `custom_fields`.
 
 Example:
 
@@ -250,6 +252,28 @@ curl -u your_username:your_app_password \
       "enabled": true,
       "capacity_enabled": true,
       "capacity_count": 75
+    }
+  }'
+```
+
+### Example `wp/v2` compatibility request
+
+```bash
+curl -u your_username:your_app_password \
+  -X POST "https://your-site.com/wp-json/wp/v2/ajde_events" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Ride to Big Bear",
+    "status": "publish",
+    "custom_fields": {
+      "start_date": "2026-04-01",
+      "start_time": "09:00",
+      "end_date": "2026-04-01",
+      "end_time": "17:00",
+      "timezone": {
+        "key": "America/Los_Angeles",
+        "text": "PT"
+      }
     }
   }'
 ```

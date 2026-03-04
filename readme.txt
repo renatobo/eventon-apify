@@ -73,7 +73,7 @@ MCP / wp/v2 compatibility:
 - Enable "WP v2 compatibility" in Settings -> EventON APIfy.
 - Use `ajde_events` as the content type in generic WordPress clients.
 - Standard routes become available at `/wp-json/wp/v2/ajde_events` and related taxonomy routes.
-- EventON-specific fields can be sent through client-specific custom field support using keys like `start_date`, `start_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`.
+- EventON-specific fields can be sent either at the top level or through wrapper objects such as `custom_fields` / `fields`, using keys like `start_date`, `start_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`.
 - These `wp/v2` routes are restricted to administrator-authenticated requests, matching the custom namespace.
 - Compatibility responses redact sensitive fields such as virtual access secrets and notification email metadata.
 
@@ -145,6 +145,9 @@ Yes. Leave "Event API" enabled and turn off only the `Create events`, `Update ev
 = How do I use this with mcp-wp or another generic WordPress MCP server? =
 Enable "WP v2 compatibility" and use `ajde_events` as the content type. The plugin will expose EventON events through `/wp-json/wp/v2/ajde_events` and expose the main EventON taxonomies on the standard REST API as well.
 
+= Can wp/v2 clients send EventON fields inside custom_fields or fields? =
+Yes. The plugin accepts EventON field payloads either directly on the request body or nested under `custom_fields` / `fields`.
+
 = Does the plugin publish a machine-readable schema for MCP servers? =
 Yes. Fetch `/wp-json/eventonapify/v1/mcp-schema` or `/wp-json/eventonapify/v1/mcp-schema/ajde_events` to discover the executable EventON contract, including `preferred_endpoint: wp/v2/ajde_events`, `preferred_write_mode: fields`, normalized field definitions, and create/update examples.
 
@@ -155,6 +158,10 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 1.3.1 =
+* Accepted EventON `wp/v2` write payloads nested under `custom_fields` and `fields`, matching the documented MCP compatibility formats.
+* Clarified MCP and `wp/v2` documentation around wrapped EventON field payloads for date/time writes.
 
  = 1.2.0 =
 * Reworked the MCP manifest into the executable contract shape expected by `mcp-wp-cpt`.
@@ -175,6 +182,9 @@ The API responds with a `400` error explaining which date/time combination could
 * GitHub Updater compatibility metadata and packaging docs.
 
 == Upgrade Notice ==
+
+= 1.3.1 =
+Fixes `wp/v2` compatibility writes for EventON date and other field payloads sent inside `custom_fields` or `fields`.
 
 = 1.2.0 =
 Aligns the MCP manifest with the executable plugin contract used by `mcp-wp-cpt`.
