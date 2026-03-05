@@ -381,11 +381,13 @@ Install GitHub Updater to receive update notifications and one-click updates fro
 - GitHub Actions can package zip releases for `v*` tags
 - `release.sh` bumps the main plugin version and `Stable tag`
 
-## Related repositories
+## Related packages
 
-- [TelegrARM](https://github.com/renatobo/TelegrARM)
-- [WebHookARM](https://github.com/renatobo/WebHookARM)
-- [bono_arm_api](https://github.com/renatobo/bono_arm_api)
+- [mcp-wp-cpt](https://github.com/renatobo/mcp-wp-cpt)
+- Other WordPress plugins:
+  - [TelegrARM](https://github.com/renatobo/TelegrARM)
+  - [WebHookARM](https://github.com/renatobo/WebHookARM)
+  - [bono_arm_api](https://github.com/renatobo/bono_arm_api)
 
 ## License
 

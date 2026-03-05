@@ -37,14 +37,19 @@ rsync -a \
   --exclude '.github/' \
   --exclude '.DS_Store' \
   --exclude '*.zip' \
+  --exclude '*.md' \
   --exclude '.gitignore' \
   --exclude 'build.sh' \
   --exclude 'release.sh' \
-  --exclude 'security_best_practices_report.md' \
   ./ "$PACKAGE_DIR/"
+
+if [[ -f "README.md" ]]; then
+  cp "README.md" "$PACKAGE_DIR/README.md"
+fi
 
 (
   cd "$STAGING_DIR"
+  rm -f "$OUTPUT_PATH"
   zip -rq "$OUTPUT_PATH" "$PLUGIN_SLUG"
 )
 
