@@ -3,7 +3,7 @@
  * Plugin Name:       EventON APIfy
  * Plugin URI:        https://github.com/renatobo/eventon-apify
  * Description:       Protected REST API endpoints for EventON events with pagination, CRUD operations, and administrator-only access.
- * Version:           1.3.4
+ * Version:           1.4.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            Renato Bonomini
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('EVENTON_APIFY_VERSION', '1.3.4');
+define('EVENTON_APIFY_VERSION', '1.4.0');
 define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
