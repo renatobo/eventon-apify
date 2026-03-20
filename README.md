@@ -2,7 +2,7 @@
 
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
-[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-6.9-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-6.9.4-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Release](https://img.shields.io/github/v/release/renatobo/eventon-apify?label=release)](https://github.com/renatobo/eventon-apify/releases)
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
@@ -30,8 +30,10 @@ curl -u your_username:your_app_password \
 - Create new `ajde_events` posts via REST
 - Update existing events, including EventON timestamps, status, virtual, repeat, RSVP, and taxonomy-backed location/organizer metadata
 - Trash events through the API
+- Read yes-only RSVP attendance summaries for EventON RSVP events
+- List RSVP attendee records and additional RSVP form fields for EventON RSVP events
 - Administrator-only access
-- Global Event API switch plus per-capability toggles for list, read, create, update, and delete
+- Global Event API switch plus per-capability toggles for event reads/writes and RSVP reads
 - Optional `wp/v2` compatibility mode for generic WordPress tools such as `mcp-wp`
 - Read-only MCP schema manifest for clients that need an executable EventON content contract
 - Compatible with WordPress Application Passwords
@@ -90,7 +92,7 @@ This API requires WordPress authentication and checks for the `manage_options` c
 Route access is controlled in two layers:
 
 - Global switch: **Event API**
-- Per-capability switches: **List events**, **Read single event**, **Create events**, **Update events**, **Delete events**
+- Per-capability switches: **List events**, **Read single event**, **Create events**, **Update events**, **Delete events**, **Read RSVP summary**, **List RSVP attendees**
 
 Recommended method: **Application Passwords**.
 
@@ -104,6 +106,19 @@ Example:
 curl -u your_username:your_app_password \
   "https://your-site.com/wp-json/eventonapify/v1/events?search=ride&status=publish,draft"
 ```
+
+## Privacy
+
+EventON APIfy works with EventON data stored in standard WordPress/EventON post meta and taxonomy meta rather than creating its own custom tables.
+
+Depending on the enabled routes and submitted payloads, that data can include:
+
+- organizer contact details
+- location contact details
+- virtual event credentials and visibility settings
+- RSVP notification email recipients
+
+Both the custom namespace and the optional `wp/v2` compatibility mode are intended for administrator-authenticated access only. Site owners remain responsible for their privacy disclosures, retention policies, and any export/erasure workflows required for EventON-managed content.
 
 ## MCP compatibility
 
@@ -130,6 +145,7 @@ EventON APIfy also publishes a read-only discovery contract for compatible MCP s
 
 - Manifest: `/wp-json/eventonapify/v1/mcp-schema`
 - Content type detail: `/wp-json/eventonapify/v1/mcp-schema/ajde_events`
+- Content type detail: `/wp-json/eventonapify/v1/mcp-schema/event_rsvps` when the RSVP addon is active
 
 The manifest describes:
 
@@ -139,6 +155,8 @@ The manifest describes:
 - executable `validation_rules` plus additional runtime `validation_notes`
 - `examples.create` and `examples.update` payloads for MCP clients
 - runtime availability such as whether `WP v2 compatibility` is currently enabled
+- when the RSVP addon is active, a read-only `event_rsvps` content type for `/wp-json/eventonapify/v1/events/{event_id}/rsvps`
+- when the RSVP addon is active, the related RSVP summary endpoint `/wp-json/eventonapify/v1/events/{event_id}/rsvps/summary`
 
 Important: the manifest is discovery-only. Compatible clients should still create and update events through `/wp-json/wp/v2/ajde_events`. The contract examples are client-facing normalized payloads, not raw WordPress REST requests.
 
@@ -156,8 +174,11 @@ curl "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
 
 - `GET /wp-json/eventonapify/v1/mcp-schema`
 - `GET /wp-json/eventonapify/v1/mcp-schema/ajde_events`
+- `GET /wp-json/eventonapify/v1/mcp-schema/event_rsvps` when the RSVP addon is active
 - `GET /wp-json/eventonapify/v1/events`
 - `GET /wp-json/eventonapify/v1/events/<id>`
+- `GET /wp-json/eventonapify/v1/events/<id>/rsvps/summary`
+- `GET /wp-json/eventonapify/v1/events/<id>/rsvps`
 - `POST /wp-json/eventonapify/v1/events`
 - `PUT /wp-json/eventonapify/v1/events/<id>`
 - `PATCH /wp-json/eventonapify/v1/events/<id>`
@@ -169,6 +190,8 @@ curl "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
 | --- | --- | --- | --- |
 | `List events` | `GET` | `/events` | Collection reads return `403` |
 | `Read single event` | `GET` | `/events/<id>` | Single-event reads return `403` |
+| `Read RSVP summary` | `GET` | `/events/<id>/rsvps/summary` | RSVP summary reads return `403` |
+| `List RSVP attendees` | `GET` | `/events/<id>/rsvps` | RSVP attendee reads return `403` |
 | `Create events` | `POST` | `/events` | Event creation returns `403` |
 | `Update events` | `PUT`, `PATCH` | `/events/<id>` | Event updates return `403` |
 | `Delete events` | `DELETE` | `/events/<id>` | Event deletion returns `403` |
@@ -181,6 +204,50 @@ curl "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
 | `page` | integer | No | Page number, default `1` |
 | `search` | string | No | Search against event title/content |
 | `status` | string | No | Comma-separated post statuses such as `publish,draft` |
+
+### RSVP summary response
+
+`GET /wp-json/eventonapify/v1/events/<id>/rsvps/summary` is available only when the `EventON - RSVP Events` addon is active.
+
+- `yes_submissions`: number of RSVP records whose RSVP response is `yes`
+- `yes_attendees_total`: total headcount across those `yes` records, using the RSVP `Count` field and falling back to `1`
+- `yes_additional_attendees`: `yes_attendees_total - yes_submissions`
+
+Example:
+
+```bash
+curl -u your_username:your_app_password \
+  "https://your-site.com/wp-json/eventonapify/v1/events/123/rsvps/summary"
+```
+
+### RSVP attendee list query parameters
+
+`GET /wp-json/eventonapify/v1/events/<id>/rsvps` is available only when the `EventON - RSVP Events` addon is active.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `per_page` | integer | No | Items per page, default `50`, max `100` |
+| `page` | integer | No | Page number, default `1` |
+| `search` | string | No | Search attendee names, email, phone, RSVP fields, and custom RSVP fields |
+| `rsvp` | string | No | `all`, `yes`, `no`, or `maybe`; default `all` |
+| `status` | string | No | Exact RSVP attendee status filter; default `all` |
+
+Each attendee item exposes:
+
+- `id`
+- `first_name`
+- `last_name`
+- `full_name`
+- `email`
+- `phone`
+- `email_updates`
+- `rsvp`
+- `status`
+- `rsvp_type`
+- `count`
+- `event_time`
+- `other_attendees`
+- `custom_fields`
 
 ### Create and update fields
 

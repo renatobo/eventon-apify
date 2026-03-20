@@ -1,17 +1,14 @@
 === EventON APIfy ===
 Contributors: renatobo
-Tags: eventon, api, rest-api, events, wordpress
+Tags: eventon, api, rest-api, events
 Requires at least: 6.0
-Tested up to: 6.9
+Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 1.3.2
+Stable tag: 1.3.3beta
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-GitHub Plugin URI: https://github.com/renatobo/eventon-apify
-GitHub Branch: main
-
-Protected REST API endpoints for EventON events with administrator-only access, pagination, and CRUD support.
+Protected REST API endpoints for EventON events with administrator-only CRUD and optional wp/v2 compatibility.
 
 == Description ==
 
@@ -20,11 +17,13 @@ EventON APIfy adds protected REST endpoints for working with EventON `ajde_event
 Access control:
 - Endpoint access is restricted to authenticated administrators.
 - Endpoint availability can be enabled or disabled in plugin settings.
-- Individual capabilities can be enabled or disabled for list, read, create, update, and delete operations.
+- Individual capabilities can be enabled or disabled for list, read, create, update, delete, RSVP summary, and RSVP attendee operations.
 
 Routes:
 - `GET /wp-json/eventonapify/v1/events`
 - `GET /wp-json/eventonapify/v1/events/<id>`
+- `GET /wp-json/eventonapify/v1/events/<id>/rsvps/summary`
+- `GET /wp-json/eventonapify/v1/events/<id>/rsvps`
 - `POST /wp-json/eventonapify/v1/events`
 - `PUT/PATCH /wp-json/eventonapify/v1/events/<id>`
 - `DELETE /wp-json/eventonapify/v1/events/<id>`
@@ -33,6 +32,8 @@ Features:
 - Paginated event listing
 - Search and status filtering
 - Create, update, and delete EventON events
+- Yes-only RSVP attendance summaries for EventON RSVP events
+- RSVP attendee listing with normalized contact fields and custom RSVP form fields
 - EventON date/time, status, virtual, repeat, RSVP, and taxonomy-backed location/organizer handling
 - Event type taxonomy assignment
 - Global API switch plus per-capability route controls
@@ -43,6 +44,13 @@ Features:
 Automatic updates:
 - This plugin supports updates via GitHub Updater:
   https://github.com/afragen/github-updater
+
+Privacy:
+- EventON APIfy reads and writes EventON event data stored in standard WordPress/EventON post meta and taxonomy meta.
+- Depending on the enabled features and payloads, that data can include organizer contact details, venue contact details, virtual event credentials/settings, and RSVP notification email recipients.
+- The custom API and the `wp/v2` compatibility surface are intended for administrator-authenticated access only.
+- This plugin does not create its own custom database tables.
+- Site owners remain responsible for their EventON content retention, privacy disclosures, and any export/erasure workflows they require.
 
 == Installation ==
 
@@ -66,6 +74,8 @@ List endpoint:
 Settings capability map:
 - `List events`: `GET /events`
 - `Read single event`: `GET /events/<id>`
+- `Read RSVP summary`: `GET /events/<id>/rsvps/summary`
+- `List RSVP attendees`: `GET /events/<id>/rsvps`
 - `Create events`: `POST /events`
 - `Update events`: `PUT/PATCH /events/<id>`
 - `Delete events`: `DELETE /events/<id>`
@@ -83,7 +93,9 @@ MCP / wp/v2 compatibility:
 MCP schema manifest:
 - `GET /wp-json/eventonapify/v1/mcp-schema`
 - `GET /wp-json/eventonapify/v1/mcp-schema/ajde_events`
+- `GET /wp-json/eventonapify/v1/mcp-schema/event_rsvps` when the RSVP addon is active
 - The manifest publishes an executable EventON content contract with `preferred_endpoint`, `preferred_write_mode`, normalized `fields`, executable `validation_rules`, and `examples.create` / `examples.update`.
+- When the RSVP addon is active, the manifest also publishes a read-only `event_rsvps` contract for `/events/{event_id}/rsvps`, including the related yes-only summary endpoint.
 - The manifest is discovery-only. Compatible MCP servers should still write through `/wp-json/wp/v2/ajde_events`.
 
 Query parameters:
@@ -91,6 +103,23 @@ Query parameters:
 - `page` (integer): page number, default `1`
 - `search` (string): search term
 - `status` (string): comma-separated statuses like `publish,draft`
+
+RSVP summary endpoint:
+- `GET /wp-json/eventonapify/v1/events/<id>/rsvps/summary`
+- Available only when the `EventON - RSVP Events` addon is active.
+- Counts only RSVP responses normalized to `yes`.
+- Returns `yes_submissions`, `yes_attendees_total`, and `yes_additional_attendees`.
+
+RSVP attendee list endpoint:
+- `GET /wp-json/eventonapify/v1/events/<id>/rsvps`
+- Available only when the `EventON - RSVP Events` addon is active.
+- Query parameters:
+  - `per_page` default `50`, max `100`
+  - `page` default `1`
+  - `search`
+  - `rsvp`: `all`, `yes`, `no`, `maybe`
+  - `status`: exact attendee-status filter
+- Each attendee item includes `first_name`, `last_name`, `full_name`, `email`, `phone`, `email_updates`, `rsvp`, `status`, `rsvp_type`, `count`, `event_time`, `other_attendees`, and `custom_fields`.
 
 Create/update fields:
 - `title` (string)
@@ -162,6 +191,11 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 1.3.4 =
+* Hardened the optional `wp/v2` compatibility layer so EventON compatibility routes stay administrator-only.
+* Added translation bootstrapping and localized the primary admin/settings UI strings.
+* Added privacy documentation, improved the security reporting policy, and completed uninstall cleanup for plugin-owned options.
+
 = 1.3.2 =
 * Preserved the Event API toggle, capability map, and `WP v2 compatibility` toggle across future upgrades by keeping and restoring a backup snapshot of those settings.
 * Added activation and runtime bootstrap safeguards so missing settings are recreated from the backup instead of silently falling back to disabled defaults.
@@ -189,6 +223,9 @@ The API responds with a `400` error explaining which date/time combination could
 * GitHub Updater compatibility metadata and packaging docs.
 
 == Upgrade Notice ==
+
+= 1.3.4 =
+Improves `wp/v2` compatibility hardening, localization readiness, privacy documentation, and uninstall cleanup.
 
 = 1.3.2 =
 Prevents future upgrades from silently disabling the Event API or `WP v2 compatibility` when the saved options go missing.

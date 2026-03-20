@@ -3,7 +3,7 @@
  * Plugin Name:       EventON APIfy
  * Plugin URI:        https://github.com/renatobo/eventon-apify
  * Description:       Protected REST API endpoints for EventON events with pagination, CRUD operations, and administrator-only access.
- * Version:           1.3.2
+ * Version:           1.3.3beta
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            Renato Bonomini
@@ -11,6 +11,7 @@
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       eventon-apify
+ * Domain Path:       /languages
  *
  * GitHub Plugin URI: https://github.com/renatobo/eventon-apify
  * Primary Branch:    main
@@ -23,7 +24,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('EVENTON_APIFY_VERSION', '1.3.2');
+define('EVENTON_APIFY_VERSION', '1.3.3beta');
 define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
@@ -40,25 +41,39 @@ add_action('admin_menu', 'eventon_apify_add_settings_page');
 add_action('admin_init', 'eventon_apify_register_settings');
 add_action('rest_api_init', 'eventon_apify_register_routes');
 add_action('rest_api_init', 'eventon_apify_register_wp_v2_compatibility_fields');
+add_action('plugins_loaded', 'eventon_apify_load_textdomain');
 add_action('plugins_loaded', 'eventon_apify_bootstrap_settings');
 add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_wp_v2_compat', 10, 2);
 add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
 add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);
+add_filter('rest_endpoints', 'eventon_apify_filter_wp_v2_compatibility_endpoints');
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
-add_filter('plugin_action_links', 'eventon_apify_filter_plugin_action_links', 10, 2);
 add_filter('network_admin_plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
 add_action('updated_option', 'eventon_apify_sync_settings_backup_on_option_change', 10, 3);
 add_action('added_option', 'eventon_apify_sync_settings_backup_on_option_add', 10, 2);
 register_activation_hook(__FILE__, 'eventon_apify_activate');
 
 /**
+ * Load plugin translations.
+ */
+function eventon_apify_load_textdomain() {
+    load_plugin_textdomain(
+        'eventon-apify',
+        false,
+        dirname(plugin_basename(__FILE__)) . '/languages'
+    );
+}
+
+/**
  * Show an admin notice when PHP is too old for this plugin.
  */
 function eventon_apify_php_version_notice() {
     echo '<div class="notice notice-error"><p>';
-    echo '<strong>EventON APIfy:</strong> This plugin requires PHP 8.0 or higher. ';
-    echo 'You are running PHP ' . esc_html(PHP_VERSION) . '. ';
-    echo 'Please upgrade PHP before activating this plugin.';
+    echo '<strong>' . esc_html__('EventON APIfy:', 'eventon-apify') . '</strong> ';
+    echo esc_html__('This plugin requires PHP 8.0 or higher.', 'eventon-apify') . ' ';
+    /* translators: %s: Current PHP version. */
+    echo sprintf(esc_html__('You are running PHP %s.', 'eventon-apify'), esc_html(PHP_VERSION)) . ' ';
+    echo esc_html__('Please upgrade PHP before activating this plugin.', 'eventon-apify');
     echo '</p></div>';
 }
 
@@ -67,8 +82,8 @@ function eventon_apify_php_version_notice() {
  */
 function eventon_apify_add_settings_page() {
     add_options_page(
-        'EventON APIfy Settings',
-        'EventON APIfy',
+        __('EventON APIfy Settings', 'eventon-apify'),
+        __('EventON APIfy', 'eventon-apify'),
         'manage_options',
         'eventon-apify-settings',
         'eventon_apify_render_settings_page'
@@ -94,23 +109,6 @@ function eventon_apify_add_plugin_action_links($links) {
     );
 
     return $links;
-}
-
-/**
- * Add the Settings link through the generic plugin_action_links filter too.
- *
- * Some plugin list contexts do not reliably hit only the plugin-specific hook.
- *
- * @param array<int, string> $links Existing action links.
- * @param string             $plugin_file Plugin basename for the current row.
- * @return array<int, string>
- */
-function eventon_apify_filter_plugin_action_links($links, $plugin_file) {
-    if ($plugin_file !== plugin_basename(__FILE__)) {
-        return $links;
-    }
-
-    return eventon_apify_add_plugin_action_links($links);
 }
 
 /**
@@ -278,6 +276,8 @@ function eventon_apify_get_default_api_capabilities() {
         'create' => true,
         'update' => true,
         'delete' => true,
+        'rsvp_counts' => false,
+        'rsvp_attendees' => false,
     );
 }
 
@@ -289,34 +289,46 @@ function eventon_apify_get_default_api_capabilities() {
 function eventon_apify_get_api_capability_definitions() {
     return array(
         'list' => array(
-            'label' => 'List events',
-            'description' => 'Allow GET requests to the events collection endpoint.',
+            'label' => __('List events', 'eventon-apify'),
+            'description' => __('Allow GET requests to the events collection endpoint.', 'eventon-apify'),
             'methods' => 'GET',
             'route' => '/events',
         ),
         'read' => array(
-            'label' => 'Read single event',
-            'description' => 'Allow GET requests for an individual event.',
+            'label' => __('Read single event', 'eventon-apify'),
+            'description' => __('Allow GET requests for an individual event.', 'eventon-apify'),
             'methods' => 'GET',
             'route' => '/events/<id>',
         ),
         'create' => array(
-            'label' => 'Create events',
-            'description' => 'Allow POST requests that create ajde_events records.',
+            'label' => __('Create events', 'eventon-apify'),
+            'description' => __('Allow POST requests that create ajde_events records.', 'eventon-apify'),
             'methods' => 'POST',
             'route' => '/events',
         ),
         'update' => array(
-            'label' => 'Update events',
-            'description' => 'Allow PUT and PATCH requests for existing events.',
+            'label' => __('Update events', 'eventon-apify'),
+            'description' => __('Allow PUT and PATCH requests for existing events.', 'eventon-apify'),
             'methods' => 'PUT, PATCH',
             'route' => '/events/<id>',
         ),
         'delete' => array(
-            'label' => 'Delete events',
-            'description' => 'Allow DELETE requests that trash events.',
+            'label' => __('Delete events', 'eventon-apify'),
+            'description' => __('Allow DELETE requests that trash events.', 'eventon-apify'),
             'methods' => 'DELETE',
             'route' => '/events/<id>',
+        ),
+        'rsvp_counts' => array(
+            'label' => __('Read RSVP summary', 'eventon-apify'),
+            'description' => __('Allow GET requests for the yes-only RSVP summary of an event.', 'eventon-apify'),
+            'methods' => 'GET',
+            'route' => '/events/<id>/rsvps/summary',
+        ),
+        'rsvp_attendees' => array(
+            'label' => __('List RSVP attendees', 'eventon-apify'),
+            'description' => __('Allow GET requests for RSVP attendee records and contact details.', 'eventon-apify'),
+            'methods' => 'GET',
+            'route' => '/events/<id>/rsvps',
         ),
     );
 }
@@ -394,7 +406,7 @@ function eventon_apify_restrict_wp_v2_compatibility_routes($result, $server, WP_
 
     return new WP_Error(
         'eventon_apify_wp_v2_admin_only',
-        'The EventON wp/v2 compatibility endpoints are restricted to administrators.',
+        __('The EventON wp/v2 compatibility endpoints are restricted to administrators.', 'eventon-apify'),
         array('status' => rest_authorization_required_code())
     );
 }
@@ -424,6 +436,26 @@ function eventon_apify_is_wp_v2_compatibility_route($route) {
 }
 
 /**
+ * Remove EventON wp/v2 compatibility routes from the REST index for non-admin users.
+ *
+ * @param array<string, mixed> $endpoints Registered REST endpoints.
+ * @return array<string, mixed>
+ */
+function eventon_apify_filter_wp_v2_compatibility_endpoints($endpoints) {
+    if (!eventon_apify_is_wp_v2_compatibility_enabled() || current_user_can('manage_options')) {
+        return $endpoints;
+    }
+
+    foreach (array_keys($endpoints) as $route) {
+        if (eventon_apify_is_wp_v2_compatibility_route($route)) {
+            unset($endpoints[$route]);
+        }
+    }
+
+    return $endpoints;
+}
+
+/**
  * Render the plugin settings page.
  */
 function eventon_apify_render_settings_page() {
@@ -432,6 +464,7 @@ function eventon_apify_render_settings_page() {
     $capabilities = eventon_apify_get_api_capabilities();
     $definitions = eventon_apify_get_api_capability_definitions();
     $wp_v2_compat_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
+    $rsvp_available = eventon_apify_is_eventon_rsvp_available();
     $manifest_collection_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema';
     $manifest_type_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema/ajde_events';
     $project_url = 'https://github.com/renatobo/eventon-apify';
@@ -444,32 +477,37 @@ function eventon_apify_render_settings_page() {
             <div class="eventon-apify-hero">
                 <img
                     src="<?php echo esc_url($banner_url); ?>"
-                    alt="EventON APIfy settings banner"
+                    alt="<?php echo esc_attr__('EventON APIfy settings banner', 'eventon-apify'); ?>"
                     class="eventon-apify-hero-image"
                 />
             </div>
 
             <div class="eventon-apify-meta">
                 <a href="<?php echo esc_url($project_url); ?>" target="_blank" rel="noopener noreferrer">
-                    Plugin Repository
+                    <?php esc_html_e('Plugin Repository', 'eventon-apify'); ?>
                 </a>
-                <span>Version <?php echo esc_html(EVENTON_APIFY_VERSION); ?></span>
+                <span>
+                    <?php
+                    /* translators: %s: Plugin version. */
+                    echo esc_html(sprintf(__('Version %s', 'eventon-apify'), EVENTON_APIFY_VERSION));
+                    ?>
+                </span>
                 <a href="<?php echo esc_url($author_url); ?>" target="_blank" rel="noopener noreferrer">
-                    Renato Bonomini on GitHub
+                    <?php esc_html_e('Renato Bonomini on GitHub', 'eventon-apify'); ?>
                 </a>
                 <a href="<?php echo esc_url($git_updater_url); ?>" target="_blank" rel="noopener noreferrer">
-                    Updates via Git Updater
+                    <?php esc_html_e('Updates via Git Updater', 'eventon-apify'); ?>
                 </a>
             </div>
 
             <div class="eventon-apify-headline">
-                <h1>EventON APIfy Settings</h1>
+                <h1><?php esc_html_e('EventON APIfy Settings', 'eventon-apify'); ?></h1>
                 <p class="eventon-apify-intro">
-                Control the availability of the custom EventON REST API surface, the standard <code>wp/v2</code>
-                compatibility layer, and the discovery docs that compatible clients use to build correct requests.
+                <?php esc_html_e('Control the availability of the custom EventON REST API surface, the standard', 'eventon-apify'); ?> <code>wp/v2</code>
+                <?php esc_html_e('compatibility layer, and the discovery docs that compatible clients use to build correct requests.', 'eventon-apify'); ?>
                 </p>
                 <p class="eventon-apify-intro eventon-apify-intro-secondary">
-                    This plugin enables using MCP, with an extended MCP server available at
+                    <?php esc_html_e('This plugin enables using MCP, with an extended MCP server available at', 'eventon-apify'); ?>
                     <a href="https://github.com/renatobo/mcp-wp-cpt" target="_blank" rel="noopener noreferrer">renatobo/mcp-wp-cpt</a>.
                 </p>
             </div>
@@ -479,27 +517,27 @@ function eventon_apify_render_settings_page() {
             <?php if (!eventon_apify_is_eventon_available()) : ?>
                 <div class="notice notice-warning inline">
                     <p>
-                        <strong>EventON not detected.</strong>
-                        Activate EventON so the <code>ajde_events</code> post type is available before using these endpoints.
+                        <strong><?php esc_html_e('EventON not detected.', 'eventon-apify'); ?></strong>
+                        <?php esc_html_e('Activate EventON so the', 'eventon-apify'); ?> <code>ajde_events</code> <?php esc_html_e('post type is available before using these endpoints.', 'eventon-apify'); ?>
                     </p>
                 </div>
             <?php endif; ?>
 
-            <nav class="nav-tab-wrapper eventon-apify-tabs" role="tablist" aria-label="EventON APIfy sections">
+            <nav class="nav-tab-wrapper eventon-apify-tabs" role="tablist" aria-label="<?php echo esc_attr__('EventON APIfy sections', 'eventon-apify'); ?>">
                 <a href="#api" class="nav-tab eventon-apify-tab nav-tab-active" role="tab" aria-selected="true" data-panel="api">
-                    Event API
+                    <?php esc_html_e('Event API', 'eventon-apify'); ?>
                 </a>
                 <a href="#compat" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="compat">
-                    WP v2 compatibility
+                    <?php esc_html_e('WP v2 compatibility', 'eventon-apify'); ?>
                 </a>
                 <a href="#manifest" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="manifest">
-                    MCP schema manifest
+                    <?php esc_html_e('MCP schema manifest', 'eventon-apify'); ?>
                 </a>
                 <a href="#fields" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="fields">
-                    Request fields
+                    <?php esc_html_e('Request fields', 'eventon-apify'); ?>
                 </a>
                 <a href="#passwords" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="passwords">
-                    Application Passwords
+                    <?php esc_html_e('Application Passwords', 'eventon-apify'); ?>
                 </a>
             </nav>
 
@@ -510,10 +548,9 @@ function eventon_apify_render_settings_page() {
                 <section class="eventon-apify-panel is-active" id="api" data-panel="api" role="tabpanel">
                     <div class="eventon-apify-panel-header">
                         <div>
-                            <h2>Event API and capability toggles</h2>
+                            <h2><?php esc_html_e('Event API and capability toggles', 'eventon-apify'); ?></h2>
                             <p>
-                                Gate the custom <code><?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code> REST
-                                surface without changing authentication requirements.
+                                <?php esc_html_e('Gate the custom', 'eventon-apify'); ?> <code><?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code> <?php esc_html_e('REST surface without changing authentication requirements.', 'eventon-apify'); ?>
                             </p>
                         </div>
                     </div>
@@ -521,9 +558,9 @@ function eventon_apify_render_settings_page() {
                     <div class="eventon-apify-card eventon-apify-card-accent">
                         <div class="eventon-apify-switch-row">
                             <div>
-                                <h3>Event API</h3>
+                                <h3><?php esc_html_e('Event API', 'eventon-apify'); ?></h3>
                                 <p>
-                                    Enable or disable the protected REST endpoints under
+                                    <?php esc_html_e('Enable or disable the protected REST endpoints under', 'eventon-apify'); ?>
                                     <code>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code>.
                                 </p>
                             </div>
@@ -534,55 +571,67 @@ function eventon_apify_render_settings_page() {
                                     value="1"
                                     <?php checked(true, $api_enabled, true); ?>
                                 />
-                                <span>Enable EventON events API</span>
+                                <span><?php esc_html_e('Enable EventON events API', 'eventon-apify'); ?></span>
                             </label>
                         </div>
 
                         <div class="eventon-apify-grid eventon-apify-grid-two">
                             <div class="eventon-apify-code-card">
-                                <strong>Namespace</strong>
+                                <strong><?php esc_html_e('Namespace', 'eventon-apify'); ?></strong>
                                 <code>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?></code>
                             </div>
                             <div class="eventon-apify-code-card">
-                                <strong>Authentication</strong>
-                                <span>Administrator access using WordPress credentials or Application Passwords.</span>
+                                <strong><?php esc_html_e('Authentication', 'eventon-apify'); ?></strong>
+                                <span><?php esc_html_e('Administrator access using WordPress credentials or Application Passwords.', 'eventon-apify'); ?></span>
                             </div>
                         </div>
 
                         <div class="eventon-apify-route-list">
-                            <strong>Routes</strong>
+                            <strong><?php esc_html_e('Routes', 'eventon-apify'); ?></strong>
                             <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events</code>
                             <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code>
                             <code>POST <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events</code>
                             <code>PUT/PATCH <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code>
                             <code>DELETE <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;</code>
+                            <?php if ($rsvp_available) : ?>
+                                <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;/rsvps/summary</code>
+                                <code>GET <?php echo esc_html($site_url); ?>/wp-json/<?php echo esc_html(EVENTON_APIFY_NAMESPACE); ?>/events/&lt;id&gt;/rsvps</code>
+                            <?php endif; ?>
                         </div>
 
                         <div class="eventon-apify-example-grid">
                             <div class="eventon-apify-example">
-                                <strong>Collection example</strong>
+                                <strong><?php esc_html_e('Collection example', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-example-get"><?php echo esc_html($site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/events?per_page=10&page=1'); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-get'); return false;">Copy</button>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-get'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                             <div class="eventon-apify-example">
-                                <strong>Authenticated curl example</strong>
+                                <strong><?php esc_html_e('Authenticated curl example', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-example-curl">curl -u your_username:your_app_password "<?php echo esc_html($site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/events?search=ride'); ?>"</code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-curl'); return false;">Copy</button>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-curl'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                         </div>
                     </div>
 
                     <div class="eventon-apify-card">
                         <div class="eventon-apify-panel-copy">
-                            <h3>API capabilities</h3>
+                            <h3><?php esc_html_e('API capabilities', 'eventon-apify'); ?></h3>
                             <p>
-                                Disable specific REST operations without turning off the entire API. Requests still
-                                require administrator authentication, and disabled capabilities return <code>403</code>.
+                                <?php esc_html_e('Disable specific REST operations without turning off the entire API. Requests still require administrator authentication, and disabled capabilities return', 'eventon-apify'); ?> <code>403</code>.
                             </p>
                         </div>
 
+                        <?php if (!$rsvp_available) : ?>
+                            <p class="eventon-apify-note">
+                                <strong><?php esc_html_e('EventON RSVP not detected.', 'eventon-apify'); ?></strong>
+                                <?php esc_html_e('The RSVP summary and attendee routes remain unavailable until the', 'eventon-apify'); ?>
+                                <code>EventON - RSVP Events</code> addon is active and has registered
+                                <?php esc_html_e('the', 'eventon-apify'); ?> <code>evo-rsvp</code> <?php esc_html_e('post type.', 'eventon-apify'); ?>
+                            </p>
+                        <?php endif; ?>
+
                         <fieldset class="eventon-apify-capabilities">
-                            <legend class="screen-reader-text">API capabilities</legend>
+                            <legend class="screen-reader-text"><?php esc_html_e('API capabilities', 'eventon-apify'); ?></legend>
                             <?php foreach ($definitions as $capability => $definition) : ?>
                                 <?php
                                 $saved_enabled = !empty($capabilities[$capability]);
@@ -598,14 +647,14 @@ function eventon_apify_render_settings_page() {
                                         />
                                         <span class="eventon-apify-capability-label"><?php echo esc_html($definition['label']); ?></span>
                                         <span class="eventon-apify-capability-badge <?php echo $effective_enabled ? 'is-enabled' : 'is-disabled'; ?>">
-                                            <?php echo $effective_enabled ? 'Enabled' : 'Disabled'; ?>
+                                            <?php echo esc_html($effective_enabled ? __('Enabled', 'eventon-apify') : __('Disabled', 'eventon-apify')); ?>
                                         </span>
                                     </span>
                                     <span class="eventon-apify-capability-meta">
                                         <code><?php echo esc_html($definition['methods'] . ' ' . EVENTON_APIFY_NAMESPACE . $definition['route']); ?></code>
                                         <span><?php echo esc_html($definition['description']); ?></span>
                                         <?php if (!$api_enabled && $saved_enabled) : ?>
-                                            <em>Saved as enabled, but inactive while the Event API switch is off.</em>
+                                            <em><?php esc_html_e('Saved as enabled, but inactive while the Event API switch is off.', 'eventon-apify'); ?></em>
                                         <?php endif; ?>
                                     </span>
                                 </label>
@@ -617,10 +666,9 @@ function eventon_apify_render_settings_page() {
                 <section class="eventon-apify-panel" id="compat" data-panel="compat" role="tabpanel" hidden>
                     <div class="eventon-apify-panel-header">
                         <div>
-                            <h2>WP v2 compatibility</h2>
+                            <h2><?php esc_html_e('WP v2 compatibility', 'eventon-apify'); ?></h2>
                             <p>
-                                Expose EventON content through the standard WordPress REST API so generic WordPress
-                                tools can discover and operate on it.
+                                <?php esc_html_e('Expose EventON content through the standard WordPress REST API so generic WordPress tools can discover and operate on it.', 'eventon-apify'); ?>
                             </p>
                         </div>
                     </div>
@@ -628,10 +676,9 @@ function eventon_apify_render_settings_page() {
                     <div class="eventon-apify-card">
                         <div class="eventon-apify-switch-row">
                             <div>
-                                <h3>Standard <code>wp/v2</code> compatibility</h3>
+                                <h3><?php esc_html_e('Standard', 'eventon-apify'); ?> <code>wp/v2</code> <?php esc_html_e('compatibility', 'eventon-apify'); ?></h3>
                                 <p>
-                                    Publish <code>ajde_events</code> and related taxonomies under the standard
-                                    WordPress REST namespace while preserving EventON APIfy's custom namespace.
+                                    <?php esc_html_e('Publish', 'eventon-apify'); ?> <code>ajde_events</code> <?php esc_html_e('and related taxonomies under the standard WordPress REST namespace while preserving EventON APIfy\'s custom namespace.', 'eventon-apify'); ?>
                                 </p>
                             </div>
                             <label class="eventon-apify-toggle">
@@ -641,12 +688,12 @@ function eventon_apify_render_settings_page() {
                                     value="1"
                                     <?php checked(true, $wp_v2_compat_enabled, true); ?>
                                 />
-                                <span>Enable <code>wp/v2</code> compatibility</span>
+                                <span><?php esc_html_e('Enable', 'eventon-apify'); ?> <code>wp/v2</code> <?php esc_html_e('compatibility', 'eventon-apify'); ?></span>
                             </label>
                         </div>
 
                         <div class="eventon-apify-route-list">
-                            <strong>Compatibility routes</strong>
+                            <strong><?php esc_html_e('Compatibility routes', 'eventon-apify'); ?></strong>
                             <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/types/ajde_events</code>
                             <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/ajde_events</code>
                             <code>GET <?php echo esc_html($site_url); ?>/wp-json/wp/v2/event_location</code>
@@ -654,10 +701,9 @@ function eventon_apify_render_settings_page() {
                         </div>
 
                         <p class="eventon-apify-note">
-                            Intended for generic WordPress clients such as
+                            <?php esc_html_e('Intended for generic WordPress clients such as', 'eventon-apify'); ?>
                             <a href="https://github.com/InstaWP/mcp-wp" target="_blank" rel="noopener noreferrer">InstaWP mcp-wp</a>.
-                            These routes remain administrator-only, and compatibility responses redact sensitive
-                            fields like virtual access secrets and notification email metadata.
+                            <?php esc_html_e('These routes remain administrator-only, and compatibility responses redact sensitive fields like virtual access secrets and notification email metadata.', 'eventon-apify'); ?>
                         </p>
                     </div>
                 </section>
@@ -665,10 +711,9 @@ function eventon_apify_render_settings_page() {
                 <section class="eventon-apify-panel" id="manifest" data-panel="manifest" role="tabpanel" hidden>
                     <div class="eventon-apify-panel-header">
                         <div>
-                            <h2>MCP schema manifest</h2>
+                            <h2><?php esc_html_e('MCP schema manifest', 'eventon-apify'); ?></h2>
                             <p>
-                                Publish the executable EventON field contract for compatible MCP servers and other
-                                structured clients.
+                                <?php esc_html_e('Publish the executable EventON field contract for compatible MCP servers and other structured clients.', 'eventon-apify'); ?>
                             </p>
                         </div>
                     </div>
@@ -676,27 +721,22 @@ function eventon_apify_render_settings_page() {
                     <div class="eventon-apify-card">
                         <div class="eventon-apify-example-grid">
                             <div class="eventon-apify-example">
-                                <strong>Manifest collection</strong>
+                                <strong><?php esc_html_e('Manifest collection', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-manifest-collection"><?php echo esc_html($manifest_collection_url); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-collection'); return false;">Copy</button>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-collection'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                             <div class="eventon-apify-example">
-                                <strong>Content type detail</strong>
+                                <strong><?php esc_html_e('Content type detail', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-manifest-type"><?php echo esc_html($manifest_type_url); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-type'); return false;">Copy</button>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-type'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                         </div>
 
                         <p>
-                            The manifest is read-only and safe to expose. It describes the executable EventON field
-                            contract using <code>preferred_endpoint</code>, <code>preferred_write_mode</code>,
-                            structured <code>fields</code>, executable <code>validation_rules</code>, and normalized
-                            <code>examples.create</code> and <code>examples.update</code> payloads for
-                            <code>ajde_events</code>.
+                            <?php esc_html_e('The manifest is read-only and safe to expose. It describes the executable EventON field contract using', 'eventon-apify'); ?> <code>preferred_endpoint</code>, <code>preferred_write_mode</code>, <?php esc_html_e('structured', 'eventon-apify'); ?> <code>fields</code>, <?php esc_html_e('executable', 'eventon-apify'); ?> <code>validation_rules</code>, <?php esc_html_e('and normalized', 'eventon-apify'); ?> <code>examples.create</code> <?php esc_html_e('and', 'eventon-apify'); ?> <code>examples.update</code> <?php esc_html_e('payloads for', 'eventon-apify'); ?> <code>ajde_events</code>.
                         </p>
                         <p class="eventon-apify-note">
-                            The manifest does not replace <code>wp/v2</code> writes. It exists to inform compatible
-                            clients how to use <code>/wp-json/wp/v2/ajde_events</code> correctly.
+                            <?php esc_html_e('The manifest does not replace', 'eventon-apify'); ?> <code>wp/v2</code> <?php esc_html_e('writes. It exists to inform compatible clients how to use', 'eventon-apify'); ?> <code>/wp-json/wp/v2/ajde_events</code> <?php esc_html_e('correctly.', 'eventon-apify'); ?>
                         </p>
                     </div>
                 </section>
@@ -704,10 +744,9 @@ function eventon_apify_render_settings_page() {
                 <section class="eventon-apify-panel" id="fields" data-panel="fields" role="tabpanel" hidden>
                     <div class="eventon-apify-panel-header">
                         <div>
-                            <h2>Request fields</h2>
+                            <h2><?php esc_html_e('Request fields', 'eventon-apify'); ?></h2>
                             <p>
-                                Preferred JSON payloads use EventON-style nested objects. Legacy flat aliases such as
-                                <code>location_name</code> are still accepted for backward compatibility.
+                                <?php esc_html_e('Preferred JSON payloads use EventON-style nested objects. Legacy flat aliases such as', 'eventon-apify'); ?> <code>location_name</code> <?php esc_html_e('are still accepted for backward compatibility.', 'eventon-apify'); ?>
                             </p>
                         </div>
                     </div>
@@ -762,32 +801,30 @@ function eventon_apify_render_settings_page() {
                 <section class="eventon-apify-panel" id="passwords" data-panel="passwords" role="tabpanel" hidden>
                     <div class="eventon-apify-panel-header">
                         <div>
-                            <h2>How to set up an Application Password</h2>
+                            <h2><?php esc_html_e('How to set up an Application Password', 'eventon-apify'); ?></h2>
                             <p>
-                                Use WordPress Application Passwords for administrator-authenticated requests to the
-                                custom EventON API or the compatibility routes.
+                                <?php esc_html_e('Use WordPress Application Passwords for administrator-authenticated requests to the custom EventON API or the compatibility routes.', 'eventon-apify'); ?>
                             </p>
                         </div>
                     </div>
 
                     <div class="eventon-apify-card">
                         <ol class="eventon-apify-steps">
-                            <li>Log in to your WordPress Admin Dashboard.</li>
-                            <li>Go to <strong>Users -> Profile</strong>.</li>
-                            <li>Scroll down to the <strong>Application Passwords</strong> section.</li>
-                            <li>Enter a name like <em>EventON API Access</em> and click <strong>Add New Application Password</strong>.</li>
-                            <li>Copy the generated password.</li>
-                            <li>Use it with your WordPress username in Basic Auth requests.</li>
+                            <li><?php esc_html_e('Log in to your WordPress Admin Dashboard.', 'eventon-apify'); ?></li>
+                            <li><?php esc_html_e('Go to', 'eventon-apify'); ?> <strong><?php esc_html_e('Users -> Profile', 'eventon-apify'); ?></strong>.</li>
+                            <li><?php esc_html_e('Scroll down to the', 'eventon-apify'); ?> <strong><?php esc_html_e('Application Passwords', 'eventon-apify'); ?></strong> <?php esc_html_e('section.', 'eventon-apify'); ?></li>
+                            <li><?php esc_html_e('Enter a name like', 'eventon-apify'); ?> <em><?php esc_html_e('EventON API Access', 'eventon-apify'); ?></em> <?php esc_html_e('and click', 'eventon-apify'); ?> <strong><?php esc_html_e('Add New Application Password', 'eventon-apify'); ?></strong>.</li>
+                            <li><?php esc_html_e('Copy the generated password.', 'eventon-apify'); ?></li>
+                            <li><?php esc_html_e('Use it with your WordPress username in Basic Auth requests.', 'eventon-apify'); ?></li>
                         </ol>
                         <p class="eventon-apify-note">
-                            Your site should use HTTPS for Application Passwords. Store the generated password once,
-                            because WordPress will not show it again.
+                            <?php esc_html_e('Your site should use HTTPS for Application Passwords. Store the generated password once, because WordPress will not show it again.', 'eventon-apify'); ?>
                         </p>
                     </div>
                 </section>
 
                 <div class="eventon-apify-footer">
-                    <?php submit_button('Save settings', 'primary', 'submit', false); ?>
+                    <?php submit_button(__('Save settings', 'eventon-apify'), 'primary', 'submit', false); ?>
                 </div>
             </form>
         </div>
@@ -1221,6 +1258,64 @@ function eventon_apify_register_routes() {
             ),
         )
     );
+
+    if (!eventon_apify_is_eventon_rsvp_available()) {
+        return;
+    }
+
+    register_rest_route(
+        EVENTON_APIFY_NAMESPACE,
+        '/events/(?P<id>\d+)/rsvps/summary',
+        array(
+            array(
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => 'eventon_apify_get_event_rsvp_summary',
+                'permission_callback' => 'eventon_apify_admin_only',
+                'args' => array(
+                    'id' => array(
+                        'validate_callback' => 'eventon_apify_validate_numeric_identifier',
+                    ),
+                ),
+            ),
+        )
+    );
+
+    register_rest_route(
+        EVENTON_APIFY_NAMESPACE,
+        '/events/(?P<id>\d+)/rsvps',
+        array(
+            array(
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => 'eventon_apify_get_event_rsvps',
+                'permission_callback' => 'eventon_apify_admin_only',
+                'args' => array(
+                    'id' => array(
+                        'validate_callback' => 'eventon_apify_validate_numeric_identifier',
+                    ),
+                    'per_page' => array(
+                        'default' => 50,
+                        'sanitize_callback' => 'eventon_apify_sanitize_per_page',
+                    ),
+                    'page' => array(
+                        'default' => 1,
+                        'sanitize_callback' => 'eventon_apify_sanitize_page',
+                    ),
+                    'search' => array(
+                        'default' => '',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ),
+                    'rsvp' => array(
+                        'default' => 'all',
+                        'sanitize_callback' => 'eventon_apify_sanitize_rsvp_filter',
+                    ),
+                    'status' => array(
+                        'default' => 'all',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ),
+                ),
+            ),
+        )
+    );
 }
 
 /**
@@ -1241,6 +1336,11 @@ function eventon_apify_validate_content_type_slug($value) {
  */
 function eventon_apify_filter_post_type_args_for_wp_v2_compat(array $args, $post_type) {
     if (!eventon_apify_is_wp_v2_compatibility_enabled() || $post_type !== 'ajde_events') {
+        return $args;
+    }
+
+    if (!current_user_can('manage_options')) {
+        $args['show_in_rest'] = false;
         return $args;
     }
 
@@ -1270,6 +1370,11 @@ function eventon_apify_filter_taxonomy_args_for_wp_v2_compat(array $args, $taxon
         return $args;
     }
 
+    if (!current_user_can('manage_options')) {
+        $args['show_in_rest'] = false;
+        return $args;
+    }
+
     $args['show_in_rest'] = true;
     $args['rest_base'] = $taxonomy;
 
@@ -1284,7 +1389,7 @@ function eventon_apify_filter_taxonomy_args_for_wp_v2_compat(array $args, $taxon
  * Register additional wp/v2 fields so generic WordPress clients can work with EventON data.
  */
 function eventon_apify_register_wp_v2_compatibility_fields() {
-    if (!eventon_apify_is_wp_v2_compatibility_enabled()) {
+    if (!eventon_apify_is_wp_v2_compatibility_enabled() || !current_user_can('manage_options')) {
         return;
     }
 
@@ -2470,6 +2575,7 @@ function eventon_apify_get_mcp_availability_state() {
 
     return array(
         'eventon_available' => $eventon_available,
+        'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
         'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
         'custom_event_api_capabilities' => eventon_apify_get_api_capabilities(),
         'wp_v2_compatibility_enabled' => $wp_v2_enabled,
@@ -2485,15 +2591,32 @@ function eventon_apify_get_mcp_availability_state() {
  */
 function eventon_apify_get_mcp_manifest($content_type = '') {
     $content_types = array();
+    $rsvp_available = eventon_apify_is_eventon_rsvp_available();
 
     if ($content_type === '') {
         $content_types['ajde_events'] = eventon_apify_get_mcp_content_type_manifest();
+
+        if ($rsvp_available) {
+            $content_types['event_rsvps'] = eventon_apify_get_mcp_rsvp_content_type_manifest();
+        }
     } elseif ($content_type === 'ajde_events') {
         $content_types['ajde_events'] = eventon_apify_get_mcp_content_type_manifest();
+    } elseif ($content_type === 'event_rsvps') {
+        if (!$rsvp_available) {
+            return new WP_Error(
+                'eventon_apify_unknown_content_type',
+                'The event_rsvps content type is published only when the EventON RSVP addon is active.',
+                array('status' => 404)
+            );
+        }
+
+        $content_types['event_rsvps'] = eventon_apify_get_mcp_rsvp_content_type_manifest();
     } else {
         return new WP_Error(
             'eventon_apify_unknown_content_type',
-            'Only the ajde_events content type is currently published in the EventON APIfy MCP manifest.',
+            $rsvp_available
+                ? 'Only the ajde_events and event_rsvps content types are currently published in the EventON APIfy MCP manifest.'
+                : 'Only the ajde_events content type is currently published in the EventON APIfy MCP manifest.',
             array('status' => 404)
         );
     }
@@ -2534,6 +2657,198 @@ function eventon_apify_get_mcp_content_type_manifest() {
         'availability' => array(
             'eventon_available' => eventon_apify_is_eventon_available(),
             'wp_v2_compatibility_enabled' => eventon_apify_is_wp_v2_compatibility_enabled(),
+        ),
+    );
+}
+
+/**
+ * Build the event_rsvps contract published in the MCP manifest.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_mcp_rsvp_content_type_manifest() {
+    return array(
+        'slug' => 'event_rsvps',
+        'label' => 'EventON RSVP Attendee',
+        'description' => 'Read-only RSVP attendee records exposed through EventON APIfy nested event routes when the EventON RSVP addon is active.',
+        'preferred_endpoint' => 'eventonapify/v1/events/{event_id}/rsvps',
+        'preferred_write_mode' => 'read_only',
+        'supported_operations' => array('list'),
+        'fields' => eventon_apify_get_mcp_rsvp_contract_fields(),
+        'examples' => eventon_apify_get_mcp_rsvp_contract_examples(),
+        'availability' => array(
+            'eventon_available' => eventon_apify_is_eventon_available(),
+            'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
+            'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+            'rsvp_attendees_enabled' => eventon_apify_is_api_capability_enabled('rsvp_attendees'),
+            'rsvp_counts_enabled' => eventon_apify_is_api_capability_enabled('rsvp_counts'),
+        ),
+        'parent_context' => array(
+            'content_type' => 'ajde_events',
+            'id_param' => 'event_id',
+        ),
+        'related_endpoints' => array(
+            array(
+                'name' => 'summary',
+                'endpoint' => 'eventonapify/v1/events/{event_id}/rsvps/summary',
+                'description' => 'Yes-only RSVP attendance summary for the same event.',
+            ),
+        ),
+    );
+}
+
+/**
+ * Return the RSVP attendee fields published in the MCP manifest.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function eventon_apify_get_mcp_rsvp_contract_fields() {
+    return array(
+        array(
+            'name' => 'id',
+            'label' => 'ID',
+            'description' => 'RSVP post ID.',
+            'type' => 'integer',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'first_name',
+            'label' => 'First Name',
+            'description' => 'RSVP attendee first name.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'last_name',
+            'label' => 'Last Name',
+            'description' => 'RSVP attendee last name.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'full_name',
+            'label' => 'Full Name',
+            'description' => 'Combined RSVP attendee display name.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'email',
+            'label' => 'Email',
+            'description' => 'RSVP attendee email address.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'phone',
+            'label' => 'Phone',
+            'description' => 'RSVP attendee phone number.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'email_updates',
+            'label' => 'Email Updates',
+            'description' => 'Whether the attendee opted in to email updates.',
+            'type' => 'boolean',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'rsvp',
+            'label' => 'RSVP',
+            'description' => 'Normalized RSVP response.',
+            'type' => 'string',
+            'enum' => array('yes', 'no', 'maybe'),
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'status',
+            'label' => 'Status',
+            'description' => 'Check-in status value from EventON RSVP.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'rsvp_type',
+            'label' => 'RSVP Type',
+            'description' => 'RSVP type such as normal, invitee, or waitlist.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'count',
+            'label' => 'Count',
+            'description' => 'Total party size for the RSVP, including the submitter.',
+            'type' => 'integer',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'event_time',
+            'label' => 'Event Time',
+            'description' => 'Formatted event time string used in the RSVP CSV export.',
+            'type' => 'string',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'other_attendees',
+            'label' => 'Other Attendees',
+            'description' => 'Additional guest names captured with the RSVP.',
+            'type' => 'array',
+            'items' => array(
+                'name' => 'other_attendee',
+                'type' => 'string',
+            ),
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'custom_fields',
+            'label' => 'Custom Fields',
+            'description' => 'Additional RSVP form fields stored on the attendee record.',
+            'type' => 'object',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+    );
+}
+
+/**
+ * Return RSVP MCP examples for list and summary reads.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_mcp_rsvp_contract_examples() {
+    return array(
+        'list' => array(
+            'event_id' => 123,
+            'query' => array(
+                'per_page' => 50,
+                'page' => 1,
+                'rsvp' => 'yes',
+            ),
+        ),
+        'summary' => array(
+            'event_id' => 123,
+            'endpoint' => 'eventonapify/v1/events/{event_id}/rsvps/summary',
+            'response_fields' => array(
+                'event_id',
+                'event_title',
+                'yes_submissions',
+                'yes_attendees_total',
+                'yes_additional_attendees',
+            ),
         ),
     );
 }
@@ -2809,6 +3124,21 @@ function eventon_apify_validate_numeric_identifier($value) {
 }
 
 /**
+ * Sanitize RSVP list filter values.
+ *
+ * @param mixed $value Request parameter.
+ */
+function eventon_apify_sanitize_rsvp_filter($value) {
+    $value = strtolower(trim(sanitize_text_field((string) $value)));
+
+    if (!in_array($value, array('all', 'yes', 'no', 'maybe'), true)) {
+        return 'all';
+    }
+
+    return $value;
+}
+
+/**
  * Restrict API access to administrators.
  */
 function eventon_apify_admin_only() {
@@ -2858,7 +3188,7 @@ function eventon_apify_assert_api_capability_is_ready($capability = '') {
     if (!eventon_apify_is_eventon_available()) {
         return new WP_Error(
             'eventon_apify_eventon_missing',
-            'EventON is not active or the ajde_events post type is unavailable.',
+            __('EventON is not active or the ajde_events post type is unavailable.', 'eventon-apify'),
             array('status' => 500)
         );
     }
@@ -2866,7 +3196,7 @@ function eventon_apify_assert_api_capability_is_ready($capability = '') {
     if (!get_option(EVENTON_APIFY_OPTION_ENABLE_API, false)) {
         return new WP_Error(
             'eventon_apify_disabled',
-            'The EventON APIfy endpoint is disabled. Enable it in Settings > EventON APIfy.',
+            __('The EventON APIfy endpoint is disabled. Enable it in Settings > EventON APIfy.', 'eventon-apify'),
             array('status' => 403)
         );
     }
@@ -2877,7 +3207,11 @@ function eventon_apify_assert_api_capability_is_ready($capability = '') {
 
         return new WP_Error(
             'eventon_apify_capability_disabled',
-            $capability_label . ' is disabled in Settings > EventON APIfy.',
+            sprintf(
+                /* translators: %s: API capability label. */
+                __('%s is disabled in Settings > EventON APIfy.', 'eventon-apify'),
+                $capability_label
+            ),
             array('status' => 403)
         );
     }
@@ -2890,6 +3224,35 @@ function eventon_apify_assert_api_capability_is_ready($capability = '') {
  */
 function eventon_apify_is_eventon_available() {
     return post_type_exists('ajde_events');
+}
+
+/**
+ * Detect whether the EventON RSVP addon is active and has registered its post type.
+ */
+function eventon_apify_is_eventon_rsvp_available() {
+    return class_exists('EventON_rsvp') && post_type_exists('evo-rsvp');
+}
+
+/**
+ * Verify EventON RSVP availability, plugin enablement, and route capability.
+ *
+ * @return true|WP_Error
+ */
+function eventon_apify_assert_rsvp_api_capability_is_ready($capability) {
+    $ready = eventon_apify_assert_api_capability_is_ready($capability);
+    if (is_wp_error($ready)) {
+        return $ready;
+    }
+
+    if (!eventon_apify_is_eventon_rsvp_available()) {
+        return new WP_Error(
+            'eventon_apify_rsvp_missing',
+            __('The EventON RSVP addon is not active or the evo-rsvp post type is unavailable.', 'eventon-apify'),
+            array('status' => 404)
+        );
+    }
+
+    return true;
 }
 
 /**
@@ -3433,6 +3796,121 @@ function eventon_apify_get_event(WP_REST_Request $request) {
 }
 
 /**
+ * Return the yes-only RSVP summary for an EventON event.
+ */
+function eventon_apify_get_event_rsvp_summary(WP_REST_Request $request) {
+    $ready = eventon_apify_assert_rsvp_api_capability_is_ready('rsvp_counts');
+    if (is_wp_error($ready)) {
+        return $ready;
+    }
+
+    $event = eventon_apify_get_event_post((int) $request->get_param('id'));
+    if (is_wp_error($event)) {
+        return $event;
+    }
+
+    $attendees = eventon_apify_get_event_rsvp_attendees($event->ID);
+    if (is_wp_error($attendees)) {
+        return $attendees;
+    }
+
+    $yes_submissions = 0;
+    $yes_attendees_total = 0;
+
+    foreach ($attendees as $attendee) {
+        if (($attendee['rsvp'] ?? '') !== 'yes') {
+            continue;
+        }
+
+        $yes_submissions++;
+        $yes_attendees_total += max(1, absint($attendee['count'] ?? 1));
+    }
+
+    return rest_ensure_response(
+        array(
+            'event_id' => $event->ID,
+            'event_title' => $event->post_title,
+            'yes_submissions' => $yes_submissions,
+            'yes_attendees_total' => $yes_attendees_total,
+            'yes_additional_attendees' => max(0, $yes_attendees_total - $yes_submissions),
+        )
+    );
+}
+
+/**
+ * List RSVP attendee records for an EventON event.
+ */
+function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
+    $ready = eventon_apify_assert_rsvp_api_capability_is_ready('rsvp_attendees');
+    if (is_wp_error($ready)) {
+        return $ready;
+    }
+
+    $event = eventon_apify_get_event_post((int) $request->get_param('id'));
+    if (is_wp_error($event)) {
+        return $event;
+    }
+
+    $attendees = eventon_apify_get_event_rsvp_attendees($event->ID);
+    if (is_wp_error($attendees)) {
+        return $attendees;
+    }
+
+    $rsvp_filter = eventon_apify_sanitize_rsvp_filter($request->get_param('rsvp'));
+    $status_filter = strtolower(trim((string) $request->get_param('status')));
+    $search = strtolower(trim((string) $request->get_param('search')));
+
+    if ($rsvp_filter !== 'all') {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($rsvp_filter) {
+                    return ($attendee['rsvp'] ?? '') === $rsvp_filter;
+                }
+            )
+        );
+    }
+
+    if ($status_filter !== '' && $status_filter !== 'all') {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($status_filter) {
+                    return strtolower((string) ($attendee['status'] ?? '')) === $status_filter;
+                }
+            )
+        );
+    }
+
+    if ($search !== '') {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($search) {
+                    return eventon_apify_rsvp_attendee_matches_search($attendee, $search);
+                }
+            )
+        );
+    }
+
+    $per_page = (int) $request->get_param('per_page');
+    $page = (int) $request->get_param('page');
+    $total = count($attendees);
+    $pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
+    $offset = max(0, ($page - 1) * $per_page);
+
+    return rest_ensure_response(
+        array(
+            'total' => $total,
+            'pages' => $pages,
+            'page' => $page,
+            'per_page' => $per_page,
+            'attendees' => array_slice($attendees, $offset, $per_page),
+        )
+    );
+}
+
+/**
  * Create a new EventON event.
  */
 function eventon_apify_create_event(WP_REST_Request $request) {
@@ -3587,6 +4065,332 @@ function eventon_apify_get_event_post($post_id) {
     }
 
     return $post;
+}
+
+/**
+ * Return normalized RSVP attendee records for an EventON event.
+ *
+ * @return array<int, array<string, mixed>>|WP_Error
+ */
+function eventon_apify_get_event_rsvp_attendees($event_id) {
+    if (!eventon_apify_is_eventon_rsvp_available()) {
+        return new WP_Error(
+            'eventon_apify_rsvp_missing',
+            __('The EventON RSVP addon is not active or the evo-rsvp post type is unavailable.', 'eventon-apify'),
+            array('status' => 404)
+        );
+    }
+
+    $query = new WP_Query(
+        array(
+            'post_type' => 'evo-rsvp',
+            'post_status' => array('publish', 'private', 'draft'),
+            'posts_per_page' => -1,
+            'orderby' => 'ID',
+            'order' => 'DESC',
+            'meta_query' => array(
+                array(
+                    'key' => 'e_id',
+                    'value' => (string) $event_id,
+                    'compare' => '=',
+                ),
+            ),
+        )
+    );
+
+    $attendees = array();
+    foreach ($query->posts as $post) {
+        $attendees[] = eventon_apify_format_rsvp_attendee($post);
+    }
+
+    return $attendees;
+}
+
+/**
+ * Format an RSVP attendee record into a stable API payload.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_format_rsvp_attendee(WP_Post $post) {
+    $meta = get_post_meta($post->ID);
+    $rsvp_object = class_exists('EVO_RSVP_CPT') ? new EVO_RSVP_CPT($post->ID) : null;
+    $first_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('first_name'), array('first_name')));
+    $last_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('last_name'), array('last_name')));
+    $email = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('email'), array('email')));
+    $phone = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array(), array('phone')));
+    $count = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('count'), array('count')));
+    $event_id = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('event_id'), array('e_id')));
+    $repeat_interval = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('repeat_interval'), array('repeat_interval')));
+
+    if ($count < 1) {
+        $count = 1;
+    }
+
+    $rsvp_value = eventon_apify_normalize_rsvp_response(
+        eventon_apify_get_rsvp_field_value(
+            $rsvp_object,
+            $meta,
+            array('get_rsvp_status'),
+            array('rsvp')
+        )
+    );
+    $status = strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('checkin_status'), array('status'))));
+    $rsvp_type = strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('get_rsvp_type'), array('rsvp_type'))));
+    $other_attendees = eventon_apify_normalize_rsvp_other_attendees(
+        eventon_apify_get_rsvp_field_value(
+            $rsvp_object,
+            $meta,
+            array('get_names'),
+            array('names')
+        )
+    );
+    $email_updates_value = eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('get_updates'), array('updates'));
+    $full_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('full_name'), array()));
+    $event_time = eventon_apify_get_rsvp_event_time($event_id, $repeat_interval);
+
+    if ($full_name === '') {
+        $full_name = trim((string) $post->post_title);
+    }
+
+    return array(
+        'id' => $post->ID,
+        'first_name' => $first_name,
+        'last_name' => $last_name,
+        'full_name' => $full_name,
+        'email' => $email,
+        'phone' => $phone,
+        'email_updates' => eventon_apify_is_yes($email_updates_value),
+        'rsvp' => $rsvp_value,
+        'status' => $status,
+        'rsvp_type' => $rsvp_type,
+        'count' => $count,
+        'event_time' => $event_time,
+        'other_attendees' => $other_attendees,
+        'custom_fields' => eventon_apify_get_rsvp_custom_fields($meta),
+    );
+}
+
+/**
+ * Read a normalized RSVP field from the addon object or raw post meta.
+ *
+ * @param object|null                      $rsvp_object RSVP addon object.
+ * @param array<string, array<int, mixed>> $meta        Raw post meta.
+ * @param array<int, string>               $methods     Candidate method names.
+ * @param array<int, string>               $keys        Candidate property/meta keys.
+ * @return mixed
+ */
+function eventon_apify_get_rsvp_field_value($rsvp_object, array $meta, array $methods, array $keys) {
+    if (is_object($rsvp_object)) {
+        foreach ($methods as $method) {
+            if (!method_exists($rsvp_object, $method)) {
+                continue;
+            }
+
+            $value = $rsvp_object->{$method}();
+            if ($value !== null && $value !== '' && $value !== array()) {
+                return $value;
+            }
+        }
+
+        foreach ($keys as $key) {
+            if (method_exists($rsvp_object, 'get_prop')) {
+                $value = $rsvp_object->get_prop($key);
+                if ($value !== null && $value !== '' && $value !== array()) {
+                    return $value;
+                }
+            }
+
+            if (method_exists($rsvp_object, 'get_prop_')) {
+                $value = $rsvp_object->get_prop_($key);
+                if ($value !== null && $value !== '' && $value !== array()) {
+                    return $value;
+                }
+            }
+        }
+    }
+
+    foreach ($keys as $key) {
+        if (!isset($meta[$key][0])) {
+            continue;
+        }
+
+        $value = maybe_unserialize($meta[$key][0]);
+        if ($value !== null && $value !== '' && $value !== array()) {
+            return $value;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Return the formatted event time string shown by the RSVP CSV export.
+ */
+function eventon_apify_get_rsvp_event_time($event_id, $repeat_interval) {
+    if (!$event_id || !class_exists('EVORS_Event')) {
+        return '';
+    }
+
+    $event = new EVORS_Event($event_id, $repeat_interval);
+
+    if (!isset($event->event) || !is_object($event->event) || !method_exists($event->event, 'get_formatted_smart_time')) {
+        return '';
+    }
+
+    return (string) $event->event->get_formatted_smart_time($repeat_interval);
+}
+
+/**
+ * Normalize EventON RSVP values to yes/no/maybe.
+ */
+function eventon_apify_normalize_rsvp_response($value) {
+    $value = strtolower(trim((string) $value));
+
+    if (in_array($value, array('y', 'yes'), true)) {
+        return 'yes';
+    }
+
+    if (in_array($value, array('n', 'no'), true)) {
+        return 'no';
+    }
+
+    if (in_array($value, array('m', 'maybe'), true)) {
+        return 'maybe';
+    }
+
+    return $value;
+}
+
+/**
+ * Normalize stored other-attendee values into a flat string array.
+ *
+ * @param mixed $value Raw stored value.
+ * @return array<int, string>
+ */
+function eventon_apify_normalize_rsvp_other_attendees($value) {
+    if (is_string($value)) {
+        $parts = preg_split('/[\r\n,]+/', $value);
+    } elseif (is_array($value)) {
+        $parts = $value;
+    } else {
+        $parts = array();
+    }
+
+    $items = array();
+    foreach ($parts as $part) {
+        $part = trim((string) $part);
+        if ($part !== '') {
+            $items[] = $part;
+        }
+    }
+
+    return array_values(array_unique($items));
+}
+
+/**
+ * Return additional RSVP form fields without exposing internal system keys.
+ *
+ * @param array<string, array<int, mixed>> $meta Raw post meta array.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_rsvp_custom_fields(array $meta) {
+    $custom_fields = array();
+    $excluded_keys = array(
+        'e_id',
+        'event_id',
+        'evors_event_id',
+        'count',
+        'qty',
+        'rsvp',
+        'evors_rsvp',
+        'response',
+        'status',
+        'checkin_status',
+        'evors_status',
+        'type',
+        'rsvp_type',
+        'names',
+        'other_attendees',
+        'attendees',
+        'fname',
+        'first_name',
+        'firstname',
+        'lname',
+        'last_name',
+        'lastname',
+        'email',
+        'evors_email',
+        'email_address',
+        'phone',
+        'evors_phone',
+        'updates',
+        'email_updates',
+        'optin',
+        'subscribe',
+    );
+
+    foreach ($meta as $key => $values) {
+        if (str_starts_with((string) $key, '_') || in_array($key, $excluded_keys, true)) {
+            continue;
+        }
+
+        if (!isset($values[0])) {
+            continue;
+        }
+
+        $value = maybe_unserialize($values[0]);
+
+        if (is_array($value)) {
+            $custom_fields[$key] = array_values(
+                array_map(
+                    static function ($item) {
+                        return is_scalar($item) ? sanitize_text_field((string) $item) : wp_json_encode($item);
+                    },
+                    $value
+                )
+            );
+            continue;
+        }
+
+        if (is_scalar($value) && trim((string) $value) !== '') {
+            $custom_fields[$key] = sanitize_text_field((string) $value);
+        }
+    }
+
+    ksort($custom_fields);
+
+    return $custom_fields;
+}
+
+/**
+ * Determine whether an RSVP attendee row matches a text search.
+ */
+function eventon_apify_rsvp_attendee_matches_search(array $attendee, $search) {
+    $haystacks = array(
+        $attendee['first_name'] ?? '',
+        $attendee['last_name'] ?? '',
+        $attendee['full_name'] ?? '',
+        $attendee['email'] ?? '',
+        $attendee['phone'] ?? '',
+        $attendee['rsvp'] ?? '',
+        $attendee['status'] ?? '',
+        $attendee['rsvp_type'] ?? '',
+        implode(' ', is_array($attendee['other_attendees'] ?? null) ? $attendee['other_attendees'] : array()),
+    );
+
+    if (!empty($attendee['custom_fields']) && is_array($attendee['custom_fields'])) {
+        foreach ($attendee['custom_fields'] as $value) {
+            if (is_array($value)) {
+                $haystacks[] = implode(' ', array_map('strval', $value));
+            } else {
+                $haystacks[] = (string) $value;
+            }
+        }
+    }
+
+    $combined = strtolower(implode(' ', $haystacks));
+
+    return $combined !== '' && str_contains($combined, $search);
 }
 
 /**
@@ -5320,7 +6124,7 @@ function eventon_apify_assert_can_manage_shared_terms() {
 
     return new WP_Error(
         'eventon_apify_term_management_forbidden',
-        'Managing shared EventON taxonomy records requires administrator privileges.',
+        __('Managing shared EventON taxonomy records requires administrator privileges.', 'eventon-apify'),
         array('status' => rest_authorization_required_code())
     );
 }

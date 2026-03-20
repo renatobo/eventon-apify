@@ -4,10 +4,12 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 1.0.x   | Yes       |
+| 1.3.x   | Yes       |
 
 ## Reporting a Vulnerability
 
-Open a security report or issue on the GitHub repository:
+Please use GitHub private vulnerability reporting / security advisories for this repository:
 
 <https://github.com/renatobo/eventon-apify>
+
+Please avoid filing public issues for unpatched vulnerabilities.
