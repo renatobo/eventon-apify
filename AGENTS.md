@@ -1,5 +1,12 @@
 # Repository Instructions
 
+## Distribution Channels
+
+- Treat GitHub Releases as the active primary distribution channel.
+- Treat WordPress.org as a secondary distribution channel that is not live until that build/submission path is explicitly in place.
+- Do not describe WordPress.org as the current install or update source in UI copy, docs, or release notes unless the repo has been updated to support it.
+- When writing user-facing copy, make Git Updater the explicit mechanism for GitHub-installed update flow.
+
 ## Release Versioning
 
 - When bumping or releasing a version, update all user-visible version references together.
@@ -17,6 +24,7 @@
 ## Git Updater Requirements
 
 - Keep Git Updater compatibility enabled in the main plugin file header.
+- Keep GitHub-first distribution messaging intact when editing settings UI, docs, or release copy.
 - At minimum, preserve these plugin headers in `eventon-apify.php`:
   - `GitHub Plugin URI`
   - `Primary Branch`

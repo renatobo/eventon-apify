@@ -37,7 +37,7 @@ curl -u your_username:your_app_password \
 - Optional `wp/v2` compatibility mode for generic WordPress tools such as `mcp-wp`
 - Read-only MCP schema manifest for clients that need an executable EventON content contract
 - Compatible with WordPress Application Passwords
-- GitHub Updater metadata included for dashboard-based updates
+- Git Updater metadata included for dashboard-based GitHub updates
 
 ## Requirements
 
@@ -48,12 +48,13 @@ curl -u your_username:your_app_password \
 
 ## Installation
 
-1. Upload the plugin folder to `/wp-content/plugins/eventon-apify/`.
+1. Install the packaged zip from [GitHub Releases](https://github.com/renatobo/eventon-apify/releases), or upload the plugin folder to `/wp-content/plugins/eventon-apify/` when working from source in local development.
 2. Activate it from **Plugins** in wp-admin.
 3. Open **Settings -> EventON APIfy**.
 4. Enable **Event API**.
 5. Enable the capabilities you want available to administrators.
 6. If you are using a generic WordPress client such as `mcp-wp`, also enable **WP v2 compatibility**.
+7. If you installed from GitHub and want in-dashboard updates, install [Git Updater](https://github.com/afragen/git-updater).
 
 Upgrade note: from `1.3.2` onward, the plugin keeps a backup copy of the API and `WP v2 compatibility` settings so future upgrades can restore them if those options go missing during an update.
 
@@ -438,9 +439,11 @@ curl -u your_username:your_app_password \
 
 ## Automatic updates
 
-This plugin is compatible with [GitHub Updater](https://github.com/afragen/github-updater).
+This repository is set up for a dual distribution model:
 
-Install GitHub Updater to receive update notifications and one-click updates from this repository.
+- GitHub Releases is the active channel and publishes the packaged zip used by direct installs.
+- [Git Updater](https://github.com/afragen/git-updater) can track this repository and install updates from the attached GitHub release asset because the main plugin file includes the required Git Updater headers.
+- WordPress.org is intended as a secondary channel later; it is not the active install or release path yet.
 
 ## Release process
 

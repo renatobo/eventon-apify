@@ -484,7 +484,7 @@ function eventon_apify_render_settings_page() {
 
             <div class="eventon-apify-meta">
                 <a href="<?php echo esc_url($project_url); ?>" target="_blank" rel="noopener noreferrer">
-                    <?php esc_html_e('Plugin Repository', 'eventon-apify'); ?>
+                    <?php esc_html_e('GitHub Repository', 'eventon-apify'); ?>
                 </a>
                 <span>
                     <?php
@@ -496,7 +496,7 @@ function eventon_apify_render_settings_page() {
                     <?php esc_html_e('Renato Bonomini on GitHub', 'eventon-apify'); ?>
                 </a>
                 <a href="<?php echo esc_url($git_updater_url); ?>" target="_blank" rel="noopener noreferrer">
-                    <?php esc_html_e('Updates via Git Updater', 'eventon-apify'); ?>
+                    <?php esc_html_e('GitHub updates via Git Updater', 'eventon-apify'); ?>
                 </a>
             </div>
 
@@ -505,6 +505,9 @@ function eventon_apify_render_settings_page() {
                 <p class="eventon-apify-intro">
                 <?php esc_html_e('Control the availability of the custom EventON REST API surface, the standard', 'eventon-apify'); ?> <code>wp/v2</code>
                 <?php esc_html_e('compatibility layer, and the discovery docs that compatible clients use to build correct requests.', 'eventon-apify'); ?>
+                </p>
+                <p class="eventon-apify-intro eventon-apify-intro-secondary">
+                    <?php esc_html_e('GitHub Releases is the active distribution channel for packaged installs and updates through Git Updater. WordPress.org support is intended as a secondary channel when the directory build is in place.', 'eventon-apify'); ?>
                 </p>
                 <p class="eventon-apify-intro eventon-apify-intro-secondary">
                     <?php esc_html_e('This plugin enables using MCP, with an extended MCP server available at', 'eventon-apify'); ?>

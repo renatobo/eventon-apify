@@ -11,15 +11,19 @@
   - calendar/API logo treatment
   - short one-line product explanation with a lighter secondary line
 - Below the banner, keep a compact metadata row with these items:
-  - `Plugin Repository`
+  - `GitHub Repository`
   - current plugin version
   - author GitHub link
-  - single-button link: `Updates via Git Updater`
+  - single-button link: `GitHub updates via Git Updater`
 
 ## Settings Intro Copy
 
 - Keep the page title `EventON APIfy Settings`.
 - Keep the short descriptive paragraph about controlling the custom EventON REST API surface, `wp/v2` compatibility, and discovery docs.
+- Keep a secondary note that the plugin is intended for dual distribution through GitHub Releases and WordPress.org.
+  - GitHub Releases is the active install/update channel today
+  - WordPress.org is the planned secondary channel and should not be described as live unless that build exists
+  - Git Updater should be named explicitly as the GitHub update mechanism
 - Keep the MCP note directly below the intro:
   - this plugin enables using MCP
   - extended MCP server link: `https://github.com/renatobo/mcp-wp-cpt`

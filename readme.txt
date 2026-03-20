@@ -41,9 +41,11 @@ Features:
 - Read-only MCP schema manifest for compatible MCP servers
 - Compatible with WordPress Application Password authentication
 
-Automatic updates:
-- This plugin supports updates via GitHub Updater:
-  https://github.com/afragen/github-updater
+Distribution and updates:
+- GitHub Releases is the active distribution channel for packaged zip installs.
+- WordPress.org is planned as a secondary directory channel once that build is in place.
+- This plugin includes Git Updater metadata for GitHub-based installs and updates:
+  https://github.com/afragen/git-updater
 
 Privacy:
 - EventON APIfy reads and writes EventON event data stored in standard WordPress/EventON post meta and taxonomy meta.
@@ -54,14 +56,14 @@ Privacy:
 
 == Installation ==
 
-1. Upload the plugin folder to `/wp-content/plugins/`.
+1. Install the packaged zip from GitHub Releases, or upload the plugin folder to `/wp-content/plugins/`.
 2. Activate the plugin from wp-admin -> Plugins.
 3. Go to Settings -> EventON APIfy.
 4. Enable "Event API".
 5. Enable the capabilities you want to expose.
 6. Install and activate EventON if it is not already active.
 7. If you use a generic WordPress client such as `mcp-wp`, enable "WP v2 compatibility".
-8. (Optional) Install GitHub Updater for one-click updates from GitHub.
+8. (Optional) Install Git Updater for one-click updates from GitHub release assets.
 
 Upgrade note:
 - Starting with `1.3.2`, the plugin keeps a backup copy of the API and `WP v2 compatibility` settings so upgrades can restore them if those options go missing during an update.
@@ -220,7 +222,7 @@ The API responds with a `400` error explaining which date/time combination could
 * Settings toggle for endpoint enable/disable, plus per-capability route controls.
 * Optional `wp/v2` compatibility mode for generic WordPress clients and MCP tools.
 * EventON metadata handling for dates, times, locations, organizer, and color.
-* GitHub Updater compatibility metadata and packaging docs.
+* Git Updater compatibility metadata and packaging docs for GitHub release assets.
 
 == Upgrade Notice ==
 
