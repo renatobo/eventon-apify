@@ -1,0 +1,1766 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EventON APIfy REST API",
+    "summary": "OpenAPI definition for the public discovery routes and the administrator-protected EventON event endpoints.",
+    "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and public MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
+    "version": "1.7.0"
+  },
+  "externalDocs": {
+    "description": "Plugin repository",
+    "url": "https://github.com/renatobo/eventon-apify"
+  },
+  "servers": [
+    {
+      "url": "{siteUrl}/wp-json",
+      "description": "WordPress REST root",
+      "variables": {
+        "siteUrl": {
+          "default": "https://example.com"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Discovery",
+      "description": "Public discovery documents and MCP schema manifests."
+    },
+    {
+      "name": "Events",
+      "description": "Administrator-only EventON event CRUD routes."
+    },
+    {
+      "name": "RSVP",
+      "description": "Optional RSVP reporting routes when the EventON RSVP addon and matching API capabilities are enabled."
+    }
+  ],
+  "paths": {
+    "/eventonapify/v1/mcp-schema": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "summary": "Get the full MCP schema manifest",
+        "description": "Returns the public MCP discovery document for the published EventON content contracts.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Manifest envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventonapify/v1/mcp-schema/{content_type}": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "summary": "Get a single MCP content-type manifest",
+        "description": "Returns the public MCP discovery document for a single published content type.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "content_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ajde_events",
+                "event_rsvps"
+              ]
+            },
+            "description": "Published content type slug. `event_rsvps` is available only when the RSVP addon is active."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Manifest envelope scoped to one content type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpManifest"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/eventonapify/v1/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "List EventON events",
+        "description": "Returns a paginated collection of EventON events. Requires administrator authentication and the `list` API capability.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Number of events to return."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
+            "description": "Free-text search against the event post title and content."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
+            "description": "Comma-separated WordPress post statuses. Allowed values are `publish`, `draft`, `private`, `pending`, and `future`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated EventON events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedEventsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Create an EventON event",
+        "description": "Creates a new `ajde_events` record. Requires administrator authentication and the `create` API capability.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/eventonapify/v1/events/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Event post ID."
+        }
+      ],
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get one EventON event",
+        "description": "Returns a single EventON event. Requires administrator authentication and the `read` API capability.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Replace or update an EventON event",
+        "description": "Updates an existing `ajde_events` record. Requires administrator authentication and the `update` API capability.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Partially update an EventON event",
+        "description": "Applies a partial update to an existing `ajde_events` record. Requires administrator authentication and the `update` API capability.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Trash an EventON event",
+        "description": "Moves an EventON event to the WordPress trash. Requires administrator authentication and the `delete` API capability.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deletion result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/eventonapify/v1/events/{id}/rsvps": {
+      "get": {
+        "tags": [
+          "RSVP"
+        ],
+        "summary": "List RSVP attendees for an event",
+        "description": "Returns paginated RSVP attendee records for an EventON event. Available only when the RSVP addon is active and the `rsvp_attendees` capability is enabled.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Event post ID."
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
+            "description": "Free-text attendee search."
+          },
+          {
+            "name": "rsvp",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "yes",
+                "no",
+                "maybe"
+              ],
+              "default": "all"
+            },
+            "description": "RSVP response filter."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "all"
+            },
+            "description": "Check-in status filter."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated attendee list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsvpAttendeeListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    },
+    "/eventonapify/v1/events/{id}/rsvps/summary": {
+      "get": {
+        "tags": [
+          "RSVP"
+        ],
+        "summary": "Get the RSVP summary for an event",
+        "description": "Returns the yes-only RSVP totals for an EventON event. Available only when the RSVP addon is active and the `rsvp_counts` capability is enabled.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Event post ID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RSVP summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsvpSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "ErrorResponse": {
+        "description": "Error response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Use a WordPress administrator username and an Application Password."
+      }
+    },
+    "schemas": {
+      "McpManifest": {
+        "type": "object",
+        "description": "Public MCP discovery document published by EventON APIfy.",
+        "properties": {
+          "schema_version": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "provider_version": {
+            "type": "string"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "site_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "discovery": {
+            "type": "object",
+            "properties": {
+              "manifest": {
+                "type": "string",
+                "format": "uri"
+              },
+              "content_type_template": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          },
+          "availability": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "content_types": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "example": {
+          "schema_version": "1.0.0",
+          "provider": "eventon-apify",
+          "provider_version": "1.7.0",
+          "generated_at": "2026-03-30T00:00:00Z",
+          "site_url": "https://example.com",
+          "namespace": "eventonapify/v1",
+          "discovery": {
+            "manifest": "https://example.com/wp-json/eventonapify/v1/mcp-schema",
+            "content_type_template": "https://example.com/wp-json/eventonapify/v1/mcp-schema/{content_type}"
+          },
+          "availability": {
+            "eventon_available": true,
+            "custom_event_api_enabled": true,
+            "wp_v2_compatibility_enabled": true
+          },
+          "content_types": {
+            "ajde_events": {
+              "slug": "ajde_events",
+              "preferred_endpoint": "eventonapify/v1/events",
+              "supported_operations": [
+                "create",
+                "update"
+              ]
+            }
+          }
+        }
+      },
+      "PaginatedEventsResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "pages": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "per_page": {
+            "type": "integer"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        }
+      },
+      "EventCreateRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EventWriteRequest"
+          },
+          {
+            "type": "object",
+            "required": [
+              "title"
+            ]
+          }
+        ],
+        "example": {
+          "title": "Ride to Big Bear",
+          "description": "Optional HTML content",
+          "excerpt": "Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.",
+          "status": "publish",
+          "tags": [
+            "bike night",
+            "ducati"
+          ],
+          "event_type": [
+            "Rides",
+            "Featured"
+          ],
+          "start_date": "2026-04-01",
+          "start_time": "09:00",
+          "end_date": "2026-04-01",
+          "end_time": "17:00",
+          "timezone": {
+            "key": "America/Los_Angeles",
+            "text": "PT"
+          },
+          "event_status": "scheduled",
+          "attendance_mode": "offline",
+          "event_subtitle": "High-altitude ride day",
+          "event_excerpt": "Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.",
+          "location": {
+            "name": "Big Bear Lake",
+            "address": "123 Main St",
+            "city": "Big Bear Lake",
+            "state": "CA",
+            "country": "US",
+            "link": "https://maps.google.com/?q=Big+Bear+Lake",
+            "link_target": true
+          },
+          "organizers": [
+            {
+              "name": "EventON APIfy",
+              "email": "events@example.com"
+            }
+          ],
+          "event_color": "#ff0000",
+          "learn_more_link": "https://example.com/rides/big-bear",
+          "learn_more_link_target": true,
+          "flags": {
+            "featured": true,
+            "generate_gmap": true,
+            "open_google_maps_link": true
+          },
+          "interaction": {
+            "mode": "external_link",
+            "url": "https://example.com/rides/big-bear/details",
+            "new_window": true
+          },
+          "health": {
+            "enabled": true,
+            "outdoor": true
+          },
+          "gradient_angle": 90,
+          "virtual": {
+            "enabled": false
+          },
+          "seo": {
+            "offer_price": "0.00",
+            "offer_currency": "USD"
+          },
+          "rsvp": {
+            "enabled": true,
+            "capacity_enabled": true,
+            "capacity_count": 75
+          },
+          "faqs": {
+            "subheader": "Know before you go",
+            "items": [
+              {
+                "question": "Is parking available?",
+                "answer": "Yes, free parking is available on site."
+              }
+            ]
+          }
+        }
+      },
+      "EventUpdateRequest": {
+        "$ref": "#/components/schemas/EventWriteRequest"
+      },
+      "EventWriteRequest": {
+        "type": "object",
+        "description": "Preferred JSON payload for create and update requests. Nested EventON-style objects are preferred, while some legacy flat aliases remain supported by the plugin runtime.",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "description": "HTML body content."
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "draft",
+              "private",
+              "pending",
+              "future"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "event_type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "start_time": {
+            "type": "string",
+            "description": "24-hour time in `HH:MM` format."
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_time": {
+            "type": "string",
+            "description": "24-hour time in `HH:MM` format."
+          },
+          "timezone": {
+            "$ref": "#/components/schemas/Timezone"
+          },
+          "event_subtitle": {
+            "type": "string"
+          },
+          "event_excerpt": {
+            "type": "string"
+          },
+          "event_status": {
+            "type": "string"
+          },
+          "status_reason": {
+            "type": "string"
+          },
+          "attendance_mode": {
+            "type": "string"
+          },
+          "time_extend_type": {
+            "type": "string"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "organizer": {
+            "type": "string"
+          },
+          "organizers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Organizer"
+            }
+          },
+          "event_color": {
+            "type": "string"
+          },
+          "event_color_secondary": {
+            "type": "string"
+          },
+          "learn_more_link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "learn_more_link_target": {
+            "type": "boolean"
+          },
+          "interaction": {
+            "$ref": "#/components/schemas/Interaction"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/EventFlags"
+          },
+          "health": {
+            "$ref": "#/components/schemas/Health"
+          },
+          "gradient_angle": {
+            "type": "number"
+          },
+          "virtual": {
+            "$ref": "#/components/schemas/VirtualEvent"
+          },
+          "repeat": {
+            "$ref": "#/components/schemas/RepeatRule"
+          },
+          "related_events": {
+            "$ref": "#/components/schemas/RelatedEvents"
+          },
+          "seo": {
+            "$ref": "#/components/schemas/Seo"
+          },
+          "faqs": {
+            "$ref": "#/components/schemas/Faqs"
+          },
+          "rsvp": {
+            "$ref": "#/components/schemas/RsvpSettings"
+          }
+        },
+        "example": {
+          "status": "publish",
+          "start_date": "2026-04-08",
+          "start_time": "10:00",
+          "end_date": "2026-04-08",
+          "end_time": "18:00",
+          "location": {
+            "name": "Lake Arrowhead",
+            "address": "456 Summit Rd",
+            "city": "Lake Arrowhead",
+            "state": "CA",
+            "country": "US"
+          },
+          "flags": {
+            "featured": false,
+            "generate_gmap": true,
+            "hide_organizer_card": true
+          },
+          "virtual": {
+            "enabled": true,
+            "url": "https://example.com/live/ride"
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "event_subtitle": {
+            "type": "string"
+          },
+          "event_excerpt": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "start_timestamp": {
+            "type": "integer"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "start_time": {
+            "type": "string"
+          },
+          "event_start_timestamp": {
+            "type": "integer"
+          },
+          "end_timestamp": {
+            "type": "integer"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "event_end_timestamp": {
+            "type": "integer"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "organizer": {
+            "type": "string"
+          },
+          "organizers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Organizer"
+            }
+          },
+          "event_color": {
+            "type": "string"
+          },
+          "event_color_secondary": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "event_status": {
+            "type": "string"
+          },
+          "status_reason": {
+            "type": "string"
+          },
+          "attendance_mode": {
+            "type": "string"
+          },
+          "time_extend_type": {
+            "type": "string"
+          },
+          "timezone": {
+            "$ref": "#/components/schemas/Timezone"
+          },
+          "learn_more_link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "learn_more_link_target": {
+            "type": "boolean"
+          },
+          "interaction": {
+            "$ref": "#/components/schemas/Interaction"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/EventFlags"
+          },
+          "health": {
+            "$ref": "#/components/schemas/Health"
+          },
+          "gradient_angle": {
+            "type": "number"
+          },
+          "virtual": {
+            "$ref": "#/components/schemas/VirtualEvent"
+          },
+          "repeat": {
+            "$ref": "#/components/schemas/RepeatRule"
+          },
+          "related_events": {
+            "$ref": "#/components/schemas/RelatedEvents"
+          },
+          "seo": {
+            "$ref": "#/components/schemas/Seo"
+          },
+          "faqs": {
+            "$ref": "#/components/schemas/Faqs"
+          },
+          "rsvp": {
+            "$ref": "#/components/schemas/RsvpSettings"
+          },
+          "featured_image": {
+            "type": "string",
+            "format": "uri"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modified": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "example": {
+          "id": 123,
+          "title": "Ride to Big Bear",
+          "status": "publish",
+          "slug": "ride-to-big-bear",
+          "description": "Optional HTML content",
+          "excerpt": "Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.",
+          "tags": [
+            "bike night",
+            "ducati"
+          ],
+          "event_subtitle": "High-altitude ride day",
+          "event_excerpt": "Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.",
+          "link": "https://example.com/events/ride-to-big-bear",
+          "start_timestamp": 1775034000,
+          "start_at": "2026-04-01T09:00:00-07:00",
+          "start_date": "2026-04-01",
+          "start_time": "09:00",
+          "event_start_timestamp": 1775034000,
+          "end_timestamp": 1775062800,
+          "end_at": "2026-04-01T17:00:00-07:00",
+          "end_date": "2026-04-01",
+          "end_time": "17:00",
+          "event_end_timestamp": 1775062800,
+          "location": {
+            "name": "Big Bear Lake",
+            "address": "123 Main St",
+            "city": "Big Bear Lake",
+            "state": "CA",
+            "country": "US",
+            "map_enabled": true,
+            "open_google_maps_link": true
+          },
+          "organizer": "EventON APIfy",
+          "organizers": [
+            {
+              "name": "EventON APIfy",
+              "email": "events@example.com"
+            }
+          ],
+          "event_color": "#ff0000",
+          "event_type": [
+            "Rides",
+            "Featured"
+          ],
+          "event_status": "scheduled",
+          "attendance_mode": "offline",
+          "timezone": {
+            "key": "America/Los_Angeles",
+            "text": "PT"
+          },
+          "interaction": {
+            "mode": "external_link",
+            "url": "https://example.com/rides/big-bear/details",
+            "new_window": true
+          },
+          "flags": {
+            "featured": true,
+            "generate_gmap": true,
+            "open_google_maps_link": true
+          },
+          "health": {
+            "enabled": true,
+            "outdoor": true
+          },
+          "virtual": {
+            "enabled": false
+          },
+          "seo": {
+            "offer_price": "0.00",
+            "offer_currency": "USD"
+          },
+          "rsvp": {
+            "enabled": true,
+            "capacity_enabled": true,
+            "capacity_count": 75
+          },
+          "featured_image": "https://example.com/wp-content/uploads/2026/04/big-bear.jpg",
+          "created": "2026-03-25T18:00:00+00:00",
+          "modified": "2026-03-30T18:00:00+00:00"
+        }
+      },
+      "Timezone": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "properties": {
+          "term_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "archive_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "type": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "zip": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "string"
+          },
+          "lon": {
+            "type": "string"
+          },
+          "latlng": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "link_target": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "description": {
+            "type": "string"
+          },
+          "use_latlng_for_directions": {
+            "type": "boolean"
+          },
+          "map_enabled": {
+            "type": "boolean"
+          },
+          "open_google_maps_link": {
+            "type": "boolean"
+          },
+          "map_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Organizer": {
+        "type": "object",
+        "properties": {
+          "term_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "archive_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string",
+            "format": "uri"
+          },
+          "link_target": {
+            "type": "boolean"
+          },
+          "excerpt": {
+            "type": "string"
+          }
+        }
+      },
+      "Interaction": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "new_window": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventFlags": {
+        "type": "object",
+        "properties": {
+          "featured": {
+            "type": "boolean"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "exclude_from_calendar": {
+            "type": "boolean"
+          },
+          "loggedin_only": {
+            "type": "boolean"
+          },
+          "hide_end_time": {
+            "type": "boolean"
+          },
+          "span_hidden_end": {
+            "type": "boolean"
+          },
+          "hide_location_name": {
+            "type": "boolean"
+          },
+          "hide_organizer_card": {
+            "type": "boolean"
+          },
+          "generate_gmap": {
+            "type": "boolean"
+          },
+          "open_google_maps_link": {
+            "type": "boolean"
+          },
+          "location_access_loggedin_only": {
+            "type": "boolean"
+          },
+          "location_info_over_image": {
+            "type": "boolean"
+          },
+          "organizer_as_performer": {
+            "type": "boolean"
+          },
+          "gradient_enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "mask_required": {
+            "type": "boolean"
+          },
+          "temperature_check": {
+            "type": "boolean"
+          },
+          "physical_distance": {
+            "type": "boolean"
+          },
+          "sanitized": {
+            "type": "boolean"
+          },
+          "outdoor": {
+            "type": "boolean"
+          },
+          "vaccination_required": {
+            "type": "boolean"
+          },
+          "other": {
+            "type": "string"
+          }
+        }
+      },
+      "VirtualEvent": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "password": {
+            "type": "string"
+          },
+          "embed": {
+            "type": "string"
+          },
+          "other": {
+            "type": "string"
+          },
+          "show": {
+            "type": "string"
+          },
+          "hide_when_live": {
+            "type": "boolean"
+          },
+          "disable_redirect_hiding": {
+            "type": "boolean"
+          },
+          "moderator_id": {
+            "type": "integer"
+          },
+          "end_time_enabled": {
+            "type": "boolean"
+          },
+          "end_timestamp": {
+            "type": "integer"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "after_content": {
+            "type": "string"
+          },
+          "after_content_when": {
+            "type": "string"
+          }
+        }
+      },
+      "RepeatRule": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "gap": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "series_visible": {
+            "type": "boolean"
+          },
+          "intervals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RepeatInterval"
+            }
+          }
+        }
+      },
+      "RepeatInterval": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "start_timestamp": {
+            "type": "integer"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_timestamp": {
+            "type": "integer"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RelatedEvents": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedEventItem"
+            }
+          },
+          "hide_image": {
+            "type": "boolean"
+          },
+          "hide_past": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RelatedEventItem": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          },
+          "repeat_interval": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "Seo": {
+        "type": "object",
+        "properties": {
+          "offer_price": {
+            "type": "string"
+          },
+          "offer_currency": {
+            "type": "string"
+          }
+        }
+      },
+      "Faqs": {
+        "type": "object",
+        "properties": {
+          "subheader": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FaqItem"
+            }
+          }
+        }
+      },
+      "FaqItem": {
+        "type": "object",
+        "properties": {
+          "term_id": {
+            "type": "integer"
+          },
+          "question": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "RsvpSettings": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "show_count": {
+            "type": "boolean"
+          },
+          "show_whos_coming": {
+            "type": "boolean"
+          },
+          "only_loggedin": {
+            "type": "boolean"
+          },
+          "capacity_enabled": {
+            "type": "boolean"
+          },
+          "capacity_count": {
+            "type": "integer"
+          },
+          "capacity_show_remaining": {
+            "type": "boolean"
+          },
+          "show_bars": {
+            "type": "boolean"
+          },
+          "max_active": {
+            "type": "boolean"
+          },
+          "max_count": {
+            "type": "integer"
+          },
+          "min_capacity_active": {
+            "type": "boolean"
+          },
+          "min_count": {
+            "type": "integer"
+          },
+          "close_before_minutes": {
+            "type": "integer"
+          },
+          "additional_emails": {
+            "type": "string"
+          },
+          "manage_repeat_capacity": {
+            "type": "boolean"
+          },
+          "repeat_capacities": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "RsvpAttendeeListResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "pages": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "per_page": {
+            "type": "integer"
+          },
+          "attendees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RsvpAttendee"
+            }
+          }
+        }
+      },
+      "RsvpAttendee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email_updates": {
+            "type": "boolean"
+          },
+          "rsvp": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "no",
+              "maybe"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "rsvp_type": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "event_time": {
+            "type": "string"
+          },
+          "other_attendees": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "custom_fields": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "RsvpSummary": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          },
+          "event_title": {
+            "type": "string"
+          },
+          "yes_submissions": {
+            "type": "integer"
+          },
+          "yes_attendees_total": {
+            "type": "integer"
+          },
+          "yes_additional_attendees": {
+            "type": "integer"
+          }
+        }
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "example": {
+          "code": "eventon_apify_disabled",
+          "message": "The EventON APIfy endpoint is disabled. Enable it in Settings > EventON APIfy.",
+          "data": {
+            "status": 403
+          }
+        }
+      }
+    }
+  }
+}

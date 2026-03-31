@@ -460,11 +460,14 @@ function eventon_apify_filter_wp_v2_compatibility_endpoints($endpoints) {
  */
 function eventon_apify_render_settings_page() {
     $site_url = untrailingslashit(get_site_url());
+    $rest_root_url = $site_url . '/wp-json';
     $api_enabled = (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false);
     $capabilities = eventon_apify_get_api_capabilities();
     $definitions = eventon_apify_get_api_capability_definitions();
     $wp_v2_compat_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
     $rsvp_available = eventon_apify_is_eventon_rsvp_available();
+    $openapi_spec_url = plugins_url('docs/eventon-apify-openapi.json', __FILE__);
+    $postman_collection_url = plugins_url('docs/eventon-apify-postman-collection.json', __FILE__);
     $manifest_collection_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema';
     $manifest_type_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema/ajde_events';
     $project_url = 'https://github.com/renatobo/eventon-apify';
@@ -532,6 +535,9 @@ function eventon_apify_render_settings_page() {
                 </a>
                 <a href="#compat" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="compat">
                     <?php esc_html_e('WP v2 compatibility', 'eventon-apify'); ?>
+                </a>
+                <a href="#specs" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="specs">
+                    <?php esc_html_e('API Specs', 'eventon-apify'); ?>
                 </a>
                 <a href="#manifest" class="nav-tab eventon-apify-tab" role="tab" aria-selected="false" data-panel="manifest">
                     <?php esc_html_e('MCP schema manifest', 'eventon-apify'); ?>
@@ -707,6 +713,61 @@ function eventon_apify_render_settings_page() {
                             <?php esc_html_e('Intended for generic WordPress clients such as', 'eventon-apify'); ?>
                             <a href="https://github.com/InstaWP/mcp-wp" target="_blank" rel="noopener noreferrer">InstaWP mcp-wp</a>.
                             <?php esc_html_e('These routes remain administrator-only, and compatibility responses redact sensitive fields like virtual access secrets and notification email metadata.', 'eventon-apify'); ?>
+                        </p>
+                    </div>
+                </section>
+
+                <section class="eventon-apify-panel" id="specs" data-panel="specs" role="tabpanel" hidden>
+                    <div class="eventon-apify-panel-header">
+                        <div>
+                            <h2><?php esc_html_e('API Specs', 'eventon-apify'); ?></h2>
+                            <p>
+                                <?php esc_html_e('Download the checked-in OpenAPI and Postman artifacts for the current EventON APIfy REST surface, then point them at this site\'s REST root.', 'eventon-apify'); ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card eventon-apify-card-accent">
+                        <div class="eventon-apify-example-grid">
+                            <div class="eventon-apify-example">
+                                <strong><?php esc_html_e('OpenAPI 3.1 spec', 'eventon-apify'); ?></strong>
+                                <p><?php esc_html_e('Covers the public MCP discovery routes plus the protected EventON event and RSVP endpoints.', 'eventon-apify'); ?></p>
+                                <code id="eventon-apify-openapi-spec"><?php echo esc_html($openapi_spec_url); ?></code>
+                                <div class="eventon-apify-example-actions">
+                                    <a class="button button-primary" href="<?php echo esc_url($openapi_spec_url); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Open spec', 'eventon-apify'); ?></a>
+                                    <button class="button button-secondary" onclick="eventonApifyCopy('eventon-apify-openapi-spec'); return false;"><?php esc_html_e('Copy link', 'eventon-apify'); ?></button>
+                                </div>
+                            </div>
+                            <div class="eventon-apify-example">
+                                <strong><?php esc_html_e('Postman collection', 'eventon-apify'); ?></strong>
+                                <p><?php esc_html_e('Includes ready-to-run requests for discovery, CRUD, and optional RSVP reporting routes.', 'eventon-apify'); ?></p>
+                                <code id="eventon-apify-postman-collection"><?php echo esc_html($postman_collection_url); ?></code>
+                                <div class="eventon-apify-example-actions">
+                                    <a class="button button-primary" href="<?php echo esc_url($postman_collection_url); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Open collection', 'eventon-apify'); ?></a>
+                                    <button class="button button-secondary" onclick="eventonApifyCopy('eventon-apify-postman-collection'); return false;"><?php esc_html_e('Copy link', 'eventon-apify'); ?></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="eventon-apify-card">
+                        <div class="eventon-apify-grid eventon-apify-grid-two">
+                            <div class="eventon-apify-code-card">
+                                <strong><?php esc_html_e('REST root / Postman baseUrl', 'eventon-apify'); ?></strong>
+                                <code id="eventon-apify-rest-root"><?php echo esc_html($rest_root_url); ?></code>
+                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-rest-root'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
+                            </div>
+                            <div class="eventon-apify-code-card">
+                                <strong><?php esc_html_e('Authentication', 'eventon-apify'); ?></strong>
+                                <span><?php esc_html_e('Use a WordPress administrator username and an Application Password for secured routes. The MCP schema manifest routes remain public.', 'eventon-apify'); ?></span>
+                            </div>
+                        </div>
+
+                        <p class="eventon-apify-note">
+                            <?php esc_html_e('Import the Postman collection, set', 'eventon-apify'); ?> <code>baseUrl</code> <?php esc_html_e('to this site\'s REST root, then fill in your WordPress username and Application Password variables. The OpenAPI file uses the same REST root as its server variable.', 'eventon-apify'); ?>
+                        </p>
+                        <p class="eventon-apify-note">
+                            <?php esc_html_e('RSVP requests are documented in both files, but they respond only when the EventON RSVP addon is active and the matching API capabilities are enabled.', 'eventon-apify'); ?>
                         </p>
                     </div>
                 </section>
@@ -996,6 +1057,17 @@ function eventon_apify_render_settings_page() {
 
             .eventon-apify-example .button {
                 width: fit-content;
+            }
+
+            .eventon-apify-example p {
+                margin: 0;
+                color: #50575e;
+            }
+
+            .eventon-apify-example-actions {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
             }
 
             .eventon-apify-route-list {

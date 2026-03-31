@@ -37,6 +37,7 @@
 - Tabs should remain in this order:
   - `Event API`
   - `WP v2 compatibility`
+  - `API Specs`
   - `MCP schema manifest`
   - `Request fields`
   - `Application Passwords`
@@ -52,7 +53,11 @@
 - Keep the layout WordPress-admin friendly, not app-like.
 - Prefer flat cards, subtle borders, and native admin spacing.
 - Keep toggles and capability controls on the `Event API` tab.
-- Keep `WP v2 compatibility`, `MCP schema manifest`, `Request fields`, and `Application Passwords` as separate tabs.
+- Keep `WP v2 compatibility`, `API Specs`, `MCP schema manifest`, `Request fields`, and `Application Passwords` as separate tabs.
+- Keep the `API Specs` tab focused on checked-in artifact links for:
+  - the OpenAPI spec file
+  - the Postman collection
+  - the current site REST root / Postman `baseUrl` value
 
 ## Maintenance
 
