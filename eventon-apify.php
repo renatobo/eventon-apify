@@ -739,7 +739,7 @@ function eventon_apify_render_settings_page() {
                             <?php esc_html_e('The manifest is read-only and safe to expose. It describes the executable EventON field contract using', 'eventon-apify'); ?> <code>preferred_endpoint</code>, <code>preferred_write_mode</code>, <?php esc_html_e('structured', 'eventon-apify'); ?> <code>fields</code>, <?php esc_html_e('executable', 'eventon-apify'); ?> <code>validation_rules</code>, <?php esc_html_e('and normalized', 'eventon-apify'); ?> <code>examples.create</code> <?php esc_html_e('and', 'eventon-apify'); ?> <code>examples.update</code> <?php esc_html_e('payloads for', 'eventon-apify'); ?> <code>ajde_events</code>.
                         </p>
                         <p class="eventon-apify-note">
-                            <?php esc_html_e('The manifest does not replace', 'eventon-apify'); ?> <code>wp/v2</code> <?php esc_html_e('writes. It exists to inform compatible clients how to use', 'eventon-apify'); ?> <code>/wp-json/wp/v2/ajde_events</code> <?php esc_html_e('correctly.', 'eventon-apify'); ?>
+                            <?php esc_html_e('The manifest is discovery-only. Compatible MCP clients should follow the advertised', 'eventon-apify'); ?> <code>preferred_endpoint</code> <?php esc_html_e('and use the EventON APIfy events routes when interacting with', 'eventon-apify'); ?> <code>ajde_events</code>.
                         </p>
                     </div>
                 </section>
@@ -2650,7 +2650,7 @@ function eventon_apify_get_mcp_content_type_manifest() {
         'slug' => 'ajde_events',
         'label' => 'EventON Event',
         'description' => 'EventON events stored as ajde_events posts and exposed through wp/v2 compatibility plus the custom EventON APIfy namespace.',
-        'preferred_endpoint' => 'wp/v2/ajde_events',
+        'preferred_endpoint' => 'eventonapify/v1/events',
         'preferred_write_mode' => 'fields',
         'supported_operations' => array('create', 'update'),
         'fields' => eventon_apify_get_mcp_contract_fields(),

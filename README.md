@@ -123,9 +123,14 @@ Both the custom namespace and the optional `wp/v2` compatibility mode are intend
 
 ## MCP compatibility
 
-If you use [InstaWP mcp-wp](https://github.com/InstaWP/mcp-wp), enable **WP v2 compatibility** in **Settings -> EventON APIfy**.
+If you use [InstaWP mcp-wp](https://github.com/InstaWP/mcp-wp) or another WordPress MCP server, use `ajde_events` as the content type and fetch the EventON APIfy MCP manifest first when the client supports plugin-published contracts.
 
-That exposes EventON through the standard WordPress REST API so the MCP server can discover and operate on it like a normal custom post type:
+The manifest now advertises the custom EventON APIfy events route as the preferred content endpoint for EventON event reads and writes:
+
+- Content type: `ajde_events`
+- Preferred content endpoint: `/wp-json/eventonapify/v1/events`
+
+If your client specifically requires the standard WordPress namespace, enable **WP v2 compatibility** in **Settings -> EventON APIfy**. That additionally exposes EventON through the standard WordPress REST API:
 
 - Content type: `ajde_events`
 - Content endpoint: `/wp-json/wp/v2/ajde_events`
@@ -150,7 +155,7 @@ EventON APIfy also publishes a read-only discovery contract for compatible MCP s
 
 The manifest describes:
 
-- `preferred_endpoint: "wp/v2/ajde_events"`
+- `preferred_endpoint: "eventonapify/v1/events"`
 - `preferred_write_mode: "fields"` for structured client input
 - normalized EventON `fields` with nested object and array shapes
 - executable `validation_rules` plus additional runtime `validation_notes`
@@ -159,7 +164,7 @@ The manifest describes:
 - when the RSVP addon is active, a read-only `event_rsvps` content type for `/wp-json/eventonapify/v1/events/{event_id}/rsvps`
 - when the RSVP addon is active, the related RSVP summary endpoint `/wp-json/eventonapify/v1/events/{event_id}/rsvps/summary`
 
-Important: the manifest is discovery-only. Compatible clients should still create and update events through `/wp-json/wp/v2/ajde_events`. The contract examples are client-facing normalized payloads, not raw WordPress REST requests.
+Important: the manifest is discovery-only. Compatible clients should follow the advertised `preferred_endpoint`, which for `ajde_events` is `/wp-json/eventonapify/v1/events`. The contract examples are client-facing normalized payloads, not raw WordPress REST requests.
 
 When using `wp/v2`, clients may send those normalized EventON fields directly on the request body or nest them inside `fields` / `custom_fields`.
 

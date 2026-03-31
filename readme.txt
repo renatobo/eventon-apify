@@ -98,7 +98,7 @@ MCP schema manifest:
 - `GET /wp-json/eventonapify/v1/mcp-schema/event_rsvps` when the RSVP addon is active
 - The manifest publishes an executable EventON content contract with `preferred_endpoint`, `preferred_write_mode`, normalized `fields`, executable `validation_rules`, and `examples.create` / `examples.update`.
 - When the RSVP addon is active, the manifest also publishes a read-only `event_rsvps` contract for `/events/{event_id}/rsvps`, including the related yes-only summary endpoint.
-- The manifest is discovery-only. Compatible MCP servers should still write through `/wp-json/wp/v2/ajde_events`.
+- The manifest is discovery-only. Compatible MCP servers should follow the advertised `preferred_endpoint`, which for `ajde_events` is `/wp-json/eventonapify/v1/events`.
 
 Query parameters:
 - `per_page` (integer): page size, default `20`, max `100`
@@ -177,13 +177,13 @@ Yes. Go to Settings -> EventON APIfy and uncheck "Event API".
 Yes. Leave "Event API" enabled and turn off only the `Create events`, `Update events`, or `Delete events` capabilities.
 
 = How do I use this with mcp-wp or another generic WordPress MCP server? =
-Enable "WP v2 compatibility" and use `ajde_events` as the content type. The plugin will expose EventON events through `/wp-json/wp/v2/ajde_events` and expose the main EventON taxonomies on the standard REST API as well.
+Use `ajde_events` as the content type and follow the MCP schema manifest. The manifest advertises `/wp-json/eventonapify/v1/events` as the preferred endpoint for EventON event reads and writes, while the optional WP v2 compatibility toggle separately exposes `/wp-json/wp/v2/ajde_events` and the related taxonomy routes for clients that specifically need the standard WordPress namespace.
 
 = Can wp/v2 clients send EventON fields inside custom_fields or fields? =
 Yes. The plugin accepts EventON field payloads either directly on the request body or nested under `custom_fields` / `fields`.
 
 = Does the plugin publish a machine-readable schema for MCP servers? =
-Yes. Fetch `/wp-json/eventonapify/v1/mcp-schema` or `/wp-json/eventonapify/v1/mcp-schema/ajde_events` to discover the executable EventON contract, including `preferred_endpoint: wp/v2/ajde_events`, `preferred_write_mode: fields`, normalized field definitions, and create/update examples.
+Yes. Fetch `/wp-json/eventonapify/v1/mcp-schema` or `/wp-json/eventonapify/v1/mcp-schema/ajde_events` to discover the executable EventON contract, including `preferred_endpoint: eventonapify/v1/events`, `preferred_write_mode: fields`, normalized field definitions, and create/update examples.
 
 = How do I assign event types? =
 Send `event_type` as an array or a comma-separated string in create or update requests.
@@ -192,6 +192,10 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 1.6.0 =
+* Corrected the `ajde_events` MCP manifest contract so `preferred_endpoint` now advertises `/wp-json/eventonapify/v1/events`, matching the working EventON APIfy events routes.
+* Updated the settings-page manifest guidance plus the packaged and repository documentation to direct MCP clients to the advertised custom events endpoint instead of the dead `wp/v2/ajde_events` route.
 
 = 1.3.4 =
 * Hardened the optional `wp/v2` compatibility layer so EventON compatibility routes stay administrator-only.
@@ -225,6 +229,9 @@ The API responds with a `400` error explaining which date/time combination could
 * Git Updater compatibility metadata and packaging docs for GitHub release assets.
 
 == Upgrade Notice ==
+
+= 1.6.0 =
+Corrects the MCP manifest so contract-driven clients route `ajde_events` operations to the working EventON APIfy events endpoint.
 
 = 1.3.4 =
 Improves `wp/v2` compatibility hardening, localization readiness, privacy documentation, and uninstall cleanup.
