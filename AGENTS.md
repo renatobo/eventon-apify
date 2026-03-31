@@ -16,6 +16,15 @@
   - `readme.txt` `Stable tag`
 - Prefer using `./release.sh <version>` so the release commit, tag, and packaged GitHub release asset stay aligned.
 
+## Packaging and Release Flow
+
+- Use `./build.sh` from the repo root to create the installable versioned plugin zip for local packaging checks.
+- `./build.sh` expects the bootstrap file to match the repo slug (`eventon-apify.php`) and writes `eventon-apify-<version>.zip` in the project root.
+- `./release.sh <version>` requires a clean working tree, updates the synced version fields, creates the release commit, tags `v<version>`, and pushes both `main` and the tag.
+- `./release.sh <version>` expects semantic version format (`X.Y.Z`) and aborts if the target tag already exists.
+- Pushing a `v*` tag triggers `.github/workflows/package-plugin.yml`, which runs `./build.sh` and uploads the generated zip to the GitHub Release.
+- `.github/workflows/update-stable-tag.yml` can create and push `v<Stable tag>` from `readme.txt` on `main` pushes, or from a manually supplied version via `workflow_dispatch`.
+
 ## UI Documentation
 
 - The current settings header and tabs design is documented in `ui.md`.
