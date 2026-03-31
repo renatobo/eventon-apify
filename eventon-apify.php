@@ -1549,6 +1549,16 @@ function eventon_apify_get_contract_field_definitions() {
                 'wp_v2' => 'excerpt',
             ),
         ),
+        'featured_media' => array(
+            'type' => 'integer',
+            'group' => 'core',
+            'description' => 'WordPress attachment ID to set as the featured image. Send 0 to clear the featured image.',
+            'aliases' => array('featured_image_id'),
+            'transport' => array(
+                'custom_namespace' => 'featured_media',
+                'wp_v2' => 'featured_media',
+            ),
+        ),
         'status' => array(
             'type' => 'string',
             'group' => 'core',
@@ -2257,6 +2267,7 @@ function eventon_apify_get_rsvp_contract_shape() {
 function eventon_apify_get_mcp_contract_field_names() {
     return array(
         'excerpt',
+        'featured_media',
         'tags',
         'event_type',
         'start_at',
@@ -2468,6 +2479,7 @@ function eventon_apify_get_mcp_contract_write_key($field_name) {
  */
 function eventon_apify_get_mcp_contract_field_aliases($field_name) {
     $aliases = array(
+        'featured_media' => array('featured_image_id'),
         'tags' => array('post_tag'),
         'event_type' => array('event_types'),
         'event_subtitle' => array('subtitle'),
@@ -2609,6 +2621,13 @@ function eventon_apify_get_mcp_validation_notes() {
             'message' => 'Location, organizer, interaction, virtual, and learn more links must be valid absolute URLs when provided.',
         ),
         array(
+            'id' => 'featured_media_image_attachment',
+            'level' => 'error',
+            'when' => 'create_or_update',
+            'fields' => array('featured_media'),
+            'message' => 'featured_media must reference an existing WordPress image attachment, or 0 to clear the featured image.',
+        ),
+        array(
             'id' => 'numeric_coordinates',
             'level' => 'error',
             'when' => 'create_or_update',
@@ -2664,7 +2683,7 @@ function eventon_apify_get_mcp_field_groups() {
             'key' => 'core',
             'label' => 'Core content',
             'description' => 'Standard WordPress post fields used for EventON events.',
-            'fields' => array('title', 'description', 'excerpt', 'status'),
+            'fields' => array('title', 'description', 'excerpt', 'featured_media', 'status'),
         ),
         array(
             'key' => 'taxonomy',
@@ -2772,6 +2791,7 @@ function eventon_apify_get_mcp_field_groups() {
  */
 function eventon_apify_get_mcp_example_create_payload() {
     return array(
+        'featured_media' => 456,
         'tags' => array('bike night', 'ducati'),
         'event_type' => array('Rides', 'Featured'),
         'start_date' => '2026-04-01',
@@ -2853,6 +2873,7 @@ function eventon_apify_get_mcp_example_create_payload() {
  */
 function eventon_apify_get_mcp_example_update_payload() {
     return array(
+        'featured_media' => 0,
         'tags' => array('track day'),
         'event_status' => 'rescheduled',
         'status_reason' => 'Weather moved the ride to next week.',
@@ -5093,6 +5114,10 @@ function eventon_apify_normalize_request_payload(array $params) {
         $normalized['excerpt'] = $params['post_excerpt'];
     }
 
+    if (!array_key_exists('featured_media', $normalized) && array_key_exists('featured_image_id', $normalized)) {
+        $normalized['featured_media'] = $normalized['featured_image_id'];
+    }
+
     if (!array_key_exists('event_subtitle', $normalized) && array_key_exists('subtitle', $params)) {
         $normalized['event_subtitle'] = $params['subtitle'];
     }
@@ -5585,6 +5610,13 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         );
     }
 
+    if (array_key_exists('featured_media', $params)) {
+        $featured_media_validation = eventon_apify_validate_featured_media_input($params['featured_media']);
+        if (is_wp_error($featured_media_validation)) {
+            return $featured_media_validation;
+        }
+    }
+
     foreach (array('event_color', 'event_color_secondary') as $color_key) {
         if (array_key_exists($color_key, $params) && eventon_apify_normalize_color_input($params[$color_key]) === null) {
             return new WP_Error(
@@ -5910,6 +5942,13 @@ function eventon_apify_save_event_meta($post_id, array $params) {
     $datetime_result = eventon_apify_save_datetime_meta($post_id, $params);
     if (is_wp_error($datetime_result)) {
         return $datetime_result;
+    }
+
+    if (array_key_exists('featured_media', $params)) {
+        $featured_media_result = eventon_apify_save_featured_media($post_id, $params['featured_media']);
+        if (is_wp_error($featured_media_result)) {
+            return $featured_media_result;
+        }
     }
 
     $text_meta_map = array(
@@ -7501,6 +7540,70 @@ function eventon_apify_validate_url($value) {
     }
 
     return filter_var($url, FILTER_VALIDATE_URL) !== false;
+}
+
+/**
+ * Validate featured image attachment input.
+ *
+ * @param mixed $value Attachment input.
+ * @return true|WP_Error
+ */
+function eventon_apify_validate_featured_media_input($value) {
+    if ($value === null || $value === '' || $value === 0 || $value === '0') {
+        return true;
+    }
+
+    if (filter_var($value, FILTER_VALIDATE_INT) === false) {
+        return new WP_Error(
+            'eventon_apify_invalid_featured_media',
+            'featured_media must be an attachment ID, or 0 to clear the featured image.',
+            array('status' => 400)
+        );
+    }
+
+    $attachment_id = absint($value);
+    $attachment = get_post($attachment_id);
+
+    if (!$attachment instanceof WP_Post || $attachment->post_type !== 'attachment') {
+        return new WP_Error(
+            'eventon_apify_invalid_featured_media',
+            'featured_media must reference an existing WordPress attachment.',
+            array('status' => 400)
+        );
+    }
+
+    if (!wp_attachment_is_image($attachment_id)) {
+        return new WP_Error(
+            'eventon_apify_invalid_featured_media',
+            'featured_media must reference an image attachment.',
+            array('status' => 400)
+        );
+    }
+
+    return true;
+}
+
+/**
+ * Save or clear the featured image for an event.
+ *
+ * @param int   $post_id Event post ID.
+ * @param mixed $value   Attachment input.
+ * @return true|WP_Error
+ */
+function eventon_apify_save_featured_media($post_id, $value) {
+    $validation = eventon_apify_validate_featured_media_input($value);
+    if (is_wp_error($validation)) {
+        return $validation;
+    }
+
+    if ($value === null || $value === '' || $value === 0 || $value === '0') {
+        delete_post_thumbnail($post_id);
+        return true;
+    }
+
+    set_post_thumbnail($post_id, absint($value));
+
+    return true;
 }
 
 /**

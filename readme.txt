@@ -88,7 +88,7 @@ MCP / wp/v2 compatibility:
 - Enable "WP v2 compatibility" in Settings -> EventON APIfy.
 - Use `ajde_events` as the content type in generic WordPress clients.
 - Standard routes become available at `/wp-json/wp/v2/ajde_events` and related taxonomy routes.
-- EventON-specific fields can be sent either at the top level or through wrapper objects such as `custom_fields` / `fields`, using keys like `start_date`, `start_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`.
+- EventON-specific fields can be sent either at the top level or through wrapper objects such as `custom_fields` / `fields`, using keys like `featured_media`, `start_date`, `start_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`.
 - These `wp/v2` routes are restricted to administrator-authenticated requests, matching the custom namespace.
 - Compatibility responses redact sensitive fields such as virtual access secrets and notification email metadata.
 
@@ -127,6 +127,7 @@ Create/update fields:
 - `title` (string)
 - `description` (string)
 - `excerpt` (string)
+- `featured_media` (integer image attachment ID; upload media first, then send the attachment ID, or use `0` to clear)
 - `status` (string)
 - `start_date` (string, `YYYY-MM-DD`)
 - `start_time` (string)

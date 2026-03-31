@@ -139,7 +139,7 @@ If your client specifically requires the standard WordPress namespace, enable **
 Recommended `mcp-wp` usage:
 
 - Use `content_type: "ajde_events"` for content operations
-- Send EventON-specific fields either at the top level or inside `custom_fields` / `fields`, including `start_date`, `start_time`, `end_date`, `end_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`
+- Send EventON-specific fields either at the top level or inside `custom_fields` / `fields`, including `featured_media`, `start_date`, `start_time`, `end_date`, `end_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`
 - Use the MCP taxonomy tools for `event_type`, `event_location`, and `event_organizer` when you want direct taxonomy-level operations
 - Fetch the EventON APIfy MCP manifest first if your MCP server supports plugin-published content contracts
 
@@ -263,6 +263,7 @@ Each attendee item exposes:
 | `description` | string | No | Event content/body |
 | `status` | string | No | `publish`, `draft`, `private`, `pending`, or `future` |
 | `excerpt` | string | No | WordPress post excerpt |
+| `featured_media` | integer | No | WordPress image attachment ID for the featured image; upload media first, then send the attachment ID, or send `0` to clear it |
 | `start_date` / `start_time` | string | Yes | Event start in `YYYY-MM-DD` and `HH:MM` |
 | `end_date` / `end_time` | string | No | Event end in `YYYY-MM-DD` and `HH:MM` |
 | `start_at` / `end_at` | string | No | ISO datetime aliases accepted on input |
@@ -291,6 +292,7 @@ curl -u your_username:your_app_password \
     "title": "Ride to Big Bear",
     "description": "Optional HTML content",
     "excerpt": "Short summary",
+    "featured_media": 456,
     "status": "publish",
     "start_date": "2026-04-01",
     "start_time": "09:00",
@@ -341,6 +343,7 @@ curl -u your_username:your_app_password \
     "title": "Ride to Big Bear",
     "status": "publish",
     "custom_fields": {
+      "featured_media": 456,
       "start_date": "2026-04-01",
       "start_time": "09:00",
       "end_date": "2026-04-01",
