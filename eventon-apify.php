@@ -1461,7 +1461,8 @@ function eventon_apify_get_contract_field_definitions() {
         'excerpt' => array(
             'type' => 'string',
             'group' => 'core',
-            'description' => 'WordPress post excerpt.',
+            'description' => 'WordPress post excerpt. When absent, agents should generate a short plain-text summary of the event.',
+            'guidance' => 'Autogenerate when missing. Keep it concise and plain text. Summarize the event title, date/time, and location in one or two short sentences.',
             'aliases' => array('post_excerpt'),
             'transport' => array(
                 'custom_namespace' => 'excerpt',
@@ -1488,6 +1489,19 @@ function eventon_apify_get_contract_field_definitions() {
             'transport' => array(
                 'custom_namespace' => 'event_type',
                 'wp_v2' => 'event_type',
+            ),
+        ),
+        'tags' => array(
+            'type' => 'array',
+            'item_type' => 'string',
+            'group' => 'taxonomy',
+            'description' => 'Standard WordPress post_tag terms attached to the EventON event.',
+            'guidance' => 'Populate recommended tags on create when tags are missing. If the event is cloned and no source tags were carried over, generate a short set of relevant tags from the title, venue/location, organizer/brand, format, and notable themes. Prefer 2 to 6 concise lowercase tags.',
+            'also_accepts' => array('comma_separated_string'),
+            'aliases' => array('post_tag'),
+            'transport' => array(
+                'custom_namespace' => 'tags',
+                'wp_v2' => 'tags',
             ),
         ),
         'start_at' => array(
@@ -1592,7 +1606,8 @@ function eventon_apify_get_contract_field_definitions() {
         'event_excerpt' => array(
             'type' => 'string',
             'group' => 'eventon',
-            'description' => 'EventON excerpt stored separately from the WordPress excerpt.',
+            'description' => 'EventON excerpt stored separately from the WordPress excerpt. Agents should usually fill this with a shorter event summary for EventON displays.',
+            'guidance' => 'Recommended when creating events. Generate a short, natural-language summary that includes the event title, location, and start date/time. Keep it shorter than the main description and avoid HTML unless needed.',
             'aliases' => array('evo_excerpt'),
             'transport' => array(
                 'custom_namespace' => 'event_excerpt',
@@ -1745,6 +1760,17 @@ function eventon_apify_get_contract_field_definitions() {
             ),
             'wp_v2_field_mode' => 'additional',
         ),
+        'interaction' => array(
+            'type' => 'object',
+            'group' => 'interaction',
+            'description' => 'Event click interaction settings such as event card behavior or external links.',
+            'shape' => eventon_apify_get_interaction_contract_shape(),
+            'transport' => array(
+                'custom_namespace' => 'interaction',
+                'wp_v2' => 'interaction',
+            ),
+            'wp_v2_field_mode' => 'additional',
+        ),
         'flags' => array(
             'type' => 'object',
             'group' => 'flags',
@@ -1753,6 +1779,17 @@ function eventon_apify_get_contract_field_definitions() {
             'transport' => array(
                 'custom_namespace' => 'flags',
                 'wp_v2' => 'flags',
+            ),
+            'wp_v2_field_mode' => 'additional',
+        ),
+        'health' => array(
+            'type' => 'object',
+            'group' => 'health',
+            'description' => 'Health guideline settings shown in the EventON event card.',
+            'shape' => eventon_apify_get_health_contract_shape(),
+            'transport' => array(
+                'custom_namespace' => 'health',
+                'wp_v2' => 'health',
             ),
             'wp_v2_field_mode' => 'additional',
         ),
@@ -1786,6 +1823,39 @@ function eventon_apify_get_contract_field_definitions() {
             'transport' => array(
                 'custom_namespace' => 'rsvp',
                 'wp_v2' => 'rsvp',
+            ),
+            'wp_v2_field_mode' => 'additional',
+        ),
+        'related_events' => array(
+            'type' => 'object',
+            'group' => 'related',
+            'description' => 'Related event references and display flags.',
+            'shape' => eventon_apify_get_related_events_contract_shape(),
+            'transport' => array(
+                'custom_namespace' => 'related_events',
+                'wp_v2' => 'related_events',
+            ),
+            'wp_v2_field_mode' => 'additional',
+        ),
+        'seo' => array(
+            'type' => 'object',
+            'group' => 'seo',
+            'description' => 'Extra EventON SEO offer fields used in schema output.',
+            'shape' => eventon_apify_get_seo_contract_shape(),
+            'transport' => array(
+                'custom_namespace' => 'seo',
+                'wp_v2' => 'seo',
+            ),
+            'wp_v2_field_mode' => 'additional',
+        ),
+        'faqs' => array(
+            'type' => 'object',
+            'group' => 'faqs',
+            'description' => 'Event FAQ taxonomy assignments and section subtitle.',
+            'shape' => eventon_apify_get_faq_contract_shape(),
+            'transport' => array(
+                'custom_namespace' => 'faqs',
+                'wp_v2' => 'faqs',
             ),
             'wp_v2_field_mode' => 'additional',
         ),
@@ -1914,11 +1984,30 @@ function eventon_apify_get_flags_contract_shape() {
         'hide_end_time' => array('type' => 'boolean', 'description' => 'Hide the event end time.'),
         'span_hidden_end' => array('type' => 'boolean', 'description' => 'Allow the event to span beyond the hidden end time.'),
         'hide_location_name' => array('type' => 'boolean', 'description' => 'Hide the location name from the event card.'),
+        'hide_organizer_card' => array('type' => 'boolean', 'description' => 'Hide the organizer field from the event card.'),
         'generate_gmap' => array('type' => 'boolean', 'description' => 'Generate a Google map for the location.'),
         'open_google_maps_link' => array('type' => 'boolean', 'description' => 'Link the event location to Google Maps.'),
         'location_access_loggedin_only' => array('type' => 'boolean', 'description' => 'Restrict location details to logged-in users.'),
         'location_info_over_image' => array('type' => 'boolean', 'description' => 'Display location info over the event image.'),
+        'organizer_as_performer' => array('type' => 'boolean', 'description' => 'Use organizer information to also populate performer schema data for the event.'),
         'gradient_enabled' => array('type' => 'boolean', 'description' => 'Enable EventON gradient colors.'),
+    );
+}
+
+/**
+ * Return the nested interaction shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_interaction_contract_shape() {
+    return array(
+        'mode' => array(
+            'type' => 'string',
+            'description' => 'How EventON should react when the event is clicked.',
+            'allowed_values' => eventon_apify_get_allowed_interaction_modes(),
+        ),
+        'url' => array('type' => 'string', 'format' => 'url', 'description' => 'External URL used for external-link or popup interaction modes.'),
+        'new_window' => array('type' => 'boolean', 'description' => 'Open the interaction URL in a new window when applicable.'),
     );
 }
 
@@ -1977,6 +2066,80 @@ function eventon_apify_get_repeat_contract_shape() {
 }
 
 /**
+ * Return the nested health shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_health_contract_shape() {
+    return array(
+        'enabled' => array('type' => 'boolean', 'description' => 'Enable health guidelines for the event.'),
+        'mask_required' => array('type' => 'boolean', 'description' => 'Face masks are required.'),
+        'temperature_check' => array('type' => 'boolean', 'description' => 'Temperature is checked at the entrance.'),
+        'physical_distance' => array('type' => 'boolean', 'description' => 'Physical distance is maintained.'),
+        'sanitized' => array('type' => 'boolean', 'description' => 'The event area is sanitized before the event.'),
+        'outdoor' => array('type' => 'boolean', 'description' => 'The event is held outside.'),
+        'vaccination_required' => array('type' => 'boolean', 'description' => 'Vaccination is required.'),
+        'other' => array('type' => 'string', 'description' => 'Other additional health guidelines.'),
+    );
+}
+
+/**
+ * Return the nested related events shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_related_events_contract_shape() {
+    return array(
+        'items' => array(
+            'type' => 'array',
+            'description' => 'Related event references.',
+            'item_type' => 'object',
+            'item_shape' => array(
+                'event_id' => array('type' => 'integer', 'description' => 'Related EventON event post ID.'),
+                'repeat_interval' => array('type' => 'integer', 'description' => 'Optional repeat interval for the related event.'),
+                'title' => array('type' => 'string', 'description' => 'Resolved title of the related event.'),
+            ),
+        ),
+        'hide_image' => array('type' => 'boolean', 'description' => 'Hide related event images in the event card.'),
+        'hide_past' => array('type' => 'boolean', 'description' => 'Hide past related events from the event card.'),
+    );
+}
+
+/**
+ * Return the nested SEO shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_seo_contract_shape() {
+    return array(
+        'offer_price' => array('type' => 'string', 'description' => 'Offer price used in schema output.'),
+        'offer_currency' => array('type' => 'string', 'description' => 'Offer currency code or symbol used in schema output.'),
+    );
+}
+
+/**
+ * Return the nested FAQ shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_faq_contract_shape() {
+    return array(
+        'subheader' => array('type' => 'string', 'description' => 'Optional FAQ section subtitle text.'),
+        'items' => array(
+            'type' => 'array',
+            'description' => 'FAQ items stored in the evo_faq taxonomy.',
+            'item_type' => 'object',
+            'item_shape' => array(
+                'term_id' => array('type' => 'integer', 'description' => 'Existing FAQ term ID to reuse.'),
+                'question' => array('type' => 'string', 'description' => 'FAQ question stored as the term name.'),
+                'slug' => array('type' => 'string', 'description' => 'Optional FAQ slug for lookup or creation.'),
+                'answer' => array('type' => 'string', 'description' => 'FAQ answer stored as the term description.'),
+            ),
+        ),
+    );
+}
+
+/**
  * Return the nested RSVP shape published in the MCP manifest.
  *
  * @return array<string, array<string, mixed>>
@@ -2013,6 +2176,8 @@ function eventon_apify_get_rsvp_contract_shape() {
  */
 function eventon_apify_get_mcp_contract_field_names() {
     return array(
+        'excerpt',
+        'tags',
         'event_type',
         'start_at',
         'start_date',
@@ -2034,9 +2199,14 @@ function eventon_apify_get_mcp_contract_field_names() {
         'gradient_angle',
         'learn_more_link',
         'learn_more_link_target',
+        'interaction',
         'flags',
+        'health',
         'virtual',
         'repeat',
+        'related_events',
+        'seo',
+        'faqs',
         'rsvp',
     );
 }
@@ -2085,6 +2255,10 @@ function eventon_apify_build_mcp_contract_field_definition($field_name, array $d
         $field['enum'] = array_values($definition['allowed_values']);
     }
 
+    if (!empty($definition['guidance']) && is_string($definition['guidance'])) {
+        $field['guidance'] = $definition['guidance'];
+    }
+
     $aliases = eventon_apify_get_mcp_contract_field_aliases($field_name);
     if (!empty($aliases)) {
         $field['aliases'] = $aliases;
@@ -2128,6 +2302,10 @@ function eventon_apify_export_contract_shape_definitions(array $shape) {
 
         if (!empty($definition['allowed_values']) && is_array($definition['allowed_values'])) {
             $item['enum'] = array_values($definition['allowed_values']);
+        }
+
+        if (!empty($definition['guidance']) && is_string($definition['guidance'])) {
+            $item['guidance'] = $definition['guidance'];
         }
 
         if (!empty($definition['shape']) && is_array($definition['shape'])) {
@@ -2210,6 +2388,7 @@ function eventon_apify_get_mcp_contract_write_key($field_name) {
  */
 function eventon_apify_get_mcp_contract_field_aliases($field_name) {
     $aliases = array(
+        'tags' => array('post_tag'),
         'event_type' => array('event_types'),
         'event_subtitle' => array('subtitle'),
         'event_excerpt' => array('evo_excerpt'),
@@ -2346,8 +2525,8 @@ function eventon_apify_get_mcp_validation_notes() {
             'id' => 'absolute_urls_only',
             'level' => 'error',
             'when' => 'create_or_update',
-            'fields' => array('location', 'organizers', 'virtual', 'learn_more_link'),
-            'message' => 'Location, organizer, virtual, and learn more links must be valid absolute URLs when provided.',
+            'fields' => array('location', 'organizers', 'interaction', 'virtual', 'learn_more_link'),
+            'message' => 'Location, organizer, interaction, virtual, and learn more links must be valid absolute URLs when provided.',
         ),
         array(
             'id' => 'numeric_coordinates',
@@ -2384,7 +2563,7 @@ function eventon_apify_get_mcp_contract_examples() {
             'title' => 'Ride to Big Bear',
             'status' => 'publish',
             'content' => 'Optional HTML content',
-            'excerpt' => 'Short summary',
+            'excerpt' => 'Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.',
             'fields' => eventon_apify_get_mcp_example_create_payload(),
         ),
         'update' => array(
@@ -2411,7 +2590,7 @@ function eventon_apify_get_mcp_field_groups() {
             'key' => 'taxonomy',
             'label' => 'Taxonomy',
             'description' => 'EventON taxonomy inputs.',
-            'fields' => array('event_type'),
+            'fields' => array('tags', 'event_type'),
         ),
         array(
             'key' => 'timing',
@@ -2450,6 +2629,18 @@ function eventon_apify_get_mcp_field_groups() {
             'fields' => array('flags'),
         ),
         array(
+            'key' => 'interaction',
+            'label' => 'Interaction',
+            'description' => 'Event click interaction settings.',
+            'fields' => array('interaction'),
+        ),
+        array(
+            'key' => 'health',
+            'label' => 'Health',
+            'description' => 'Health guideline settings.',
+            'fields' => array('health'),
+        ),
+        array(
             'key' => 'virtual',
             'label' => 'Virtual event',
             'description' => 'Virtual event settings and end-of-event behavior.',
@@ -2460,6 +2651,24 @@ function eventon_apify_get_mcp_field_groups() {
             'label' => 'Repeat',
             'description' => 'Repeat interval rules.',
             'fields' => array('repeat'),
+        ),
+        array(
+            'key' => 'related',
+            'label' => 'Related events',
+            'description' => 'Related event references and display flags.',
+            'fields' => array('related_events'),
+        ),
+        array(
+            'key' => 'seo',
+            'label' => 'SEO',
+            'description' => 'Extra schema offer fields.',
+            'fields' => array('seo'),
+        ),
+        array(
+            'key' => 'faqs',
+            'label' => 'FAQs',
+            'description' => 'FAQ taxonomy assignments and subtitle.',
+            'fields' => array('faqs'),
         ),
         array(
             'key' => 'rsvp',
@@ -2483,6 +2692,7 @@ function eventon_apify_get_mcp_field_groups() {
  */
 function eventon_apify_get_mcp_example_create_payload() {
     return array(
+        'tags' => array('bike night', 'ducati'),
         'event_type' => array('Rides', 'Featured'),
         'start_date' => '2026-04-01',
         'start_time' => '09:00',
@@ -2496,6 +2706,7 @@ function eventon_apify_get_mcp_example_create_payload() {
         'event_status' => 'scheduled',
         'attendance_mode' => 'offline',
         'event_subtitle' => 'High-altitude ride day',
+        'event_excerpt' => 'Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.',
         'location' => array(
             'name' => 'Big Bear Lake',
             'address' => '123 Main St',
@@ -2518,17 +2729,40 @@ function eventon_apify_get_mcp_example_create_payload() {
             'featured' => true,
             'generate_gmap' => true,
             'open_google_maps_link' => true,
+            'organizer_as_performer' => true,
             'gradient_enabled' => true,
+        ),
+        'interaction' => array(
+            'mode' => 'external_link',
+            'url' => 'https://example.com/rides/big-bear/details',
+            'new_window' => true,
+        ),
+        'health' => array(
+            'enabled' => true,
+            'outdoor' => true,
         ),
         'gradient_angle' => 90,
         'virtual' => array(
             'enabled' => false,
         ),
+        'seo' => array(
+            'offer_price' => '0.00',
+            'offer_currency' => 'USD',
+        ),
         'rsvp' => array(
             'enabled' => true,
             'capacity_enabled' => true,
             'capacity_count' => 75,
-        )
+        ),
+        'faqs' => array(
+            'subheader' => 'Know before you go',
+            'items' => array(
+                array(
+                    'question' => 'Is parking available?',
+                    'answer' => 'Yes, free parking is available on site.',
+                ),
+            ),
+        ),
     );
 }
 
@@ -2539,6 +2773,7 @@ function eventon_apify_get_mcp_example_create_payload() {
  */
 function eventon_apify_get_mcp_example_update_payload() {
     return array(
+        'tags' => array('track day'),
         'event_status' => 'rescheduled',
         'status_reason' => 'Weather moved the ride to next week.',
         'start_date' => '2026-04-08',
@@ -2559,6 +2794,13 @@ function eventon_apify_get_mcp_example_update_payload() {
         'flags' => array(
             'featured' => false,
             'generate_gmap' => true,
+            'hide_organizer_card' => true,
+        ),
+        'interaction' => array(
+            'mode' => 'slide_down_eventcard',
+        ),
+        'related_events' => array(
+            'hide_past' => true,
         ),
         'virtual' => array(
             'enabled' => true,
@@ -2583,6 +2825,51 @@ function eventon_apify_get_mcp_availability_state() {
         'custom_event_api_capabilities' => eventon_apify_get_api_capabilities(),
         'wp_v2_compatibility_enabled' => $wp_v2_enabled,
         'preferred_mcp_ready' => $eventon_available && $wp_v2_enabled,
+    );
+}
+
+/**
+ * Return authoring guidance for MCP agents that prepare EventON payloads.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_mcp_agent_guidance() {
+    return array(
+        'autofill_recommended_fields' => array(
+            'excerpt',
+            'event_excerpt',
+            'tags',
+            'location',
+            'organizers',
+            'flags',
+            'interaction',
+            'virtual',
+            'related_events',
+            'seo',
+            'faqs',
+        ),
+        'field_strategies' => array(
+            array(
+                'field' => 'event_excerpt',
+                'strategy' => 'Generate a short summary from the event title, location, and start date/time when the field is empty.',
+            ),
+            array(
+                'field' => 'excerpt',
+                'strategy' => 'Use a concise plain-text summary. It may mirror event_excerpt when no distinct editorial excerpt is provided.',
+            ),
+            array(
+                'field' => 'tags',
+                'strategy' => 'When creating an event and tags are empty, propose or generate recommended tags from the title, location, organizer, event format, and obvious topics. If cloning an existing event, preserve source tags when available; only generate replacements when source tags are absent.',
+            ),
+            array(
+                'field' => 'location',
+                'strategy' => 'Fill the most specific known venue details available, prioritizing name, address, city, state, country, and map link.',
+            ),
+            array(
+                'field' => 'organizers',
+                'strategy' => 'Include organizer records whenever the source material names a host, organizer, venue operator, or promoter.',
+            ),
+        ),
     );
 }
 
@@ -2635,6 +2922,7 @@ function eventon_apify_get_mcp_manifest($content_type = '') {
             'manifest' => rest_url(EVENTON_APIFY_NAMESPACE . '/mcp-schema'),
             'content_type_template' => rest_url(EVENTON_APIFY_NAMESPACE . '/mcp-schema/{content_type}'),
         ),
+        'agent_guidance' => eventon_apify_get_mcp_agent_guidance(),
         'availability' => eventon_apify_get_mcp_availability_state(),
         'content_types' => $content_types,
     );
@@ -3271,14 +3559,20 @@ function eventon_apify_format_event(WP_Post $post) {
     $virtual_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_vend_ev') ?: eventon_apify_get_meta_int($meta, '_evo_virtual_erow');
     $timezone_key = eventon_apify_get_timezone_key_from_meta($meta);
     $event_types = wp_get_post_terms($post->ID, 'event_type', array('fields' => 'names'));
+    $tags = wp_get_post_terms($post->ID, 'post_tag', array('fields' => 'names'));
     $location = eventon_apify_get_location_payload($post->ID, $meta);
     $organizers = eventon_apify_get_organizer_payload($post->ID, $meta);
     $event_status = eventon_apify_get_event_status_from_meta($meta);
     $status_reason = eventon_apify_get_event_status_reason_from_meta($meta, $event_status);
     $gradient_angle = eventon_apify_get_meta_text($meta, '_evo_event_grad_ang');
+    $health = eventon_apify_get_health_payload($post->ID);
 
     if (is_wp_error($event_types)) {
         $event_types = array();
+    }
+
+    if (is_wp_error($tags)) {
+        $tags = array();
     }
 
     return array(
@@ -3288,6 +3582,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'slug' => $post->post_name,
         'description' => $post->post_content,
         'excerpt' => $post->post_excerpt,
+        'tags' => $tags,
         'event_subtitle' => eventon_apify_get_meta_text($meta, 'evcal_subtitle'),
         'event_excerpt' => eventon_apify_get_meta_text($meta, 'evo_excerpt'),
         'link' => get_permalink($post->ID),
@@ -3317,6 +3612,7 @@ function eventon_apify_format_event(WP_Post $post) {
         ),
         'learn_more_link' => eventon_apify_get_meta_text($meta, 'evcal_lmlink'),
         'learn_more_link_target' => eventon_apify_get_yes_no_flag($meta, 'evcal_lmlink_target'),
+        'interaction' => eventon_apify_get_interaction_payload($post->ID, $meta),
         'flags' => array(
             'featured' => eventon_apify_get_yes_no_flag($meta, '_featured'),
             'completed' => eventon_apify_get_yes_no_flag($meta, '_completed'),
@@ -3325,15 +3621,21 @@ function eventon_apify_format_event(WP_Post $post) {
             'hide_end_time' => eventon_apify_get_yes_no_flag($meta, 'evo_hide_endtime'),
             'span_hidden_end' => eventon_apify_get_yes_no_flag($meta, 'evo_span_hidden_end'),
             'hide_location_name' => eventon_apify_get_yes_no_flag($meta, 'evcal_hide_locname'),
+            'hide_organizer_card' => eventon_apify_get_yes_no_flag($meta, 'evo_evcrd_field_org'),
             'generate_gmap' => eventon_apify_get_yes_no_flag($meta, 'evcal_gmap_gen'),
             'open_google_maps_link' => eventon_apify_get_yes_no_flag($meta, 'evcal_gmap_link'),
             'location_access_loggedin_only' => eventon_apify_get_yes_no_flag($meta, 'evo_access_control_location'),
             'location_info_over_image' => eventon_apify_get_yes_no_flag($meta, 'evcal_name_over_img'),
+            'organizer_as_performer' => eventon_apify_get_yes_no_flag($meta, 'evo_event_org_as_perf'),
             'gradient_enabled' => eventon_apify_get_yes_no_flag($meta, '_evo_event_grad_colors'),
         ),
+        'health' => $health,
         'gradient_angle' => is_numeric($gradient_angle) ? (0 + $gradient_angle) : null,
         'virtual' => eventon_apify_get_virtual_payload($meta, $timezone_key, $virtual_end_timestamp),
         'repeat' => eventon_apify_get_repeat_payload($meta, $timezone_key),
+        'related_events' => eventon_apify_get_related_events_payload($post->ID, $meta),
+        'seo' => eventon_apify_get_seo_payload($meta),
+        'faqs' => eventon_apify_get_faq_payload($post->ID),
         'rsvp' => eventon_apify_get_rsvp_payload($meta),
         'featured_image' => get_the_post_thumbnail_url($post->ID, 'full') ?: '',
         'created' => $post->post_date_gmt ? get_date_from_gmt($post->post_date_gmt, 'c') : '',
@@ -3392,6 +3694,123 @@ function eventon_apify_get_timezone_key_from_meta(array $meta) {
  */
 function eventon_apify_get_yes_no_flag(array $meta, $key) {
     return eventon_apify_is_yes(eventon_apify_get_meta_text($meta, $key));
+}
+
+/**
+ * Return a normalized interaction payload.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_interaction_payload($post_id, array $meta) {
+    $mode = eventon_apify_map_interaction_code_to_mode(eventon_apify_get_meta_text($meta, '_evcal_exlink_option'));
+    $url = eventon_apify_get_meta_text($meta, 'evcal_exlink');
+
+    if ($mode === 'open_event_page') {
+        $url = get_permalink($post_id) ?: '';
+    }
+
+    return array(
+        'mode' => $mode,
+        'url' => $url,
+        'new_window' => eventon_apify_get_yes_no_flag($meta, '_evcal_exlink_target'),
+    );
+}
+
+/**
+ * Return a normalized health payload.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_health_payload($post_id) {
+    $edata = eventon_apify_get_event_edata($post_id);
+
+    return array(
+        'enabled' => eventon_apify_is_yes(get_post_meta($post_id, '_health', true)),
+        'mask_required' => eventon_apify_is_yes($edata['_health_mask'] ?? ''),
+        'temperature_check' => eventon_apify_is_yes($edata['_health_temp'] ?? ''),
+        'physical_distance' => eventon_apify_is_yes($edata['_health_pdis'] ?? ''),
+        'sanitized' => eventon_apify_is_yes($edata['_health_san'] ?? ''),
+        'outdoor' => eventon_apify_is_yes($edata['_health_out'] ?? ''),
+        'vaccination_required' => eventon_apify_is_yes($edata['_health_vac'] ?? ''),
+        'other' => isset($edata['_health_other']) ? (string) $edata['_health_other'] : '',
+    );
+}
+
+/**
+ * Return a normalized related events payload.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_related_events_payload($post_id, array $meta) {
+    unset($post_id);
+
+    $items = array();
+    $raw = eventon_apify_get_meta_text($meta, 'ev_releated');
+
+    if ($raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $key => $title) {
+                $parts = explode('-', (string) $key, 2);
+                $event_id = absint($parts[0] ?? 0);
+                $repeat_interval = isset($parts[1]) ? absint($parts[1]) : 0;
+                $resolved_title = $event_id ? get_the_title($event_id) : '';
+
+                $items[] = array(
+                    'event_id' => $event_id,
+                    'repeat_interval' => $repeat_interval,
+                    'title' => $resolved_title !== '' ? $resolved_title : sanitize_text_field((string) $title),
+                );
+            }
+        }
+    }
+
+    return array(
+        'items' => $items,
+        'hide_image' => eventon_apify_get_yes_no_flag($meta, '_evo_relevs_hide_img'),
+        'hide_past' => eventon_apify_get_yes_no_flag($meta, '_evo_relevs_hide_past'),
+    );
+}
+
+/**
+ * Return a normalized SEO payload.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_seo_payload(array $meta) {
+    return array(
+        'offer_price' => eventon_apify_get_meta_text($meta, '_seo_offer_price'),
+        'offer_currency' => eventon_apify_get_meta_text($meta, '_seo_offer_currency'),
+    );
+}
+
+/**
+ * Return a normalized FAQ payload.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_faq_payload($post_id) {
+    $items = array();
+    $terms = taxonomy_exists('evo_faq') ? wp_get_post_terms($post_id, 'evo_faq') : array();
+
+    if ($terms && !is_wp_error($terms)) {
+        foreach ($terms as $term) {
+            $items[] = array(
+                'term_id' => (int) $term->term_id,
+                'question' => $term->name,
+                'slug' => $term->slug,
+                'answer' => $term->description,
+            );
+        }
+    }
+
+    return array(
+        'subheader' => (string) get_post_meta($post_id, '_evo_faq_subheader', true),
+        'items' => $items,
+    );
 }
 
 /**
@@ -4440,6 +4859,10 @@ function eventon_apify_normalize_request_payload(array $params) {
         $normalized['event_type'] = $params['event_types'];
     }
 
+    if (!array_key_exists('tags', $normalized) && array_key_exists('post_tag', $params)) {
+        $normalized['tags'] = $params['post_tag'];
+    }
+
     if (!array_key_exists('event_status', $normalized) && array_key_exists('_status', $params)) {
         $normalized['event_status'] = $params['_status'];
     }
@@ -4498,16 +4921,36 @@ function eventon_apify_normalize_request_payload(array $params) {
             'hide_end_time' => array('hide_end_time'),
             'span_hidden_end' => array('span_hidden_end'),
             'hide_location_name' => array('hide_location_name'),
+            'hide_organizer_card' => array('hide_organizer_card'),
             'generate_gmap' => array('generate_gmap', 'map_enabled'),
             'open_google_maps_link' => array('open_google_maps_link'),
             'location_access_loggedin_only' => array('location_access_loggedin_only'),
             'location_info_over_image' => array('location_info_over_image'),
+            'organizer_as_performer' => array('organizer_as_performer'),
         );
 
         foreach ($flags_map as $target => $aliases) {
             if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['flags'], $aliases)) {
                 $normalized[$target] = eventon_apify_array_get($params['flags'], $aliases);
             }
+        }
+    }
+
+    if (array_key_exists('interaction', $params)) {
+        if (is_array($params['interaction'])) {
+            $interaction_map = array(
+                'interaction_mode' => array('mode', 'action'),
+                'interaction_url' => array('url', 'link'),
+                'interaction_new_window' => array('new_window', 'target'),
+            );
+
+            foreach ($interaction_map as $target => $aliases) {
+                if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['interaction'], $aliases)) {
+                    $normalized[$target] = eventon_apify_array_get($params['interaction'], $aliases);
+                }
+            }
+        } elseif (!array_key_exists('interaction_mode', $normalized)) {
+            $normalized['interaction_mode'] = $params['interaction'];
         }
     }
 
@@ -4561,6 +5004,25 @@ function eventon_apify_normalize_request_payload(array $params) {
         $normalized['organizers'] = eventon_apify_normalize_organizer_items($params['organizer']);
     }
 
+    if (isset($params['health']) && is_array($params['health'])) {
+        $health_map = array(
+            'health_enabled' => array('enabled'),
+            'health_mask_required' => array('mask_required'),
+            'health_temperature_check' => array('temperature_check'),
+            'health_physical_distance' => array('physical_distance'),
+            'health_sanitized' => array('sanitized'),
+            'health_outdoor' => array('outdoor'),
+            'health_vaccination_required' => array('vaccination_required'),
+            'health_other' => array('other'),
+        );
+
+        foreach ($health_map as $target => $aliases) {
+            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['health'], $aliases)) {
+                $normalized[$target] = eventon_apify_array_get($params['health'], $aliases);
+            }
+        }
+    }
+
     if (isset($params['virtual']) && is_array($params['virtual'])) {
         $virtual_map = array(
             'virtual_enabled' => array('enabled'),
@@ -4611,6 +5073,51 @@ function eventon_apify_normalize_request_payload(array $params) {
             if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['repeat'], $aliases)) {
                 $normalized[$target] = eventon_apify_array_get($params['repeat'], $aliases);
             }
+        }
+    }
+
+    if (isset($params['related_events']) && is_array($params['related_events'])) {
+        $related_map = array(
+            'related_items' => array('items', 'events'),
+            'related_hide_image' => array('hide_image'),
+            'related_hide_past' => array('hide_past'),
+        );
+
+        foreach ($related_map as $target => $aliases) {
+            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['related_events'], $aliases)) {
+                $normalized[$target] = eventon_apify_array_get($params['related_events'], $aliases);
+            }
+        }
+
+        if (!array_key_exists('related_items', $normalized)) {
+            $normalized['related_items'] = eventon_apify_array_get($params['related_events'], array('items', 'events'), array());
+        }
+    }
+
+    if (isset($params['seo']) && is_array($params['seo'])) {
+        $seo_map = array(
+            'seo_offer_price' => array('offer_price', 'price'),
+            'seo_offer_currency' => array('offer_currency', 'currency'),
+        );
+
+        foreach ($seo_map as $target => $aliases) {
+            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['seo'], $aliases)) {
+                $normalized[$target] = eventon_apify_array_get($params['seo'], $aliases);
+            }
+        }
+    }
+
+    if (array_key_exists('faqs', $params)) {
+        if (is_array($params['faqs'])) {
+            if (!array_key_exists('faq_subheader', $normalized) && eventon_apify_array_has_any($params['faqs'], array('subheader'))) {
+                $normalized['faq_subheader'] = eventon_apify_array_get($params['faqs'], array('subheader'));
+            }
+
+            if (!array_key_exists('faq_items', $normalized)) {
+                $normalized['faq_items'] = eventon_apify_array_get($params['faqs'], array('items'), array());
+            }
+        } elseif (!array_key_exists('faq_items', $normalized)) {
+            $normalized['faq_items'] = $params['faqs'];
         }
     }
 
@@ -4902,6 +5409,22 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         }
     }
 
+    if (array_key_exists('interaction_url', $params) && !eventon_apify_validate_url($params['interaction_url'])) {
+        return new WP_Error(
+            'eventon_apify_invalid_interaction_url',
+            'interaction.url must be a valid absolute URL.',
+            array('status' => 400)
+        );
+    }
+
+    if (array_key_exists('interaction_mode', $params) && !in_array(eventon_apify_normalize_interaction_mode($params['interaction_mode']), eventon_apify_get_allowed_interaction_modes(), true)) {
+        return new WP_Error(
+            'eventon_apify_invalid_interaction_mode',
+            'interaction.mode must be one of: ' . implode(', ', eventon_apify_get_allowed_interaction_modes()) . '.',
+            array('status' => 400)
+        );
+    }
+
     if (array_key_exists('organizers', $params) && is_array($params['organizers'])) {
         foreach ($params['organizers'] as $organizer) {
             if (!is_array($organizer)) {
@@ -5148,11 +5671,15 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         'event_excerpt' => 'evo_excerpt',
         'timezone_text' => 'evo_event_timezone',
         'learn_more_link' => 'evcal_lmlink',
+        'interaction_url' => 'evcal_exlink',
         'virtual_type' => '_virtual_type',
         'virtual_password' => '_vir_pass',
         'virtual_other' => '_vir_other',
         'virtual_show' => '_vir_show',
         'virtual_after_content_when' => '_vir_after_content_when',
+        'seo_offer_price' => '_seo_offer_price',
+        'seo_offer_currency' => '_seo_offer_currency',
+        'faq_subheader' => '_evo_faq_subheader',
     );
 
     foreach ($text_meta_map as $request_key => $meta_key) {
@@ -5161,7 +5688,7 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         }
 
         $value = (string) $params[$request_key];
-        if ($request_key === 'learn_more_link') {
+        if (in_array($request_key, array('learn_more_link', 'interaction_url'), true)) {
             $value = esc_url_raw($value);
         } else {
             $value = sanitize_text_field($value);
@@ -5226,6 +5753,19 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         eventon_apify_update_yes_no_meta($post_id, 'evcal_lmlink_target', $params['learn_more_link_target']);
     }
 
+    if (array_key_exists('interaction_mode', $params)) {
+        $interaction_mode = eventon_apify_normalize_interaction_mode($params['interaction_mode']);
+        eventon_apify_update_or_delete_meta($post_id, '_evcal_exlink_option', eventon_apify_map_interaction_mode_to_code($interaction_mode));
+
+        if ($interaction_mode === 'open_event_page' && !array_key_exists('interaction_url', $params)) {
+            eventon_apify_update_or_delete_meta($post_id, 'evcal_exlink', get_permalink($post_id) ?: '');
+        }
+
+        if (in_array($interaction_mode, array('do_nothing', 'slide_down_eventcard'), true) && !array_key_exists('interaction_url', $params)) {
+            delete_post_meta($post_id, 'evcal_exlink');
+        }
+    }
+
     $flag_meta_map = array(
         'featured' => '_featured',
         'completed' => '_completed',
@@ -5234,10 +5774,12 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         'hide_end_time' => 'evo_hide_endtime',
         'span_hidden_end' => 'evo_span_hidden_end',
         'hide_location_name' => 'evcal_hide_locname',
+        'hide_organizer_card' => 'evo_evcrd_field_org',
         'generate_gmap' => 'evcal_gmap_gen',
         'open_google_maps_link' => 'evcal_gmap_link',
         'location_access_loggedin_only' => 'evo_access_control_location',
         'location_info_over_image' => 'evcal_name_over_img',
+        'organizer_as_performer' => 'evo_event_org_as_perf',
         'virtual_enabled' => '_virtual',
         'virtual_hide_when_live' => '_vir_hide',
         'virtual_disable_redirect_hiding' => '_vir_nohiding',
@@ -5248,6 +5790,20 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         if (array_key_exists($request_key, $params)) {
             eventon_apify_update_yes_no_meta($post_id, $meta_key, $params[$request_key]);
         }
+    }
+
+    if (array_key_exists('interaction_new_window', $params)) {
+        eventon_apify_update_yes_no_meta($post_id, '_evcal_exlink_target', $params['interaction_new_window']);
+    }
+
+    $health_result = eventon_apify_save_health_meta($post_id, $params);
+    if (is_wp_error($health_result)) {
+        return $health_result;
+    }
+
+    $related_result = eventon_apify_save_related_events_meta($post_id, $params);
+    if (is_wp_error($related_result)) {
+        return $related_result;
     }
 
     if (array_key_exists('virtual_url', $params)) {
@@ -5275,6 +5831,110 @@ function eventon_apify_save_event_meta($post_id, array $params) {
     if (is_wp_error($rsvp_result)) {
         return $rsvp_result;
     }
+
+    return true;
+}
+
+/**
+ * Save EventON health guideline meta.
+ *
+ * @param int                  $post_id Event post ID.
+ * @param array<string, mixed> $params  Request parameters.
+ * @return true|WP_Error
+ */
+function eventon_apify_save_health_meta($post_id, array $params) {
+    $edata_map = array(
+        'health_mask_required' => '_health_mask',
+        'health_temperature_check' => '_health_temp',
+        'health_physical_distance' => '_health_pdis',
+        'health_sanitized' => '_health_san',
+        'health_outdoor' => '_health_out',
+        'health_vaccination_required' => '_health_vac',
+    );
+
+    $existing_edata = eventon_apify_get_event_edata($post_id);
+    $updated = false;
+
+    if (array_key_exists('health_enabled', $params)) {
+        eventon_apify_update_yes_no_meta($post_id, '_health', $params['health_enabled']);
+    }
+
+    foreach ($edata_map as $request_key => $edata_key) {
+        if (!array_key_exists($request_key, $params)) {
+            continue;
+        }
+
+        $existing_edata[$edata_key] = eventon_apify_to_yes_no($params[$request_key]);
+        $updated = true;
+    }
+
+    if (array_key_exists('health_other', $params)) {
+        $existing_edata['_health_other'] = sanitize_textarea_field((string) $params['health_other']);
+        $updated = true;
+    }
+
+    if ($updated) {
+        update_post_meta($post_id, '_edata', $existing_edata);
+    }
+
+    return true;
+}
+
+/**
+ * Save EventON related events meta.
+ *
+ * @param int                  $post_id Event post ID.
+ * @param array<string, mixed> $params  Request parameters.
+ * @return true|WP_Error
+ */
+function eventon_apify_save_related_events_meta($post_id, array $params) {
+    if (array_key_exists('related_hide_image', $params)) {
+        eventon_apify_update_yes_no_meta($post_id, '_evo_relevs_hide_img', $params['related_hide_image']);
+    }
+
+    if (array_key_exists('related_hide_past', $params)) {
+        eventon_apify_update_yes_no_meta($post_id, '_evo_relevs_hide_past', $params['related_hide_past']);
+    }
+
+    if (!array_key_exists('related_items', $params)) {
+        return true;
+    }
+
+    if (!is_array($params['related_items']) || empty($params['related_items'])) {
+        delete_post_meta($post_id, 'ev_releated');
+        return true;
+    }
+
+    $payload = array();
+    foreach ($params['related_items'] as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $event_id = absint(eventon_apify_array_get($item, array('event_id', 'id'), 0));
+        if ($event_id <= 0) {
+            return new WP_Error(
+                'eventon_apify_invalid_related_event',
+                'Each related event must include a valid event_id.',
+                array('status' => 400)
+            );
+        }
+
+        $related_post = get_post($event_id);
+        if (!$related_post instanceof WP_Post || $related_post->post_type !== 'ajde_events') {
+            return new WP_Error(
+                'eventon_apify_invalid_related_event',
+                'related_events.items[].event_id must reference an ajde_events post.',
+                array('status' => 400)
+            );
+        }
+
+        $repeat_interval = absint(eventon_apify_array_get($item, array('repeat_interval', 'ri'), 0));
+        $title = sanitize_text_field((string) eventon_apify_array_get($item, array('title', 'name'), $related_post->post_title));
+        $payload[$event_id . '-' . $repeat_interval] = $title;
+    }
+
+    eventon_apify_update_or_delete_meta($post_id, 'ev_releated', wp_json_encode($payload));
 
     return true;
 }
@@ -5801,6 +6461,13 @@ function eventon_apify_save_rsvp_meta($post_id, array $params) {
  * @return true|WP_Error
  */
 function eventon_apify_save_event_terms($post_id, array $params) {
+    if (array_key_exists('tags', $params)) {
+        $tags_result = eventon_apify_sync_simple_terms($post_id, 'post_tag', $params['tags']);
+        if (is_wp_error($tags_result)) {
+            return $tags_result;
+        }
+    }
+
     if (array_key_exists('event_type', $params)) {
         $event_type_result = eventon_apify_sync_simple_terms($post_id, 'event_type', $params['event_type']);
         if (is_wp_error($event_type_result)) {
@@ -5841,6 +6508,13 @@ function eventon_apify_save_event_terms($post_id, array $params) {
         $organizer_result = eventon_apify_sync_organizer_terms($post_id, $params);
         if (is_wp_error($organizer_result)) {
             return $organizer_result;
+        }
+    }
+
+    if (array_key_exists('faq_items', $params)) {
+        $faq_result = eventon_apify_sync_faq_terms($post_id, $params['faq_items']);
+        if (is_wp_error($faq_result)) {
+            return $faq_result;
         }
     }
 
@@ -6113,6 +6787,71 @@ function eventon_apify_sync_organizer_terms($post_id, array $params) {
     eventon_apify_clear_legacy_organizer_meta($post_id);
 
     return true;
+}
+
+/**
+ * Sync EventON FAQ terms attached to an event.
+ *
+ * @param mixed $items Raw FAQ payload.
+ * @return true|WP_Error
+ */
+function eventon_apify_sync_faq_terms($post_id, $items) {
+    if (!taxonomy_exists('evo_faq')) {
+        return new WP_Error(
+            'eventon_apify_faq_taxonomy_unavailable',
+            'The EventON FAQ taxonomy is not available on this site.',
+            array('status' => 400)
+        );
+    }
+
+    if (!is_array($items) || empty($items)) {
+        $result = wp_set_post_terms($post_id, array(), 'evo_faq', false);
+        return is_wp_error($result) ? $result : true;
+    }
+
+    $term_ids = array();
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $term_payload = array();
+
+        if (array_key_exists('term_id', $item) || array_key_exists('id', $item)) {
+            $term_payload['term_id'] = absint(eventon_apify_array_get($item, array('term_id', 'id'), 0));
+        }
+
+        if (eventon_apify_array_has_any($item, array('question', 'name', 'title'))) {
+            $term_payload['name'] = sanitize_text_field((string) eventon_apify_array_get($item, array('question', 'name', 'title'), ''));
+        }
+
+        if (array_key_exists('slug', $item)) {
+            $term_payload['slug'] = sanitize_title((string) $item['slug']);
+        }
+
+        if (eventon_apify_array_has_any($item, array('answer', 'description'))) {
+            $term_payload['description'] = wp_kses_post((string) eventon_apify_array_get($item, array('answer', 'description'), ''));
+        }
+
+        $term = eventon_apify_resolve_taxonomy_term('evo_faq', $term_payload);
+        if (is_wp_error($term)) {
+            return $term;
+        }
+
+        if (!$term || !($term instanceof WP_Term)) {
+            return new WP_Error(
+                'eventon_apify_invalid_faq',
+                'Each FAQ must include a valid question or term_id.',
+                array('status' => 400)
+            );
+        }
+
+        $term_ids[] = (int) $term->term_id;
+    }
+
+    $result = wp_set_post_terms($post_id, $term_ids, 'evo_faq', false);
+
+    return is_wp_error($result) ? $result : true;
 }
 
 /**
@@ -6441,6 +7180,61 @@ function eventon_apify_get_allowed_repeat_frequencies() {
 }
 
 /**
+ * Allowed normalized event click interaction modes.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_allowed_interaction_modes() {
+    return array('do_nothing', 'slide_down_eventcard', 'external_link', 'popup_window', 'open_event_page');
+}
+
+/**
+ * Normalize an API interaction mode value.
+ */
+function eventon_apify_normalize_interaction_mode($value) {
+    return eventon_apify_map_interaction_code_to_mode((string) $value);
+}
+
+/**
+ * Map EventON's stored interaction codes to normalized API values.
+ */
+function eventon_apify_map_interaction_code_to_mode($value) {
+    $value = trim((string) $value);
+
+    $map = array(
+        'X' => 'do_nothing',
+        '1' => 'slide_down_eventcard',
+        '2' => 'external_link',
+        '3' => 'popup_window',
+        '4' => 'open_event_page',
+        'do_nothing' => 'do_nothing',
+        'slide_down_eventcard' => 'slide_down_eventcard',
+        'external_link' => 'external_link',
+        'popup_window' => 'popup_window',
+        'open_event_page' => 'open_event_page',
+    );
+
+    return $map[$value] ?? 'slide_down_eventcard';
+}
+
+/**
+ * Map normalized API interaction values back to EventON's stored codes.
+ */
+function eventon_apify_map_interaction_mode_to_code($value) {
+    $mode = eventon_apify_normalize_interaction_mode($value);
+
+    $map = array(
+        'do_nothing' => 'X',
+        'slide_down_eventcard' => '1',
+        'external_link' => '2',
+        'popup_window' => '3',
+        'open_event_page' => '4',
+    );
+
+    return $map[$mode] ?? '1';
+}
+
+/**
  * Validate a URL-like input.
  *
  * @param mixed $value URL input.
@@ -6477,6 +7271,16 @@ function eventon_apify_normalize_color_input($value) {
     }
 
     return preg_match('/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $value) ? strtolower($value) : null;
+}
+
+/**
+ * Read EventON's serialized _edata payload as an array.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_event_edata($post_id) {
+    $edata = get_post_meta($post_id, '_edata', true);
+    return is_array($edata) ? $edata : array();
 }
 
 /**
