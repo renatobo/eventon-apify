@@ -92,6 +92,33 @@
           }
         },
         {
+          "name": "List upcoming events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/{{namespace}}/events?status=publish,future&upcoming=true",
+            "description": "List EventON events that start today or later in the site timezone."
+          }
+        },
+        {
+          "name": "List events starting on or after date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/{{namespace}}/events?status=publish,future&starts_on_or_after=2026-03-30",
+            "description": "List EventON events whose start date is on or after the supplied local date."
+          }
+        },
+        {
+          "name": "Search upcoming events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/{{namespace}}/events?search=ride&upcoming=true",
+            "description": "Search EventON events and only return upcoming results."
+          }
+        },
+        {
           "name": "Get event",
           "request": {
             "method": "GET",

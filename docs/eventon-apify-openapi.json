@@ -104,7 +104,7 @@
           "Events"
         ],
         "summary": "List EventON events",
-        "description": "Returns a paginated collection of EventON events. Requires administrator authentication and the `list` API capability.",
+        "description": "Returns a paginated collection of EventON events. Filtering is applied before pagination metadata is calculated. Requires administrator authentication and the `list` API capability.",
         "security": [
           {
             "basicAuth": []
@@ -149,9 +149,29 @@
               "default": ""
             },
             "description": "Comma-separated WordPress post statuses. Allowed values are `publish`, `draft`, `private`, `pending`, and `future`."
+          },
+          {
+            "name": "starts_on_or_after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Only return events that start on or after the given local date."
+          },
+          {
+            "name": "upcoming",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When true, only return events starting today or later in the site timezone. Ignored if starts_on_or_after is provided."
           }
         ],
         "responses": {
+          "400": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
           "200": {
             "description": "Paginated EventON events",
             "content": {

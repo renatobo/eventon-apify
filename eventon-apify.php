@@ -1287,6 +1287,14 @@ function eventon_apify_register_routes() {
                         'default' => '',
                         'sanitize_callback' => 'sanitize_text_field',
                     ),
+                    'starts_on_or_after' => array(
+                        'sanitize_callback' => 'sanitize_text_field',
+                        'validate_callback' => 'eventon_apify_validate_local_date',
+                    ),
+                    'upcoming' => array(
+                        'sanitize_callback' => 'eventon_apify_sanitize_rest_boolean',
+                        'validate_callback' => 'eventon_apify_validate_rest_boolean',
+                    ),
                 ),
             ),
             array(
@@ -3487,6 +3495,72 @@ function eventon_apify_validate_numeric_identifier($value) {
 }
 
 /**
+ * Ensure a request parameter is a valid local calendar date.
+ *
+ * @param mixed $value Request parameter.
+ */
+function eventon_apify_validate_local_date($value) {
+    if (!is_scalar($value)) {
+        return false;
+    }
+
+    $value = trim((string) $value);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        return false;
+    }
+
+    list($year, $month, $day) = array_map('intval', explode('-', $value));
+
+    return checkdate($month, $day, $year);
+}
+
+/**
+ * Ensure a request parameter matches a standard REST boolean value.
+ *
+ * @param mixed $value Request parameter.
+ */
+function eventon_apify_validate_rest_boolean($value) {
+    if (is_bool($value)) {
+        return true;
+    }
+
+    if (is_int($value)) {
+        return in_array($value, array(0, 1), true);
+    }
+
+    if (!is_scalar($value)) {
+        return false;
+    }
+
+    return in_array(
+        strtolower(trim((string) $value)),
+        array('0', '1', 'false', 'true'),
+        true
+    );
+}
+
+/**
+ * Sanitize standard REST boolean values.
+ *
+ * @param mixed $value Request parameter.
+ */
+function eventon_apify_sanitize_rest_boolean($value) {
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    if (is_int($value)) {
+        return 1 === $value;
+    }
+
+    return in_array(
+        strtolower(trim((string) $value)),
+        array('1', 'true'),
+        true
+    );
+}
+
+/**
  * Sanitize RSVP list filter values.
  *
  * @param mixed $value Request parameter.
@@ -3626,7 +3700,7 @@ function eventon_apify_format_event(WP_Post $post) {
 
     $start_timestamp = eventon_apify_get_meta_int($meta, 'evcal_srow');
     $end_timestamp = eventon_apify_get_meta_int($meta, 'evcal_erow');
-    $event_start_timestamp = eventon_apify_get_meta_int($meta, '_unix_start_ev') ?: $start_timestamp;
+    $event_start_timestamp = eventon_apify_get_event_effective_start_timestamp($meta);
     $event_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_end_ev') ?: $end_timestamp;
     $virtual_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_vend_ev') ?: eventon_apify_get_meta_int($meta, '_evo_virtual_erow');
     $timezone_key = eventon_apify_get_timezone_key_from_meta($meta);
@@ -3741,6 +3815,15 @@ function eventon_apify_get_meta_int(array $meta, $key) {
     }
 
     return absint($meta[$key][0]);
+}
+
+/**
+ * Return the canonical EventON start timestamp used by the API payload.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ */
+function eventon_apify_get_event_effective_start_timestamp(array $meta) {
+    return eventon_apify_get_meta_int($meta, '_unix_start_ev') ?: eventon_apify_get_meta_int($meta, 'evcal_srow');
 }
 
 /**
@@ -4223,12 +4306,20 @@ function eventon_apify_get_events(WP_REST_Request $request) {
         return $ready;
     }
 
+    $page = (int) $request->get_param('page');
+    $per_page = (int) $request->get_param('per_page');
+    $start_date_filter = eventon_apify_get_events_start_date_filter($request);
+
+    if ($start_date_filter !== '') {
+        return rest_ensure_response(eventon_apify_get_filtered_events_response($request, $start_date_filter, $page, $per_page));
+    }
+
     $query = new WP_Query(
         array(
             'post_type' => 'ajde_events',
             'post_status' => eventon_apify_get_requested_statuses($request->get_param('status')),
-            'posts_per_page' => (int) $request->get_param('per_page'),
-            'paged' => (int) $request->get_param('page'),
+            'posts_per_page' => $per_page,
+            'paged' => $page,
             'orderby' => 'meta_value_num',
             'meta_key' => 'evcal_srow',
             'order' => 'ASC',
@@ -4245,11 +4336,94 @@ function eventon_apify_get_events(WP_REST_Request $request) {
         array(
             'total' => (int) $query->found_posts,
             'pages' => (int) $query->max_num_pages,
-            'page' => (int) $request->get_param('page'),
-            'per_page' => (int) $request->get_param('per_page'),
+            'page' => $page,
+            'per_page' => $per_page,
             'events' => $events,
         )
     );
+}
+
+/**
+ * Resolve the effective start-date filter for list requests.
+ */
+function eventon_apify_get_events_start_date_filter(WP_REST_Request $request) {
+    if ($request->has_param('starts_on_or_after')) {
+        return (string) $request->get_param('starts_on_or_after');
+    }
+
+    if ($request->has_param('upcoming') && eventon_apify_sanitize_rest_boolean($request->get_param('upcoming'))) {
+        return wp_date('Y-m-d', null, wp_timezone());
+    }
+
+    return '';
+}
+
+/**
+ * Build the filtered paginated events response for start-date constrained requests.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_filtered_events_response(WP_REST_Request $request, $start_date_filter, $page, $per_page) {
+    $candidate_query = new WP_Query(
+        array(
+            'post_type' => 'ajde_events',
+            'post_status' => eventon_apify_get_requested_statuses($request->get_param('status')),
+            'posts_per_page' => -1,
+            'orderby' => 'meta_value_num',
+            'meta_key' => 'evcal_srow',
+            'order' => 'ASC',
+            's' => (string) $request->get_param('search'),
+            'fields' => 'ids',
+            'no_found_rows' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+            'lazy_load_term_meta' => false,
+        )
+    );
+
+    $filtered_ids = array();
+
+    foreach ($candidate_query->posts as $post_id) {
+        if (eventon_apify_event_matches_start_date_filter((int) $post_id, $start_date_filter)) {
+            $filtered_ids[] = (int) $post_id;
+        }
+    }
+
+    $total = count($filtered_ids);
+    $pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
+    $offset = max(0, ($page - 1) * $per_page);
+    $page_ids = array_slice($filtered_ids, $offset, $per_page);
+    $events = array();
+
+    foreach ($page_ids as $post_id) {
+        $post = get_post($post_id);
+
+        if ($post instanceof WP_Post && $post->post_type === 'ajde_events') {
+            $events[] = eventon_apify_format_event($post);
+        }
+    }
+
+    return array(
+        'total' => $total,
+        'pages' => $pages,
+        'page' => $page,
+        'per_page' => $per_page,
+        'events' => $events,
+    );
+}
+
+/**
+ * Return true when an event starts on or after the given site-local date.
+ */
+function eventon_apify_event_matches_start_date_filter($post_id, $start_date_filter) {
+    $meta = get_post_meta($post_id);
+    $start_timestamp = eventon_apify_get_event_effective_start_timestamp($meta);
+
+    if (!$start_timestamp) {
+        return false;
+    }
+
+    return wp_date('Y-m-d', $start_timestamp, wp_timezone()) >= $start_date_filter;
 }
 
 /**
