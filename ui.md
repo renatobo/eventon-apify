@@ -13,8 +13,11 @@
 - Below the banner, keep a compact metadata row with these items:
   - `GitHub Repository`
   - current plugin version
+  - `Release notes`
   - author GitHub link
   - single-button link: `GitHub updates via Git Updater`
+- The `Release notes` link should point to the tagged GitHub release for the current plugin version:
+  - `https://github.com/renatobo/eventon-apify/releases/tag/vX.Y.Z`
 
 ## Settings Intro Copy
 

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9c76fdcf-11f4-4682-9359-96e38da94749",
     "name": "EventON APIfy API",
-    "description": "Postman collection for the public MCP discovery routes and the administrator-protected EventON APIfy REST endpoints.",
+    "description": "Postman collection for the public MCP discovery routes and the administrator-protected EventON APIfy REST endpoints, including RSVP delta sync introduced in 1.8.0.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -50,6 +50,16 @@
       "key": "contentType",
       "value": "ajde_events",
       "type": "string"
+    },
+    {
+      "key": "updatedAfter",
+      "value": "2026-04-08T18:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "updatedAfterId",
+      "value": "980",
+      "type": "string"
     }
   ],
   "item": [
@@ -88,7 +98,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/{{namespace}}/events?per_page=10&page=1&search=ride",
-            "description": "List EventON events."
+            "description": "List EventON events with pagination, search, and status filters."
           }
         },
         {
@@ -124,7 +134,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/{{namespace}}/events/{{eventId}}",
-            "description": "Get one EventON event."
+            "description": "Get one EventON event by ID."
           }
         },
         {
@@ -178,12 +188,21 @@
       "name": "RSVP (optional addon)",
       "item": [
         {
-          "name": "List RSVP attendees",
+          "name": "List RSVP attendees (full)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/{{namespace}}/events/{{eventId}}/rsvps?per_page=50&page=1&rsvp=yes",
-            "description": "List RSVP attendee records. Requires the EventON RSVP addon and the RSVP attendee API capability."
+            "url": "{{baseUrl}}/{{namespace}}/events/{{eventId}}/rsvps?per_page=100&page=1",
+            "description": "List RSVP attendee records without delta filters. Requires the EventON RSVP addon and the RSVP attendee API capability."
+          }
+        },
+        {
+          "name": "List RSVP attendees (delta)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/{{namespace}}/events/{{eventId}}/rsvps?per_page=100&page=1&updated_after={{updatedAfter}}&updated_after_id={{updatedAfterId}}",
+            "description": "List RSVP attendee records using deterministic delta sync. Results are ordered by updated_at ASC, id ASC and filtered by updated_after plus updated_after_id. Do not combine delta sync with rsvp, status, or search filters."
           }
         },
         {

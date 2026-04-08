@@ -4,11 +4,11 @@ Tags: eventon, api, rest-api, events
 Requires at least: 6.0
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 1.7.3
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Protected REST API endpoints for EventON events with administrator-only CRUD and optional wp/v2 compatibility.
+Protected REST API endpoints for EventON events with administrator-only CRUD, RSVP delta sync, and optional wp/v2 compatibility.
 
 == Description ==
 
@@ -33,7 +33,7 @@ Features:
 - Search and status filtering
 - Create, update, and delete EventON events
 - Yes-only RSVP attendance summaries for EventON RSVP events
-- RSVP attendee listing with normalized contact fields and custom RSVP form fields
+- RSVP attendee listing with normalized contact fields, custom RSVP form fields, and delta-sync checkpoints
 - EventON date/time, status, virtual, repeat, RSVP, and taxonomy-backed location/organizer handling
 - Event type taxonomy assignment
 - Global API switch plus per-capability route controls
@@ -73,6 +73,11 @@ Upgrade note:
 List endpoint:
 - `GET /wp-json/eventonapify/v1/events`
 
+Example event reads:
+- `curl -u your_username:your_app_password "https://yourwebsite.com/wp-json/eventonapify/v1/events?per_page=10&page=1"`
+- `curl -u your_username:your_app_password "https://yourwebsite.com/wp-json/eventonapify/v1/events?search=ride&status=publish,draft"`
+- `curl -u your_username:your_app_password "https://yourwebsite.com/wp-json/eventonapify/v1/events/123"`
+
 Settings capability map:
 - `List events`: `GET /events`
 - `Read single event`: `GET /events/<id>`
@@ -111,6 +116,8 @@ RSVP summary endpoint:
 - Available only when the `EventON - RSVP Events` addon is active.
 - Counts only RSVP responses normalized to `yes`.
 - Returns `yes_submissions`, `yes_attendees_total`, and `yes_additional_attendees`.
+- Example:
+  - `curl -u your_username:your_app_password "https://yourwebsite.com/wp-json/eventonapify/v1/events/123/rsvps/summary"`
 
 RSVP attendee list endpoint:
 - `GET /wp-json/eventonapify/v1/events/<id>/rsvps`
@@ -121,7 +128,15 @@ RSVP attendee list endpoint:
   - `search`
   - `rsvp`: `all`, `yes`, `no`, `maybe`
   - `status`: exact attendee-status filter
-- Each attendee item includes `first_name`, `last_name`, `full_name`, `email`, `phone`, `email_updates`, `rsvp`, `status`, `rsvp_type`, `count`, `event_time`, `other_attendees`, and `custom_fields`.
+  - `updated_after`: ISO 8601 UTC checkpoint for delta sync
+  - `updated_after_id`: RSVP ID tie-breaker used with `updated_after`
+- Each attendee item includes `created_at`, `updated_at`, `first_name`, `last_name`, `full_name`, `email`, `phone`, `email_updates`, `rsvp`, `status`, `rsvp_type`, `count`, `event_time`, `other_attendees`, and `custom_fields`.
+- Delta responses are ordered by `updated_at ASC, id ASC` and add `has_more` plus `sync_checkpoint.updated_at` / `sync_checkpoint.id`.
+- `updated_after` cannot be combined with `rsvp`, `status`, or `search`; those combinations return `400`.
+- Example full attendee read:
+  - `curl -u your_username:your_app_password "https://yourwebsite.com/wp-json/eventonapify/v1/events/123/rsvps?per_page=100&page=1"`
+- Example delta attendee read:
+  - `curl -u your_username:your_app_password "https://yourwebsite.com/wp-json/eventonapify/v1/events/123/rsvps?updated_after=2026-04-08T18:00:00Z&updated_after_id=980&per_page=100&page=1"`
 
 Create/update fields:
 - `title` (string)
@@ -147,9 +162,8 @@ Create/update fields:
 
 Preferred payloads use nested `location`, `organizers`, `virtual`, `repeat`, `rsvp`, and `flags` objects. Legacy flat aliases such as `location_name`, `location_address`, `map_url`, and `organizer` are still accepted for backward compatibility.
 
-Example requests:
-- `https://yourwebsite.com/wp-json/eventonapify/v1/events?per_page=10&page=1`
-- `https://yourwebsite.com/wp-json/eventonapify/v1/events?search=ride&status=publish,draft`
+Example write request:
+- `curl -u your_username:your_app_password -X POST "https://yourwebsite.com/wp-json/eventonapify/v1/events" -H "Content-Type: application/json" -d '{"title":"Ride to Big Bear","start_date":"2026-04-01","start_time":"09:00","status":"publish"}'`
 
 == Authentication ==
 

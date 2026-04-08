@@ -1,0 +1,8 @@
+{
+  "name": "eventon-apify",
+  "private": true,
+  "scripts": {
+    "test:prod": "./scripts/test-production.sh",
+    "test:dev": "EVENTON_APIFY_ENV_FILE=.env.development ./scripts/test-production.sh"
+  }
+}

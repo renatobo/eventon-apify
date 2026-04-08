@@ -3,7 +3,7 @@
  * Plugin Name:       EventON APIfy
  * Plugin URI:        https://github.com/renatobo/eventon-apify
  * Description:       Protected REST API endpoints for EventON events with pagination, CRUD operations, and administrator-only access.
- * Version:           1.7.3
+ * Version:           1.8.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            Renato Bonomini
@@ -24,13 +24,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('EVENTON_APIFY_VERSION', '1.7.3');
+define('EVENTON_APIFY_VERSION', '1.8.0');
 define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
 define('EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT', 'eventon_apify_enable_wp_v2_compat');
 define('EVENTON_APIFY_OPTION_SETTINGS_BACKUP', 'eventon_apify_settings_backup');
 define('EVENTON_APIFY_OPTION_INSTALLED_VERSION', 'eventon_apify_installed_version');
+define('EVENTON_APIFY_RSVP_UPDATED_AT_META', '_eventon_apify_updated_at_gmt');
 
 if (version_compare(PHP_VERSION, '8.0.0', '<')) {
     add_action('admin_notices', 'eventon_apify_php_version_notice');
@@ -43,10 +44,17 @@ add_action('rest_api_init', 'eventon_apify_register_routes');
 add_action('rest_api_init', 'eventon_apify_register_wp_v2_compatibility_fields');
 add_action('plugins_loaded', 'eventon_apify_load_textdomain');
 add_action('plugins_loaded', 'eventon_apify_bootstrap_settings');
+add_action('save_post_evo-rsvp', 'eventon_apify_touch_rsvp_post_on_save', 10, 2);
+add_action('added_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
+add_action('updated_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
+add_action('deleted_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
 add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_wp_v2_compat', 10, 2);
 add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
 add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);
+add_filter('rest_post_dispatch', 'eventon_apify_filter_wp_v2_compatibility_responses', 10, 3);
 add_filter('rest_endpoints', 'eventon_apify_filter_wp_v2_compatibility_endpoints');
+add_filter('rest_post_search_query', 'eventon_apify_filter_wp_v2_compatibility_post_search_query', 10, 1);
+add_filter('rest_term_search_query', 'eventon_apify_filter_wp_v2_compatibility_term_search_query', 10, 1);
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
 add_filter('network_admin_plugin_action_links_' . plugin_basename(__FILE__), 'eventon_apify_add_plugin_action_links');
 add_action('updated_option', 'eventon_apify_sync_settings_backup_on_option_change', 10, 3);
@@ -417,22 +425,57 @@ function eventon_apify_restrict_wp_v2_compatibility_routes($result, $server, WP_
 function eventon_apify_is_wp_v2_compatibility_route($route) {
     $route = (string) $route;
 
-    foreach (array(
+    $prefixes = array(
         '/wp/v2/ajde_events',
         '/wp/v2/types/ajde_events',
-        '/wp/v2/event_type',
-        '/wp/v2/event_location',
-        '/wp/v2/event_organizer',
-        '/wp/v2/taxonomies/event_type',
-        '/wp/v2/taxonomies/event_location',
-        '/wp/v2/taxonomies/event_organizer',
-    ) as $prefix) {
+    );
+
+    foreach (eventon_apify_get_wp_v2_compatibility_taxonomies() as $taxonomy) {
+        $prefixes[] = '/wp/v2/' . $taxonomy;
+        $prefixes[] = '/wp/v2/taxonomies/' . $taxonomy;
+    }
+
+    foreach ($prefixes as $prefix) {
         if ($route === $prefix || str_starts_with($route, $prefix . '/')) {
             return true;
         }
     }
 
     return false;
+}
+
+/**
+ * Return the EventON taxonomies exposed through wp/v2 compatibility mode.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_wp_v2_compatibility_taxonomies() {
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $fallback = array('event_type', 'event_type_2', 'event_location', 'event_organizer');
+
+    if (!post_type_exists('ajde_events')) {
+        return $cache = $fallback;
+    }
+
+    $taxonomies = get_object_taxonomies('ajde_events', 'names');
+    if (!is_array($taxonomies)) {
+        return $fallback;
+    }
+
+    $taxonomies = array_values(
+        array_filter(
+            $taxonomies,
+            static function ($taxonomy) {
+                return is_string($taxonomy) && str_starts_with($taxonomy, 'event_');
+            }
+        )
+    );
+
+    return $cache = (!empty($taxonomies) ? $taxonomies : $fallback);
 }
 
 /**
@@ -456,6 +499,91 @@ function eventon_apify_filter_wp_v2_compatibility_endpoints($endpoints) {
 }
 
 /**
+ * Remove EventON compatibility objects from shared wp/v2 collection responses for non-admin users.
+ *
+ * @param WP_HTTP_Response|mixed $response Response object.
+ * @param WP_REST_Server         $server   Server instance.
+ * @param WP_REST_Request        $request  Current request.
+ * @return WP_HTTP_Response|mixed
+ */
+function eventon_apify_filter_wp_v2_compatibility_responses($response, $_server, WP_REST_Request $request) {
+
+    if (
+        !eventon_apify_is_wp_v2_compatibility_enabled()
+        || current_user_can('manage_options')
+        || !($response instanceof WP_HTTP_Response)
+    ) {
+        return $response;
+    }
+
+    $route = (string) $request->get_route();
+    $data = $response->get_data();
+
+    if ($route === '/wp/v2/types' && is_array($data)) {
+        unset($data['ajde_events']);
+        $response->set_data(!empty($data) ? $data : (object) array());
+        return $response;
+    }
+
+    if ($route === '/wp/v2/taxonomies' && is_array($data)) {
+        foreach (eventon_apify_get_wp_v2_compatibility_taxonomies() as $taxonomy) {
+            unset($data[$taxonomy]);
+        }
+
+        $response->set_data(!empty($data) ? $data : (object) array());
+        return $response;
+    }
+
+    return $response;
+}
+
+/**
+ * Exclude EventON posts from shared wp/v2 search queries for non-admin users.
+ *
+ * @param array<string, mixed> $query_args Search query arguments.
+ * @return array<string, mixed>
+ */
+function eventon_apify_filter_wp_v2_compatibility_post_search_query(array $query_args) {
+
+    if (!eventon_apify_is_wp_v2_compatibility_enabled() || current_user_can('manage_options')) {
+        return $query_args;
+    }
+
+    if (!isset($query_args['post_type'])) {
+        return $query_args;
+    }
+
+    $post_types = (array) $query_args['post_type'];
+    $post_types = array_values(array_diff($post_types, array('ajde_events')));
+    $query_args['post_type'] = !empty($post_types) ? $post_types : array('__eventon_apify_no_results__');
+
+    return $query_args;
+}
+
+/**
+ * Exclude EventON taxonomies from shared wp/v2 search queries for non-admin users.
+ *
+ * @param array<string, mixed> $query_args Search query arguments.
+ * @return array<string, mixed>
+ */
+function eventon_apify_filter_wp_v2_compatibility_term_search_query(array $query_args) {
+
+    if (!eventon_apify_is_wp_v2_compatibility_enabled() || current_user_can('manage_options')) {
+        return $query_args;
+    }
+
+    if (!isset($query_args['taxonomy'])) {
+        return $query_args;
+    }
+
+    $taxonomies = (array) $query_args['taxonomy'];
+    $taxonomies = array_values(array_diff($taxonomies, eventon_apify_get_wp_v2_compatibility_taxonomies()));
+    $query_args['taxonomy'] = !empty($taxonomies) ? $taxonomies : array('__eventon_apify_no_results__');
+
+    return $query_args;
+}
+
+/**
  * Render the plugin settings page.
  */
 function eventon_apify_render_settings_page() {
@@ -471,6 +599,7 @@ function eventon_apify_render_settings_page() {
     $manifest_collection_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema';
     $manifest_type_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema/ajde_events';
     $project_url = 'https://github.com/renatobo/eventon-apify';
+    $release_notes_url = $project_url . '/releases/tag/v' . rawurlencode(EVENTON_APIFY_VERSION);
     $author_url = 'https://github.com/renatobo';
     $git_updater_url = 'https://github.com/afragen/git-updater';
     $banner_url = plugins_url('assets/eventon-apify-settings-banner.svg', __FILE__);
@@ -495,6 +624,9 @@ function eventon_apify_render_settings_page() {
                     echo esc_html(sprintf(__('Version %s', 'eventon-apify'), EVENTON_APIFY_VERSION));
                     ?>
                 </span>
+                <a href="<?php echo esc_url($release_notes_url); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr(sprintf(__('Release notes for version %s', 'eventon-apify'), EVENTON_APIFY_VERSION)); ?>">
+                    <?php esc_html_e('Release notes', 'eventon-apify'); ?>
+                </a>
                 <a href="<?php echo esc_url($author_url); ?>" target="_blank" rel="noopener noreferrer">
                     <?php esc_html_e('Renato Bonomini on GitHub', 'eventon-apify'); ?>
                 </a>
@@ -955,11 +1087,21 @@ function eventon_apify_render_settings_page() {
                 color: #0f172a;
                 text-decoration: none;
                 box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+                transition: border-color 160ms ease-out, color 160ms ease-out, background-color 160ms ease-out;
             }
 
             .eventon-apify-meta a:hover {
                 border-color: #2271b1;
                 color: #2271b1;
+                background: #ffffff;
+            }
+
+            .eventon-apify-meta a:focus-visible {
+                outline: 2px solid #2271b1;
+                outline-offset: 2px;
+                border-color: #2271b1;
+                color: #2271b1;
+                background: #ffffff;
             }
 
             .eventon-apify-intro {
@@ -1395,10 +1537,72 @@ function eventon_apify_register_routes() {
                         'default' => 'all',
                         'sanitize_callback' => 'sanitize_text_field',
                     ),
+                    'updated_after' => array(
+                        'default' => '',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ),
+                    'updated_after_id' => array(
+                        'default' => 0,
+                        'sanitize_callback' => 'absint',
+                    ),
                 ),
             ),
         )
     );
+}
+
+/**
+ * Record a canonical change timestamp whenever an RSVP post itself is saved.
+ *
+ * @param int     $post_id Post ID.
+ * @param WP_Post $post    Saved post object.
+ * @param bool    $update  Whether this is an update.
+ */
+function eventon_apify_touch_rsvp_post_on_save($post_id, $post) {
+
+    if (!($post instanceof WP_Post) || $post->post_type !== 'evo-rsvp') {
+        return;
+    }
+
+    if (wp_is_post_revision($post_id) || (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)) {
+        return;
+    }
+
+    eventon_apify_touch_rsvp_post($post_id);
+}
+
+/**
+ * Record a canonical change timestamp whenever RSVP meta is added, updated, or deleted.
+ *
+ * @param int|string $meta_id    Meta row ID.
+ * @param int|string $post_id    Post ID.
+ * @param string     $meta_key   Meta key.
+ * @param mixed      $meta_value Meta value.
+ */
+function eventon_apify_touch_rsvp_post_on_meta_change($_meta_id, $post_id, $meta_key) {
+
+    $post_id = absint($post_id);
+    if ($post_id < 1 || $meta_key === EVENTON_APIFY_RSVP_UPDATED_AT_META) {
+        return;
+    }
+
+    if (get_post_type($post_id) !== 'evo-rsvp') {
+        return;
+    }
+
+    eventon_apify_touch_rsvp_post($post_id);
+}
+
+/**
+ * Persist the canonical RSVP change timestamp in GMT.
+ */
+function eventon_apify_touch_rsvp_post($post_id) {
+    $now = DateTimeImmutable::createFromFormat('U.u', sprintf('%.6F', microtime(true)), new DateTimeZone('UTC'));
+    if (!$now instanceof DateTimeImmutable) {
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    }
+
+    update_post_meta($post_id, EVENTON_APIFY_RSVP_UPDATED_AT_META, $now->format('Y-m-d H:i:s.u'));
 }
 
 /**
@@ -3105,6 +3309,24 @@ function eventon_apify_get_mcp_rsvp_contract_fields() {
             'read_only' => true,
         ),
         array(
+            'name' => 'created_at',
+            'label' => 'Created At',
+            'description' => 'RSVP creation timestamp in ISO 8601 UTC.',
+            'type' => 'string',
+            'format' => 'date-time',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'updated_at',
+            'label' => 'Updated At',
+            'description' => 'Canonical RSVP change timestamp in ISO 8601 UTC.',
+            'type' => 'string',
+            'format' => 'date-time',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
             'name' => 'first_name',
             'label' => 'First Name',
             'description' => 'RSVP attendee first name.',
@@ -3229,6 +3451,8 @@ function eventon_apify_get_mcp_rsvp_contract_examples() {
                 'per_page' => 50,
                 'page' => 1,
                 'rsvp' => 'yes',
+                'updated_after' => '2026-04-08T18:00:00Z',
+                'updated_after_id' => 980,
             ),
         ),
         'summary' => array(
@@ -3533,6 +3757,24 @@ function eventon_apify_validate_local_date($value) {
     list($year, $month, $day) = array_map('intval', explode('-', $value));
 
     return checkdate($month, $day, $year);
+}
+
+/**
+ * Ensure a request parameter is a valid ISO 8601 datetime string or empty.
+ *
+ * @param mixed $value Request parameter.
+ */
+function eventon_apify_validate_iso8601_datetime($value) {
+    if (!is_scalar($value)) {
+        return false;
+    }
+
+    $value = trim((string) $value);
+    if ($value === '') {
+        return true;
+    }
+
+    return eventon_apify_parse_rsvp_checkpoint_datetime($value) instanceof DateTimeImmutable;
 }
 
 /**
@@ -4548,6 +4790,24 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
     $rsvp_filter = eventon_apify_sanitize_rsvp_filter($request->get_param('rsvp'));
     $status_filter = strtolower(trim((string) $request->get_param('status')));
     $search = strtolower(trim((string) $request->get_param('search')));
+    $updated_after = eventon_apify_parse_rsvp_checkpoint_datetime($request->get_param('updated_after'));
+    $updated_after_id = absint($request->get_param('updated_after_id'));
+
+    if (false === $updated_after) {
+        return new WP_Error(
+            'eventon_apify_invalid_updated_after',
+            'The updated_after parameter must be a valid ISO 8601 datetime.',
+            array('status' => 400)
+        );
+    }
+
+    if ($updated_after instanceof DateTimeImmutable && eventon_apify_rsvp_delta_filters_conflict($rsvp_filter, $status_filter, $search)) {
+        return new WP_Error(
+            'eventon_apify_invalid_rsvp_delta_filters',
+            'The updated_after parameter cannot be combined with rsvp, status, or search filters.',
+            array('status' => 400)
+        );
+    }
 
     if ($rsvp_filter !== 'all') {
         $attendees = array_values(
@@ -4582,20 +4842,52 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         );
     }
 
+    if ($updated_after instanceof DateTimeImmutable) {
+        $checkpoint_timestamp = eventon_apify_get_rsvp_datetime_sort_key($updated_after);
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($checkpoint_timestamp, $updated_after_id) {
+                    return eventon_apify_rsvp_attendee_is_after_checkpoint($attendee, $checkpoint_timestamp, $updated_after_id);
+                }
+            )
+        );
+
+        // Schwartzian transform: compute sort key once per attendee instead of O(N log N) times.
+        $keyed = array_map(
+            static fn(array $a) => array('key' => eventon_apify_get_rsvp_datetime_sort_key($a['updated_at'] ?? ''), 'data' => $a),
+            $attendees
+        );
+        usort($keyed, static fn($l, $r) => $l['key'] <=> $r['key'] ?: (int) ($l['data']['id'] ?? 0) <=> (int) ($r['data']['id'] ?? 0));
+        $attendees = array_column($keyed, 'data');
+    }
+
     $per_page = (int) $request->get_param('per_page');
     $page = (int) $request->get_param('page');
     $total = count($attendees);
     $pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
     $offset = max(0, ($page - 1) * $per_page);
+    $paged_attendees = array_slice($attendees, $offset, $per_page);
+
+    $response = array(
+        'total' => $total,
+        'pages' => $pages,
+        'page' => $page,
+        'per_page' => $per_page,
+        'attendees' => $paged_attendees,
+    );
+
+    if ($updated_after instanceof DateTimeImmutable) {
+        $response['has_more'] = $page < $pages;
+        $response['sync_checkpoint'] = eventon_apify_get_rsvp_sync_checkpoint(
+            $paged_attendees,
+            $updated_after->format('c'),
+            $updated_after_id
+        );
+    }
 
     return rest_ensure_response(
-        array(
-            'total' => $total,
-            'pages' => $pages,
-            'page' => $page,
-            'per_page' => $per_page,
-            'attendees' => array_slice($attendees, $offset, $per_page),
-        )
+        $response
     );
 }
 
@@ -4777,6 +5069,8 @@ function eventon_apify_get_event_rsvp_attendees($event_id) {
             'posts_per_page' => -1,
             'orderby' => 'ID',
             'order' => 'DESC',
+            'no_found_rows' => true,
+            'update_post_term_cache' => false,
             'meta_query' => array(
                 array(
                     'key' => 'e_id',
@@ -4843,6 +5137,8 @@ function eventon_apify_format_rsvp_attendee(WP_Post $post) {
 
     return array(
         'id' => $post->ID,
+        'created_at' => eventon_apify_get_post_created_at_iso8601($post),
+        'updated_at' => eventon_apify_get_rsvp_updated_at_iso8601($post),
         'first_name' => $first_name,
         'last_name' => $last_name,
         'full_name' => $full_name,
@@ -4910,6 +5206,189 @@ function eventon_apify_get_rsvp_field_value($rsvp_object, array $meta, array $me
     }
 
     return '';
+}
+
+/**
+ * Parse an RSVP delta-sync datetime parameter.
+ *
+ * @param mixed $value Raw request value.
+ * @return DateTimeImmutable|false|null
+ */
+function eventon_apify_parse_rsvp_checkpoint_datetime($value) {
+    if (!is_string($value) || trim($value) === '') {
+        return null;
+    }
+
+    $value = trim($value);
+    $formats = array(
+        'Y-m-d\TH:i:s\Z',
+        'Y-m-d\TH:i:sP',
+        'Y-m-d\TH:i:s.u\Z',
+        'Y-m-d\TH:i:s.uP',
+    );
+
+    foreach ($formats as $format) {
+        $datetime = DateTimeImmutable::createFromFormat($format, $value, new DateTimeZone('UTC'));
+        if (!$datetime instanceof DateTimeImmutable) {
+            continue;
+        }
+
+        $last_errors = DateTimeImmutable::getLastErrors();
+        if (
+            is_array($last_errors)
+            && ((int) ($last_errors['warning_count'] ?? 0) > 0 || (int) ($last_errors['error_count'] ?? 0) > 0)
+        ) {
+            continue;
+        }
+
+        return $datetime->setTimezone(new DateTimeZone('UTC'));
+    }
+
+    return false;
+}
+
+/**
+ * Return true when RSVP delta sync is combined with stateful filters.
+ */
+function eventon_apify_rsvp_delta_filters_conflict($rsvp_filter, $status_filter, $search) {
+    return $rsvp_filter !== 'all'
+        || ($status_filter !== '' && $status_filter !== 'all')
+        || $search !== '';
+}
+
+/**
+ * Wrap a Unix timestamp in a UTC DateTimeImmutable.
+ */
+function eventon_apify_timestamp_to_utc_datetime(int $timestamp) {
+    return (new DateTimeImmutable())->setTimestamp($timestamp)->setTimezone(new DateTimeZone('UTC'));
+}
+
+/**
+ * Return the RSVP creation timestamp in ISO 8601 UTC.
+ */
+function eventon_apify_get_post_created_at_iso8601(WP_Post $post) {
+    $timestamp = (int) get_post_time('U', true, $post);
+
+    if ($timestamp < 1) {
+        $timestamp = (int) strtotime((string) $post->post_date_gmt . ' UTC');
+    }
+
+    if ($timestamp < 1) {
+        return '';
+    }
+
+    return eventon_apify_format_datetime_iso8601_utc(eventon_apify_timestamp_to_utc_datetime($timestamp));
+}
+
+/**
+ * Return the canonical RSVP updated timestamp in ISO 8601 UTC.
+ */
+function eventon_apify_get_rsvp_updated_at_iso8601(WP_Post $post) {
+    $stored = get_post_meta($post->ID, EVENTON_APIFY_RSVP_UPDATED_AT_META, true);
+    $stored_datetime = eventon_apify_parse_datetime_to_utc($stored);
+
+    if ($stored_datetime instanceof DateTimeImmutable) {
+        return eventon_apify_format_datetime_iso8601_utc($stored_datetime);
+    }
+
+    $timestamp = (int) get_post_modified_time('U', true, $post);
+
+    if ($timestamp < 1) {
+        $timestamp = (int) get_post_time('U', true, $post);
+    }
+
+    if ($timestamp < 1) {
+        return '';
+    }
+
+    return eventon_apify_format_datetime_iso8601_utc(eventon_apify_timestamp_to_utc_datetime($timestamp));
+}
+
+/**
+ * Return true when an RSVP attendee sorts after the stored checkpoint pair.
+ *
+ * @param string $checkpoint_timestamp Pre-computed sort key from eventon_apify_get_rsvp_datetime_sort_key.
+ */
+function eventon_apify_rsvp_attendee_is_after_checkpoint(array $attendee, string $checkpoint_timestamp, $updated_after_id) {
+    $attendee_timestamp = eventon_apify_get_rsvp_datetime_sort_key($attendee['updated_at'] ?? '');
+    if ($attendee_timestamp === '') {
+        return false;
+    }
+
+    if ($attendee_timestamp > $checkpoint_timestamp) {
+        return true;
+    }
+
+    if ($attendee_timestamp < $checkpoint_timestamp) {
+        return false;
+    }
+
+    return (int) ($attendee['id'] ?? 0) > absint($updated_after_id);
+}
+
+/**
+ * Return the checkpoint pair for the current RSVP page.
+ *
+ * @param array<int, array<string, mixed>> $attendees Paginated attendee slice.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_rsvp_sync_checkpoint(array $attendees, $fallback_updated_at, $fallback_id) {
+    $last_attendee = !empty($attendees) ? end($attendees) : null;
+
+    if (is_array($last_attendee) && !empty($last_attendee['updated_at'])) {
+        return array(
+            'updated_at' => (string) $last_attendee['updated_at'],
+            'id' => (int) ($last_attendee['id'] ?? 0),
+        );
+    }
+
+    return array(
+        'updated_at' => (string) $fallback_updated_at,
+        'id' => absint($fallback_id),
+    );
+}
+
+/**
+ * Parse a supported datetime value and normalize it to UTC.
+ *
+ * @param mixed $value Raw datetime value.
+ * @return DateTimeImmutable|null
+ */
+function eventon_apify_parse_datetime_to_utc($value) {
+    if ($value instanceof DateTimeImmutable) {
+        return $value->setTimezone(new DateTimeZone('UTC'));
+    }
+
+    if ($value instanceof DateTimeInterface) {
+        return DateTimeImmutable::createFromInterface($value)->setTimezone(new DateTimeZone('UTC'));
+    }
+
+    if (!is_string($value) || trim($value) === '') {
+        return null;
+    }
+
+    try {
+        return (new DateTimeImmutable(trim($value)))->setTimezone(new DateTimeZone('UTC'));
+    } catch (Exception) {
+        return null;
+    }
+}
+
+/**
+ * Format a UTC datetime for API responses and sync checkpoints.
+ */
+function eventon_apify_format_datetime_iso8601_utc(DateTimeImmutable $datetime) {
+    return $datetime->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z');
+}
+
+/**
+ * Return a lexicographically sortable UTC datetime key with microsecond precision.
+ *
+ * @param mixed $value Raw datetime value.
+ */
+function eventon_apify_get_rsvp_datetime_sort_key($value) {
+    $datetime = eventon_apify_parse_datetime_to_utc($value);
+    return $datetime instanceof DateTimeImmutable ? $datetime->format('Y-m-d H:i:s.u') : '';
 }
 
 /**

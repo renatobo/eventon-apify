@@ -14,6 +14,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 TAG="v$VERSION"
+NOTES_FILE="release-notes/$VERSION.md"
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Working tree is not clean. Commit or stash changes before running a release."
@@ -24,6 +25,24 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   echo "Tag $TAG already exists."
   exit 1
 fi
+
+if [[ ! -f "$NOTES_FILE" ]]; then
+  echo "Missing release notes file: $NOTES_FILE"
+  echo "Create it with these sections before releasing:"
+  echo "  ## New Features"
+  echo "  ## Improvements"
+  echo "  ## Bug Fixes"
+  exit 1
+fi
+
+for heading in "## New Features" "## Improvements" "## Bug Fixes"; do
+  if ! grep -Fq "$heading" "$NOTES_FILE"; then
+    echo "Release notes file $NOTES_FILE is missing required heading: $heading"
+    exit 1
+  fi
+done
+
+echo "Using release notes from $NOTES_FILE"
 
 update_file() {
   local file_path="$1"
@@ -73,7 +92,7 @@ update_file "eventon-apify.php" "^define('EVENTON_APIFY_VERSION', '.*');$" "defi
 
 assert_versions_match
 
-git add readme.txt eventon-apify.php
+git add readme.txt eventon-apify.php "$NOTES_FILE"
 git commit -m "Bump version to $VERSION"
 git tag -a "$TAG" -m "Release $VERSION"
 git push origin main

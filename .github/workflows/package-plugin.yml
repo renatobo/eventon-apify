@@ -27,11 +27,45 @@ jobs:
           fi
           echo "zip_path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare release notes body
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES_FILE="release-notes/${VERSION}.md"
+          BODY_FILE="${RUNNER_TEMP}/release-${VERSION}.md"
+          PREVIOUS_TAG="$(git tag --sort=-version:refname | grep -Fxv "${GITHUB_REF_NAME}" | head -n 1 || true)"
+
+          if [[ ! -f "$NOTES_FILE" ]]; then
+            echo "Missing release notes file: $NOTES_FILE"
+            exit 1
+          fi
+
+          for HEADING in "## New Features" "## Improvements" "## Bug Fixes"; do
+            if ! grep -Fq "$HEADING" "$NOTES_FILE"; then
+              echo "Release notes file $NOTES_FILE is missing required heading: $HEADING"
+              exit 1
+            fi
+          done
+
+          cat "$NOTES_FILE" > "$BODY_FILE"
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            printf '\n\nFull Changelog: https://github.com/%s/compare/%s...%s\n' \
+              "${GITHUB_REPOSITORY}" \
+              "$PREVIOUS_TAG" \
+              "${GITHUB_REF_NAME}" >> "$BODY_FILE"
+          else
+            printf '\n\nFull Changelog: https://github.com/%s/releases/tag/%s\n' \
+              "${GITHUB_REPOSITORY}" \
+              "${GITHUB_REF_NAME}" >> "$BODY_FILE"
+          fi
+
+          echo "body_path=$BODY_FILE" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub release and upload asset
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.build.outputs.zip_path }}
-          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.body_path }}
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
