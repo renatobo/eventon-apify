@@ -20,9 +20,13 @@
 
 - Use `./build.sh` from the repo root to create the installable versioned plugin zip for local packaging checks.
 - `./build.sh` expects the bootstrap file to match the repo slug (`eventon-apify.php`) and writes `eventon-apify-<version>.zip` in the project root.
-- `./release.sh <version>` requires a clean working tree, updates the synced version fields, creates the release commit, tags `v<version>`, and pushes both `main` and the tag.
+- `./release.sh <version>` requires a clean working tree, a matching `release-notes/<version>.md` file, updates the synced version fields, creates the release commit, tags `v<version>`, and pushes both `main` and the tag.
 - `./release.sh <version>` expects semantic version format (`X.Y.Z`) and aborts if the target tag already exists.
-- Pushing a `v*` tag triggers `.github/workflows/package-plugin.yml`, which runs `./build.sh` and uploads the generated zip to the GitHub Release.
+- Release notes files must include these top-level sections:
+  - `## New Features`
+  - `## Improvements`
+  - `## Bug Fixes`
+- Pushing a `v*` tag triggers `.github/workflows/package-plugin.yml`, which runs `./build.sh`, uploads the generated zip to the GitHub Release, and uses `release-notes/<version>.md` as the descriptive release body before appending the changelog comparison link.
 - `.github/workflows/update-stable-tag.yml` can create and push `v<Stable tag>` from `readme.txt` on `main` pushes, or from a manually supplied version via `workflow_dispatch`.
 
 ## UI Documentation

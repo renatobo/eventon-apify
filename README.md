@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/renatobo/eventon-apify?label=release)](https://github.com/renatobo/eventon-apify/releases)
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
-WordPress plugin that exposes protected REST API endpoints for EventON `ajde_events`, including pagination, search, create, update, and delete operations for administrator-authenticated integrations.
+WordPress plugin that exposes protected REST API endpoints for EventON `ajde_events`, including pagination, search, create, update, delete, and RSVP delta-sync operations for administrator-authenticated integrations.
 
 ## Quick start
 
@@ -22,6 +22,8 @@ curl -u your_username:your_app_password \
   "https://your-site.com/wp-json/eventonapify/v1/events?per_page=10&page=1"
 ```
 
+Version `1.8.0` adds RSVP attendee delta sync with canonical `updated_at` timestamps plus `updated_after` and `updated_after_id` checkpoint parameters.
+
 ## Features
 
 - Dedicated namespace: `eventonapify/v1`
@@ -31,7 +33,7 @@ curl -u your_username:your_app_password \
 - Update existing events, including EventON timestamps, status, virtual, repeat, RSVP, and taxonomy-backed location/organizer metadata
 - Trash events through the API
 - Read yes-only RSVP attendance summaries for EventON RSVP events
-- List RSVP attendee records and additional RSVP form fields for EventON RSVP events
+- List RSVP attendee records and additional RSVP form fields for EventON RSVP events, including delta-sync reads by checkpoint
 - Administrator-only access
 - Global Event API switch plus per-capability toggles for event reads/writes and RSVP reads
 - Optional `wp/v2` compatibility mode for generic WordPress tools such as `mcp-wp`
@@ -80,11 +82,28 @@ That script:
 
 - updates the plugin version in `eventon-apify.php`
 - updates the stable tag in `readme.txt`
+- requires `release-notes/x.y.z.md` with `New Features`, `Improvements`, and `Bug Fixes` sections
 - commits the version bump
 - creates and pushes the git tag `vx.y.z`
 - verifies that the plugin header, `EVENTON_APIFY_VERSION`, and `Stable tag` all match
 
-Pushing the tag triggers GitHub Actions, which runs `./build.sh`, creates or updates the GitHub Release for that tag, and uploads the generated zip asset automatically.
+Pushing the tag triggers GitHub Actions, which runs `./build.sh`, creates or updates the GitHub Release for that tag, uploads the generated zip asset automatically, and publishes the release body from `release-notes/x.y.z.md` plus the full changelog comparison link.
+
+Example release notes file:
+
+```md
+## New Features
+
+- Add RSVP attendee delta sync with canonical `updated_at` timestamps.
+
+## Improvements
+
+- Improve API docs and request examples for event and RSVP routes.
+
+## Bug Fixes
+
+- Reject invalid `updated_after` values with a `400` validation error.
+```
 
 ## Authentication
 
@@ -106,6 +125,13 @@ Example:
 ```bash
 curl -u your_username:your_app_password \
   "https://your-site.com/wp-json/eventonapify/v1/events?search=ride&status=publish,draft"
+```
+
+Single-event example:
+
+```bash
+curl -u your_username:your_app_password \
+  "https://your-site.com/wp-json/eventonapify/v1/events/123"
 ```
 
 ## Privacy
@@ -237,10 +263,14 @@ curl -u your_username:your_app_password \
 | `search` | string | No | Search attendee names, email, phone, RSVP fields, and custom RSVP fields |
 | `rsvp` | string | No | `all`, `yes`, `no`, or `maybe`; default `all` |
 | `status` | string | No | Exact RSVP attendee status filter; default `all` |
+| `updated_after` | string | No | ISO 8601 UTC checkpoint for delta sync, for example `2026-04-08T18:00:00Z` |
+| `updated_after_id` | integer | No | RSVP ID tie-breaker used with `updated_after`; default `0` |
 
 Each attendee item exposes:
 
 - `id`
+- `created_at`
+- `updated_at`
 - `first_name`
 - `last_name`
 - `full_name`
@@ -254,6 +284,34 @@ Each attendee item exposes:
 - `event_time`
 - `other_attendees`
 - `custom_fields`
+
+When `updated_after` is present, delta results are ordered by `updated_at ASC, id ASC` and filtered using lexicographic checkpoint semantics:
+
+- records with `updated_at` later than the supplied checkpoint are returned
+- when multiple records share the same `updated_at`, only records with `id > updated_after_id` are returned
+- `updated_after` cannot be combined with `rsvp`, `status`, or `search`; those combinations return `400`
+
+Delta responses add:
+
+- `has_more`
+- `sync_checkpoint.updated_at`
+- `sync_checkpoint.id`
+
+Phase 1 deletion note: delta sync currently covers created and updated RSVP rows. If RSVP deletions need to be reconciled, run a periodic full sync.
+
+Example delta request:
+
+```bash
+curl -u your_username:your_app_password \
+  "https://your-site.com/wp-json/eventonapify/v1/events/123/rsvps?updated_after=2026-04-08T18:00:00Z&updated_after_id=980&per_page=100&page=1"
+```
+
+Example full RSVP attendee read:
+
+```bash
+curl -u your_username:your_app_password \
+  "https://your-site.com/wp-json/eventonapify/v1/events/123/rsvps?per_page=100&page=1"
+```
 
 ### Create and update fields
 

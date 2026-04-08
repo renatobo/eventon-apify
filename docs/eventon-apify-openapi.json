@@ -4,7 +4,7 @@
     "title": "EventON APIfy REST API",
     "summary": "OpenAPI definition for the public discovery routes and the administrator-protected EventON event endpoints.",
     "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and public MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
-    "version": "1.7.0"
+    "version": "1.8.0"
   },
   "externalDocs": {
     "description": "Plugin repository",
@@ -489,6 +489,26 @@
               "default": "all"
             },
             "description": "Check-in status filter."
+          },
+          {
+            "name": "updated_after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "default": ""
+            },
+            "description": "ISO 8601 UTC checkpoint for delta sync. Cannot be combined with rsvp, status, or search."
+          },
+          {
+            "name": "updated_after_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "RSVP ID tie-breaker used with updated_after."
           }
         ],
         "responses": {
@@ -501,6 +521,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorResponse"
           },
           "401": {
             "$ref": "#/components/responses/ErrorResponse"
@@ -1661,6 +1684,12 @@
             "items": {
               "$ref": "#/components/schemas/RsvpAttendee"
             }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "sync_checkpoint": {
+            "$ref": "#/components/schemas/RsvpSyncCheckpoint"
           }
         }
       },
@@ -1669,6 +1698,14 @@
         "properties": {
           "id": {
             "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           },
           "first_name": {
             "type": "string"
@@ -1783,6 +1820,18 @@
           "message": "The EventON APIfy endpoint is disabled. Enable it in Settings > EventON APIfy.",
           "data": {
             "status": 403
+          }
+        }
+      },
+      "RsvpSyncCheckpoint": {
+        "type": "object",
+        "properties": {
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer"
           }
         }
       }

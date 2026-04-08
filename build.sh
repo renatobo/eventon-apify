@@ -36,11 +36,16 @@ rsync -a \
   --exclude '.git/' \
   --exclude '.github/' \
   --exclude '.DS_Store' \
+  --exclude '.env' \
+  --exclude '.env.*' \
   --exclude '*.zip' \
   --exclude '*.md' \
   --exclude '.gitignore' \
   --exclude 'build.sh' \
+  --exclude 'package.json' \
   --exclude 'release.sh' \
+  --exclude 'scripts/' \
+  --exclude 'tests/' \
   ./ "$PACKAGE_DIR/"
 
 if [[ -f "README.md" ]]; then

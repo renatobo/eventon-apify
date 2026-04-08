@@ -3,3 +3,10 @@
 .claude/settings.local.json
 .claude/agents/
 .claude/skills/
+.env
+.env.*
+!.env.example
+!.env.production.example
+tests/.env
+tests/.env.*
+!tests/.env.example
