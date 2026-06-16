@@ -14,6 +14,8 @@
   - `eventon-apify.php` plugin header `Version`
   - `eventon-apify.php` constant `EVENTON_APIFY_VERSION`
   - `readme.txt` `Stable tag`
+  - `docs/eventon-apify-openapi.json` `info.version` (and the `provider_version` example)
+- `./release.sh <version>` updates all of the above and aborts if any are left out of sync.
 - Prefer using `./release.sh <version>` so the release commit, tag, and packaged GitHub release asset stay aligned.
 
 ## Packaging and Release Flow

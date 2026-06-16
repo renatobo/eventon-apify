@@ -67,21 +67,28 @@ extract_stable_tag_version() {
   sed -n 's/^Stable tag: //p' "readme.txt" | head -n 1
 }
 
+extract_openapi_version() {
+  sed -n 's/.*"version": "\([0-9][^"]*\)".*/\1/p' "docs/eventon-apify-openapi.json" | head -n 1
+}
+
 assert_versions_match() {
   local header_version
   local constant_version
   local stable_tag_version
+  local openapi_version
 
   header_version="$(extract_plugin_header_version)"
   constant_version="$(extract_plugin_constant_version)"
   stable_tag_version="$(extract_stable_tag_version)"
+  openapi_version="$(extract_openapi_version)"
 
-  if [[ "$header_version" != "$VERSION" || "$constant_version" != "$VERSION" || "$stable_tag_version" != "$VERSION" ]]; then
+  if [[ "$header_version" != "$VERSION" || "$constant_version" != "$VERSION" || "$stable_tag_version" != "$VERSION" || "$openapi_version" != "$VERSION" ]]; then
     echo "Version mismatch detected after update:"
     echo "  Plugin header: ${header_version:-missing}"
     echo "  EVENTON_APIFY_VERSION: ${constant_version:-missing}"
     echo "  Stable tag: ${stable_tag_version:-missing}"
-    echo "Expected all three to equal $VERSION."
+    echo "  OpenAPI info.version: ${openapi_version:-missing}"
+    echo "Expected all to equal $VERSION."
     exit 1
   fi
 }
@@ -89,10 +96,12 @@ assert_versions_match() {
 update_file "readme.txt" "^Stable tag: .*" "Stable tag: $VERSION"
 update_file "eventon-apify.php" "^[[:space:]]*\\*[[:space:]]*Version:[[:space:]]*.*" " * Version:           $VERSION"
 update_file "eventon-apify.php" "^define('EVENTON_APIFY_VERSION', '.*');$" "define('EVENTON_APIFY_VERSION', '$VERSION');"
+update_file "docs/eventon-apify-openapi.json" "\"version\": \"[^\"]*\"" "\"version\": \"$VERSION\""
+update_file "docs/eventon-apify-openapi.json" "\"provider_version\": \"[^\"]*\"" "\"provider_version\": \"$VERSION\""
 
 assert_versions_match
 
-git add readme.txt eventon-apify.php "$NOTES_FILE"
+git add readme.txt eventon-apify.php docs/eventon-apify-openapi.json "$NOTES_FILE"
 
 if git diff --cached --quiet; then
   echo "No version changes to commit; files already at $VERSION."
