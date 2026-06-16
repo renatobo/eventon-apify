@@ -4,7 +4,7 @@ Tags: eventon, api, rest-api, events
 Requires at least: 6.0
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -207,6 +207,10 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 2.1.0 =
+* Added an exact `slug` filter to the `eventonapify/v1/events` list endpoint (accepts a single slug, a comma-separated list, or an array) so events can be resolved by slug or public URL without scanning the full collection.
+* Added identifier-bearing `event_type_terms` and `tag_terms` arrays (`term_id`, `name`, `slug`) to event payloads alongside the existing label-only `event_type`/`tags` arrays, which remain unchanged for backward compatibility.
 
 = 1.6.0 =
 * Corrected the `ajde_events` MCP manifest contract so `preferred_endpoint` now advertises `/wp-json/eventonapify/v1/events`, matching the working EventON APIfy events routes.
