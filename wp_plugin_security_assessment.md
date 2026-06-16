@@ -2,13 +2,15 @@
 
 ## Executive Summary
 
-- Scope reviewed: [`eventon-apify.php`](/Users/renatobo/development/eventon-apify/eventon-apify.php), [`uninstall.php`](/Users/renatobo/development/eventon-apify/uninstall.php), and the live local behavior on `http://localhost:8089` for relevant REST routes.
-- Overall risk: Medium. The custom `eventonapify/v1` routes are consistently administrator-gated, but the optional `wp/v2` compatibility mode still exposes EventON content through uncovered core REST routes.
+- Plugin version reviewed: 2.1.1.
+- Scope reviewed: `eventon-apify.php`, `uninstall.php`, and the `includes/{core,admin,mcp,rest}.php` modules.
+- Method: static source review only. No live instance was deployed and no dynamic/runtime testing was performed in this run.
+- Overall risk: Low. The custom `eventonapify/v1` routes are consistently administrator-gated, no raw SQL is used, and the optional `wp/v2` compatibility mode now disables `show_in_rest` for non-admins and filters core search. The previously reported Medium `wp/v2` search leak is substantially mitigated.
 - Finding counts by severity:
   - Critical: 0
   - High: 0
-  - Medium: 1
-  - Low: 1
+  - Medium: 0
+  - Low: 4
 
 ## Critical
 
@@ -20,21 +22,38 @@ No high-severity issues identified in the reviewed scope.
 
 ## Medium
 
-### WPSEC-001 Unauthenticated `wp/v2` search leaks EventON content in compatibility mode
-- File: [`eventon-apify.php:397`](/Users/renatobo/development/eventon-apify/eventon-apify.php#L397), [`eventon-apify.php:422`](/Users/renatobo/development/eventon-apify/eventon-apify.php#L422)
-- Impact: When `wp/v2` compatibility is enabled, unauthenticated users can enumerate published `ajde_events` titles and URLs through core search endpoints even though the plugin describes the compatibility surface as administrator-only.
-- Evidence: The compatibility guard only blocks a hardcoded prefix list in `eventon_apify_is_wp_v2_compatibility_route()`, covering `/wp/v2/ajde_events`, selected taxonomy endpoints, and `/wp/v2/types/ajde_events`, but not `/wp/v2/search`. Core WordPress registers `WP_REST_Search_Controller` separately, and its post search handler includes every public post type with `show_in_rest = true`. Local verification on `localhost:8089` confirmed unauthenticated `GET /wp-json/wp/v2/search?search=bike&subtype=ajde_events` returns EventON event titles and links.
-- Remediation: Do not rely on a route-prefix allowlist for compatibility mode. Intercept all core REST requests that resolve to `ajde_events` or EventON taxonomies, or disable `show_in_rest` for non-admin requests in a way that also prevents search-controller enumeration.
+No medium-severity issues identified in the reviewed scope. See WPSEC-001 below for the prior Medium finding, now downgraded to Low after mitigation.
 
 ## Low
 
+### WPSEC-001 `wp/v2` compatibility authorization depends on a route-prefix allowlist (mitigated; defense-in-depth)
+
+- Prior status: Medium (unauthenticated `/wp/v2/search?subtype=ajde_events` leaked EventON titles/URLs in compatibility mode). Current status: substantially mitigated.
+- Files: `includes/core.php:360` (allowlist `eventon_apify_is_wp_v2_compatibility_route()`), `includes/core.php:335` (auth filter, hooked at `eventon-apify.php:60`).
+- Why mitigated: for non-admin requests the post type and taxonomies are registered with `show_in_rest = false` (`includes/rest.php:274`, `includes/rest.php:305`), compatibility fields register only for admins (`includes/rest.php:324`), and core search is explicitly stripped of `ajde_events` for non-admins via `rest_post_search_query` / `rest_term_search_query` filters (`includes/core.php:481`, `includes/core.php:504`). Index/types/taxonomies responses are also scrubbed (`includes/core.php:422`, `includes/core.php:444`).
+- Residual concern: the design still enumerates routes/filters rather than using a single deny-by-default gate, so a future core route that surfaces `show_in_rest` post types by an unanticipated path could regress admin-context exposure (non-admins remain protected by `show_in_rest=false`).
+- Remediation: keep `show_in_rest=false`-for-non-admins as the primary control; treat the allowlist as belt-and-suspenders. Add regression tests for non-admin access to `/wp/v2/search?subtype=ajde_events`, `/wp/v2/ajde_events`, `/wp/v2/types`, and `/wp/v2/taxonomies`.
+
 ### WPSEC-002 Public MCP manifest exposes live feature configuration
-- File: [`eventon-apify.php:1254`](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1254), [`eventon-apify.php:3002`](/Users/renatobo/development/eventon-apify/eventon-apify.php#L3002)
-- Impact: Unauthenticated callers can learn whether EventON and the RSVP addon are active, whether the custom API is enabled, which capabilities are turned on, and whether `wp/v2` compatibility is enabled. This is low-risk reconnaissance data, but it needlessly discloses internal feature state.
-- Evidence: Both MCP schema endpoints are registered with `permission_callback => '__return_true'`, and the emitted manifest includes `eventon_available`, `eventon_rsvp_available`, `custom_event_api_enabled`, `custom_event_api_capabilities`, and `wp_v2_compatibility_enabled`. Local verification on `localhost:8089` confirmed these flags are returned anonymously from `/wp-json/eventonapify/v1/mcp-schema`.
-- Remediation: Require authentication for the MCP schema if public discovery is not required. If it must remain public, strip live enablement flags and publish only the static contract data clients need.
+
+- Files: `includes/rest.php:10` and `includes/rest.php:22` (routes registered with `permission_callback => '__return_true'`); `includes/mcp.php:1411` (`eventon_apify_get_mcp_availability_state()`), embedded at `includes/mcp.php:1520`, repeated at `includes/mcp.php:1588` and `includes/mcp.php:1610`.
+- Impact: unauthenticated callers learn which addons are active, whether the custom API and `wp/v2` compatibility are enabled, and the full capability matrix (`custom_event_api_capabilities`, `rsvp_attendees_enabled`, `rsvp_counts_enabled`). Low-risk reconnaissance; no records, secrets, or PII are exposed. The endpoint is public by design (`includes/admin.php:307`).
+- Remediation: move the live `availability` block behind an authenticated path, or reduce the public payload to coarse booleans and drop the capability matrix.
+
+### WPSEC-003 Slug filter has no count cap; sanitizer string branch is inconsistent
+
+- Files: `includes/rest.php:893` (`eventon_apify_sanitize_slug_filter()`), `includes/rest.php:1662` (query-time normalization to `post_name__in`).
+- Impact: no injection (values are `sanitize_title`'d before reaching `WP_Query`), but there is no upper bound on the number of slugs, so a very large list produces a large `IN` clause (minor performance/DoS consideration).
+- Remediation: cap the slug list (e.g. `array_slice(..., 0, 100)`) and apply `sanitize_title` in the string branch for consistency.
+
+### WPSEC-004 `uninstall.php` leaves RSVP delta-sync post meta
+
+- Files: `uninstall.php:6` (option cleanup), missing removal of `_eventon_apify_updated_at_gmt` (defined `eventon-apify.php:34`, written `includes/rest.php:250`).
+- Impact: incomplete cleanup; orphaned timestamp meta remains after uninstall. No security/PII impact.
+- Remediation: add `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')` to `uninstall.php`.
 
 ## Notes
 
-- Assumptions: The Medium finding depends on `wp/v2` compatibility being enabled; the leakage was confirmed against the local WordPress instance, but production impact depends on that feature being switched on.
-- Areas not fully verified: I did not perform exhaustive dynamic testing of every core REST endpoint, admin form flow, or every EventON addon interaction. No SQL, file-upload, command-execution, or nonce-related issues were found in the reviewed scope.
+- Assumptions: WPSEC-001's residual risk depends on `wp/v2` compatibility being enabled and on future WordPress core changes; non-admin exposure is closed in 2.1.1.
+- Strengths confirmed: centralized admin-only permission callback on all event routes (`includes/rest.php:855`); API and sensitive capabilities disabled by default (`includes/core.php:67`, `:222`); PII/secret redaction on the `wp/v2` surface (`includes/rest.php:411`); strict input validation and allowlists for dates, order/orderby, status, and enums (`includes/rest.php:644`, `:703`, `:742`); no direct `$wpdb` usage anywhere in `includes/`; Settings API nonce/CSRF and escaped admin output (`includes/admin.php:99`).
+- Areas not verified this run: no live/dynamic testing, no exhaustive per-endpoint core REST probing, no addon-interaction testing. No SQL, file-upload, command-execution, or nonce issues were found in the reviewed scope.

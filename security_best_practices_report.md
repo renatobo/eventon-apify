@@ -1,67 +1,70 @@
 # Security Assessment Report
 
+_Plugin version reviewed: 2.1.1. Method: static source review of `eventon-apify.php`, `uninstall.php`, and the `includes/{core,admin,mcp,rest}.php` modules. No live WordPress instance was deployed and no dynamic exploitation testing was performed in this run; findings are based on code-path inference against the current module layout._
+
 ## Executive Summary
 
-Static review of this repository found one substantive code issue and two lower-severity security/process issues.
+The plugin follows sound WordPress security practices: the custom `eventonapify/v1` routes are consistently administrator-gated, the API and its sensitive capabilities default to disabled, all REST inputs are sanitized/validated, no raw SQL is used (everything goes through `WP_Query` and the WP CRUD APIs), and the optional `wp/v2` compatibility surface redacts PII and disables `show_in_rest` for non-admins.
 
-The main technical risk is in the optional `wp/v2` compatibility mode: the plugin enables core REST controllers for EventON content, but its administrator-only guard only applies to a narrow allowlist of route prefixes. Based on the code, this leaves room for ancillary WordPress REST endpoints outside that allowlist to expose EventON compatibility metadata or discovery information when compatibility mode is enabled.
-
-Assessment scope was limited to source review of [eventon-apify.php](/Users/renatobo/development/eventon-apify/eventon-apify.php), [uninstall.php](/Users/renatobo/development/eventon-apify/uninstall.php), and [SECURITY.md](/Users/renatobo/development/eventon-apify/SECURITY.md). No live WordPress instance or dynamic exploitation testing was performed, so findings about reachable core REST routes are based on code-path inference.
-
-## Medium Severity
-
-### SEC-001: `wp/v2` compatibility gating relies on a narrow route allowlist
-
-Impact: when `wp/v2` compatibility is enabled, EventON content is registered on core REST controllers, but the plugin only blocks a hardcoded subset of `wp/v2` routes. Other core REST endpoints outside that list may still expose compatibility metadata or content discovery that the plugin describes as administrator-only.
-
-- Evidence: the authorization filter rejects only routes recognized by `eventon_apify_is_wp_v2_compatibility_route()` at [eventon-apify.php:380](/Users/renatobo/development/eventon-apify/eventon-apify.php#L380) and [eventon-apify.php:405](/Users/renatobo/development/eventon-apify/eventon-apify.php#L405).
-- Evidence: that allowlist includes only eight prefixes, limited to `/wp/v2/ajde_events`, selected taxonomy endpoints, and `/wp/v2/types/ajde_events` at [eventon-apify.php:408](/Users/renatobo/development/eventon-apify/eventon-apify.php#L408).
-- Evidence: compatibility mode separately enables the EventON post type and taxonomies on core REST controllers via `show_in_rest` at [eventon-apify.php:1242](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1242) and [eventon-apify.php:1264](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1264).
-
-Why this matters:
-
-- This protection model depends on knowing every core route that can surface a REST-exposed post type or taxonomy.
-- Inference from the current code: endpoints such as broader REST discovery or search surfaces are not covered by the allowlist and therefore would not be blocked by this plugin-level filter.
-
-Recommended fix:
-
-- Replace the route-prefix allowlist with a capability check tied to the EventON post type and taxonomies themselves, or intercept all requests that resolve to `ajde_events` / EventON taxonomy controllers.
-- If the intent is strict administrator-only access, treat the entire compatibility mode as private instead of trying to enumerate safe route prefixes.
+No Critical or High severity issues were found. The previously reported Medium issue (`wp/v2` route-allowlist leak) is now substantially mitigated and is downgraded to a defense-in-depth note. Remaining items are Low severity.
 
 ## Low Severity
 
+### SEC-001: `wp/v2` compatibility gating still relies on a route-prefix allowlist (defense-in-depth only)
+
+Impact: when `wp/v2` compatibility is enabled, the plugin layers several controls on top of a hardcoded route-prefix allowlist. The original concern was that uncovered core routes such as `/wp/v2/search?subtype=ajde_events` would leak EventON content. That specific leak is now closed for non-admins, but the architecture still depends on enumerating routes/filters rather than a single deny-by-default gate.
+
+- The route allowlist `eventon_apify_is_wp_v2_compatibility_route()` (`includes/core.php:360`) still lists only `/wp/v2/ajde_events`, `/wp/v2/types/ajde_events`, and per-taxonomy prefixes; it does not list `/wp/v2/search`.
+- The auth filter `eventon_apify_restrict_wp_v2_compatibility_routes()` (`includes/core.php:335`, hooked at `eventon-apify.php:60`) blocks only allowlisted routes for non-admins.
+
+Why this is now mitigated:
+
+- For non-admin requests, `ajde_events` and its taxonomies are registered with `show_in_rest = false` (`includes/rest.php:274`, `includes/rest.php:305`), so they drop out of the searchable subtype set entirely.
+- `register_rest_field` for compatibility fields runs only for `manage_options` users (`includes/rest.php:324`).
+- Search is explicitly filtered: `eventon_apify_filter_wp_v2_compatibility_post_search_query()` (`includes/core.php:481`) and `..._term_search_query()` (`includes/core.php:504`) strip `ajde_events` from `/wp/v2/search` results for non-admins.
+- Index/discovery and `/wp/v2/types` + `/wp/v2/taxonomies` responses are scrubbed for non-admins (`includes/core.php:422`, `includes/core.php:444`).
+
+Recommended fix (hardening): keep `show_in_rest=false`-for-non-admins as the primary control and treat the route allowlist as belt-and-suspenders only. Add regression tests asserting that a non-admin request to `/wp/v2/search?subtype=ajde_events`, `/wp/v2/ajde_events`, `/wp/v2/types`, and `/wp/v2/taxonomies` returns no EventON objects.
+
 ### SEC-002: Public MCP schema endpoint exposes live feature configuration
 
-Impact: unauthenticated callers can learn whether EventON is installed, whether the custom API is enabled, which custom API capabilities are enabled, and whether `wp/v2` compatibility is turned on. This is low-risk reconnaissance data, but it is still unnecessary exposure.
+Impact: unauthenticated callers can learn whether EventON and the RSVP addon are active, whether the custom API is enabled, the full CRUD/RSVP capability matrix, and whether `wp/v2` compatibility is on. This is low-risk reconnaissance data (it reveals which surfaces to probe and whether attendee PII endpoints are enabled), but it exposes no records, secrets, or PII directly. The endpoint is public by design.
 
-- Evidence: both MCP schema routes are public through `permission_callback => '__return_true'` at [eventon-apify.php:1123](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1123) and [eventon-apify.php:1135](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1135).
-- Evidence: the manifest publishes runtime availability state, including `custom_event_api_enabled`, `custom_event_api_capabilities`, and `wp_v2_compatibility_enabled`, at [eventon-apify.php:2467](/Users/renatobo/development/eventon-apify/eventon-apify.php#L2467) and [eventon-apify.php:2501](/Users/renatobo/development/eventon-apify/eventon-apify.php#L2501).
+- Both MCP schema routes register `permission_callback => '__return_true'` (`includes/rest.php:10`, `includes/rest.php:22`).
+- The availability builder `eventon_apify_get_mcp_availability_state()` (`includes/mcp.php:1411`) emits `eventon_available`, `eventon_rsvp_available`, `custom_event_api_enabled`, `custom_event_api_capabilities`, `wp_v2_compatibility_enabled`, and `preferred_mcp_ready`, embedded into every manifest (`includes/mcp.php:1520`). Per-content-type availability is repeated at `includes/mcp.php:1588` and `includes/mcp.php:1610`.
 
-Recommended fix:
+Recommended fix: if public discovery is required, keep only the static contract/shape data public and move the live `availability` block behind an authenticated path (e.g. `permission_callback => 'eventon_apify_admin_only'`), or reduce the public payload to coarse booleans and drop `custom_event_api_capabilities` / `rsvp_*_enabled`.
 
-- If public discovery is not required, require authentication for the MCP schema.
-- If it must stay public, remove live enablement flags and publish only the static contract information clients need.
+### SEC-003: Slug filter has no count cap and an inconsistent string branch
 
-### SEC-003: Security policy encourages public vulnerability disclosure and lists stale support coverage
+Impact: minor robustness/performance, not exploitable. There is no SQL injection vector (slug values are normalized with `sanitize_title` at the point of use and passed to `WP_Query` `post_name__in`).
 
-Impact: [SECURITY.md](/Users/renatobo/development/eventon-apify/SECURITY.md) tells researchers to open a security report or issue on GitHub and only marks `1.0.x` as supported, while the plugin header shows version `1.3.2`. This increases the chance of public zero-day disclosure and makes patch/support expectations unclear.
+- `eventon_apify_sanitize_slug_filter()` (`includes/rest.php:893`) runs `sanitize_title` on array elements but returns the string branch through `sanitize_text_field` (not `sanitize_title`, and not split).
+- At query time the value is re-split and every element is `sanitize_title`'d again before assignment to `post_name__in` (`includes/rest.php:1662`), which neutralizes the inconsistency.
+- No upper bound is enforced on the number of slugs, so a very large comma-separated or `slug[]` list produces a large `IN` list.
 
-- Evidence: the policy directs reporters to "Open a security report or issue on the GitHub repository" at [SECURITY.md:9](/Users/renatobo/development/eventon-apify/SECURITY.md#L9).
-- Evidence: the policy's supported-versions table only lists `1.0.x` at [SECURITY.md:5](/Users/renatobo/development/eventon-apify/SECURITY.md#L5), while the plugin version is `1.3.2` at [eventon-apify.php:7](/Users/renatobo/development/eventon-apify/eventon-apify.php#L7) and [eventon-apify.php:25](/Users/renatobo/development/eventon-apify/eventon-apify.php#L25).
+Recommended fix: cap the slug list (e.g. `array_slice($slugs, 0, 100)`) and apply `sanitize_title` in the sanitizer's string branch for consistency.
 
-Recommended fix:
+### SEC-004: `uninstall.php` leaves RSVP delta-sync post meta behind
 
-- Add a private reporting channel or GitHub private vulnerability reporting guidance.
-- Update the supported-version matrix to match current maintained releases.
+Impact: incomplete cleanup, not a security issue (the orphaned data is a timestamp key, no PII or secrets).
+
+- `uninstall.php` deletes the five plugin options (`uninstall.php:6`) but does not remove the per-post RSVP timestamp meta `_eventon_apify_updated_at_gmt` (defined `eventon-apify.php:34`, written at `includes/rest.php:250`).
+
+Recommended fix: add `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')` to `uninstall.php`.
 
 ## Positive Notes
 
-- The custom `eventonapify/v1` event routes consistently use a centralized administrator-only permission callback at [eventon-apify.php:1153](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1153), [eventon-apify.php:1188](/Users/renatobo/development/eventon-apify/eventon-apify.php#L1188), and [eventon-apify.php:2814](/Users/renatobo/development/eventon-apify/eventon-apify.php#L2814).
-- Write paths show generally solid sanitization and validation for post status, URLs, colors, dates, repeat intervals, emails, and numeric inputs at [eventon-apify.php:3444](/Users/renatobo/development/eventon-apify/eventon-apify.php#L3444), [eventon-apify.php:3497](/Users/renatobo/development/eventon-apify/eventon-apify.php#L3497), and [eventon-apify.php:3987](/Users/renatobo/development/eventon-apify/eventon-apify.php#L3987).
-- The `wp/v2` compatibility formatter already redacts several sensitive fields, including virtual-event secrets and RSVP notification emails, before exposing compatibility payloads at [eventon-apify.php:2606](/Users/renatobo/development/eventon-apify/eventon-apify.php#L2606).
+- Custom event routes consistently use the centralized administrator-only callback `eventon_apify_admin_only()` (`includes/rest.php:855`), applied at every `/events*` route (`includes/rest.php:40`, `:90`, `:102`, `:112`, `:122`, `:143`, `:160`).
+- The API and its sensitive capabilities default to disabled: `enable_api`, `rsvp_*`, and `wp/v2` compatibility all default to `false` (`includes/core.php:67`, `:222`, `:87`).
+- No raw SQL anywhere in `includes/`; date filters use a `WP_Query` `meta_query` with int-cast values (`includes/rest.php:1675`).
+- Strict input validation: date filters via `preg_match` + `checkdate` (`includes/rest.php:644`), order/orderby allowlisted (`includes/rest.php:703`, `:742`), `per_page` capped at 100 (`includes/rest.php:874`).
+- The `wp/v2` compatibility formatter redacts organizer/location contact details, virtual-event secrets, and RSVP notification emails before exposing payloads (`includes/rest.php:411`).
+- Admin settings use the Settings API (`settings_fields()` at `includes/admin.php:99`) for nonce/CSRF; no ad-hoc form processing. Admin output is consistently escaped.
 
 ## Recommended Remediation Order
 
-1. Harden `wp/v2` compatibility authorization so it cannot be bypassed by uncovered core REST routes.
-2. Reduce or authenticate the public MCP schema output.
-3. Fix [SECURITY.md](/Users/renatobo/development/eventon-apify/SECURITY.md) so disclosure guidance and supported versions are accurate.
+1. Reduce or authenticate the live `availability` flags in the public MCP schema output (SEC-002).
+2. Add a slug-count cap and align the sanitizer string branch (SEC-003).
+3. Extend `uninstall.php` to remove the RSVP timestamp meta (SEC-004).
+4. Add regression tests for non-admin `wp/v2` access and keep `show_in_rest=false` as the primary compatibility control (SEC-001).
