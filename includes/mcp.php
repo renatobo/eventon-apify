@@ -1404,6 +1404,25 @@ function eventon_apify_get_mcp_example_update_payload() {
 }
 
 /**
+ * Merge MCP availability flags, exposing the admin-only set only to
+ * authenticated administrators.
+ *
+ * Centralizes the visibility policy so individual manifest builders do not each
+ * re-check the capability and risk leaking sensitive flags by default.
+ *
+ * @param array<string, mixed> $public     Flags safe for anonymous callers.
+ * @param array<string, mixed> $admin_only Flags restricted to administrators.
+ * @return array<string, mixed>
+ */
+function eventon_apify_build_mcp_availability(array $public, array $admin_only) {
+    if (current_user_can('manage_options')) {
+        return array_merge($public, $admin_only);
+    }
+
+    return $public;
+}
+
+/**
  * Return the current runtime availability flags relevant to MCP clients.
  *
  * @return array<string, mixed>
@@ -1412,21 +1431,20 @@ function eventon_apify_get_mcp_availability_state() {
     $eventon_available = eventon_apify_is_eventon_available();
     $wp_v2_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
 
-    $availability = array(
-        'eventon_available' => $eventon_available,
-        'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
-        'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
-        'wp_v2_compatibility_enabled' => $wp_v2_enabled,
-        'preferred_mcp_ready' => $eventon_available && $wp_v2_enabled,
+    return eventon_apify_build_mcp_availability(
+        array(
+            'eventon_available' => $eventon_available,
+            'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
+            'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+            'wp_v2_compatibility_enabled' => $wp_v2_enabled,
+            'preferred_mcp_ready' => $eventon_available && $wp_v2_enabled,
+        ),
+        // The granular capability matrix reveals exactly which write/RSVP routes
+        // are open, so it is restricted to authenticated administrators.
+        array(
+            'custom_event_api_capabilities' => eventon_apify_get_api_capabilities(),
+        )
     );
-
-    // The granular capability matrix reveals exactly which write/RSVP routes are
-    // open, so expose it only to authenticated administrators.
-    if (current_user_can('manage_options')) {
-        $availability['custom_event_api_capabilities'] = eventon_apify_get_api_capabilities();
-    }
-
-    return $availability;
 }
 
 /**
@@ -1605,18 +1623,19 @@ function eventon_apify_get_mcp_content_type_manifest() {
  * @return array<string, mixed>
  */
 function eventon_apify_get_mcp_rsvp_content_type_manifest() {
-    $availability = array(
-        'eventon_available' => eventon_apify_is_eventon_available(),
-        'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
-        'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+    $availability = eventon_apify_build_mcp_availability(
+        array(
+            'eventon_available' => eventon_apify_is_eventon_available(),
+            'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
+            'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+        ),
+        // Per-capability RSVP flags reveal which attendee/count routes are open,
+        // so they are restricted to authenticated administrators.
+        array(
+            'rsvp_attendees_enabled' => eventon_apify_is_api_capability_enabled('rsvp_attendees'),
+            'rsvp_counts_enabled' => eventon_apify_is_api_capability_enabled('rsvp_counts'),
+        )
     );
-
-    // Per-capability RSVP flags reveal which attendee/count routes are open, so
-    // expose them only to authenticated administrators.
-    if (current_user_can('manage_options')) {
-        $availability['rsvp_attendees_enabled'] = eventon_apify_is_api_capability_enabled('rsvp_attendees');
-        $availability['rsvp_counts_enabled'] = eventon_apify_is_api_capability_enabled('rsvp_counts');
-    }
 
     return array(
         'slug' => 'event_rsvps',

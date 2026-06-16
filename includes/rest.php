@@ -896,9 +896,7 @@ function eventon_apify_sanitize_slug_filter($value) {
         $value = explode(',', (string) $value);
     }
 
-    $slugs = array_values(array_filter(array_map('sanitize_title', $value)));
-
-    return array_slice($slugs, 0, EVENTON_APIFY_MAX_SLUG_FILTER);
+    return array_slice(array_filter(array_map('sanitize_title', $value)), 0, EVENTON_APIFY_MAX_SLUG_FILTER);
 }
 
 /**
@@ -1662,15 +1660,9 @@ function eventon_apify_get_events_database_response(WP_REST_Request $request, $p
         'order' => strtoupper((string) $context['order']),
     );
 
-    $slug_param = $request->get_param('slug');
-    if (!is_array($slug_param)) {
-        $slug_param = explode(',', (string) $slug_param);
-    }
-    $slugs = array_slice(
-        array_values(array_filter(array_map('sanitize_title', $slug_param))),
-        0,
-        EVENTON_APIFY_MAX_SLUG_FILTER
-    );
+    // The slug arg is normalized and capped by eventon_apify_sanitize_slug_filter
+    // (its registered sanitize_callback), so the value is already a clean list.
+    $slugs = $request->get_param('slug');
     if (!empty($slugs)) {
         $query_args['post_name__in'] = $slugs;
     }
