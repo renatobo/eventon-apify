@@ -51,6 +51,11 @@ function eventon_apify_register_routes() {
                         'default' => '',
                         'sanitize_callback' => 'sanitize_text_field',
                     ),
+                    'slug' => array(
+                        'default' => '',
+                        'sanitize_callback' => 'sanitize_text_field',
+                        'description' => 'Limit results to events matching one or more exact slugs (comma-separated string or array).',
+                    ),
                     'status' => array(
                         'default' => '',
                         'sanitize_callback' => 'sanitize_text_field',
@@ -973,22 +978,27 @@ function eventon_apify_format_event(WP_Post $post) {
     $event_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_end_ev') ?: $end_timestamp;
     $virtual_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_vend_ev') ?: eventon_apify_get_meta_int($meta, '_evo_virtual_erow');
     $timezone_key = eventon_apify_get_timezone_key_from_meta($meta);
-    $event_types = wp_get_post_terms($post->ID, 'event_type', array('fields' => 'names'));
-    $tags = wp_get_post_terms($post->ID, 'post_tag', array('fields' => 'names'));
+    $event_type_terms_raw = wp_get_post_terms($post->ID, 'event_type');
+    $tag_terms_raw = wp_get_post_terms($post->ID, 'post_tag');
+
+    if (is_wp_error($event_type_terms_raw)) {
+        $event_type_terms_raw = array();
+    }
+
+    if (is_wp_error($tag_terms_raw)) {
+        $tag_terms_raw = array();
+    }
+
+    $event_types = wp_list_pluck($event_type_terms_raw, 'name');
+    $tags = wp_list_pluck($tag_terms_raw, 'name');
+    $event_type_terms = eventon_apify_format_term_objects($event_type_terms_raw);
+    $tag_terms = eventon_apify_format_term_objects($tag_terms_raw);
     $location = eventon_apify_get_location_payload($post->ID, $meta);
     $organizers = eventon_apify_get_organizer_payload($post->ID, $meta);
     $event_status = eventon_apify_get_event_status_from_meta($meta);
     $status_reason = eventon_apify_get_event_status_reason_from_meta($meta, $event_status);
     $gradient_angle = eventon_apify_get_meta_text($meta, '_evo_event_grad_ang');
     $health = eventon_apify_get_health_payload($post->ID);
-
-    if (is_wp_error($event_types)) {
-        $event_types = array();
-    }
-
-    if (is_wp_error($tags)) {
-        $tags = array();
-    }
 
     return array(
         'id' => $post->ID,
@@ -998,6 +1008,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'description' => $post->post_content,
         'excerpt' => $post->post_excerpt,
         'tags' => $tags,
+        'tag_terms' => $tag_terms,
         'event_subtitle' => eventon_apify_get_meta_text($meta, 'evcal_subtitle'),
         'event_excerpt' => eventon_apify_get_meta_text($meta, 'evo_excerpt'),
         'link' => get_permalink($post->ID),
@@ -1017,6 +1028,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'event_color' => eventon_apify_format_color_output(eventon_apify_get_meta_text($meta, 'evcal_event_color')),
         'event_color_secondary' => eventon_apify_format_color_output(eventon_apify_get_meta_text($meta, 'evcal_event_color2')),
         'event_type' => $event_types,
+        'event_type_terms' => $event_type_terms,
         'event_status' => $event_status,
         'status_reason' => $status_reason,
         'attendance_mode' => eventon_apify_get_attendance_mode_from_meta($meta, $event_status),
@@ -1056,6 +1068,37 @@ function eventon_apify_format_event(WP_Post $post) {
         'created' => $post->post_date_gmt ? get_date_from_gmt($post->post_date_gmt, 'c') : '',
         'modified' => $post->post_modified_gmt ? get_date_from_gmt($post->post_modified_gmt, 'c') : '',
     );
+}
+
+/**
+ * Format a list of WP_Term objects into identifier-bearing payload entries.
+ *
+ * Mirrors the organizers payload shape so consumers can resolve taxonomy terms
+ * to their term_id and slug, which the label-only `event_type`/`tags` arrays omit.
+ *
+ * @param WP_Term[] $terms
+ * @return array<int, array<string, mixed>>
+ */
+function eventon_apify_format_term_objects($terms) {
+    if (is_wp_error($terms) || !is_array($terms)) {
+        return array();
+    }
+
+    $payload = array();
+
+    foreach ($terms as $term) {
+        if (!($term instanceof WP_Term)) {
+            continue;
+        }
+
+        $payload[] = array(
+            'term_id' => (int) $term->term_id,
+            'name' => $term->name,
+            'slug' => $term->slug,
+        );
+    }
+
+    return $payload;
 }
 
 /**
@@ -1598,6 +1641,17 @@ function eventon_apify_get_events_database_response(WP_REST_Request $request, $p
         's' => (string) $request->get_param('search'),
         'order' => strtoupper((string) $context['order']),
     );
+
+    $slug_param = $request->get_param('slug');
+    if (is_string($slug_param)) {
+        $slug_param = explode(',', $slug_param);
+    }
+    if (is_array($slug_param)) {
+        $slugs = array_values(array_filter(array_map('sanitize_title', $slug_param)));
+        if (!empty($slugs)) {
+            $query_args['post_name__in'] = $slugs;
+        }
+    }
 
     $meta_query = array();
 
