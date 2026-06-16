@@ -47,6 +47,7 @@ if (version_compare(PHP_VERSION, '8.0.0', '<')) {
 }
 
 add_action('admin_menu', 'eventon_apify_add_settings_page');
+add_action('admin_enqueue_scripts', 'eventon_apify_enqueue_settings_assets');
 add_action('admin_init', 'eventon_apify_register_settings');
 add_action('rest_api_init', 'eventon_apify_register_routes');
 add_action('rest_api_init', 'eventon_apify_register_wp_v2_compatibility_fields');

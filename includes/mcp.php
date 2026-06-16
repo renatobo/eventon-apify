@@ -1166,118 +1166,6 @@ function eventon_apify_get_mcp_contract_examples() {
 }
 
 /**
- * Return EventON field groups published in the MCP manifest.
- *
- * @return array<int, array<string, mixed>>
- */
-function eventon_apify_get_mcp_field_groups() {
-    return array(
-        array(
-            'key' => 'core',
-            'label' => 'Core content',
-            'description' => 'Standard WordPress post fields used for EventON events.',
-            'fields' => array('title', 'description', 'excerpt', 'featured_media', 'status'),
-        ),
-        array(
-            'key' => 'taxonomy',
-            'label' => 'Taxonomy',
-            'description' => 'EventON taxonomy inputs.',
-            'fields' => array('tags', 'event_type'),
-        ),
-        array(
-            'key' => 'timing',
-            'label' => 'Timing',
-            'description' => 'Start, end, and timezone data.',
-            'fields' => array('start_at', 'start_date', 'start_time', 'end_at', 'end_date', 'end_time', 'timezone', 'start_timestamp', 'end_timestamp', 'event_start_timestamp', 'event_end_timestamp'),
-        ),
-        array(
-            'key' => 'eventon',
-            'label' => 'EventON state',
-            'description' => 'EventON-specific status and subtitle fields.',
-            'fields' => array('event_subtitle', 'event_excerpt', 'event_status', 'status_reason', 'attendance_mode'),
-        ),
-        array(
-            'key' => 'location',
-            'label' => 'Location',
-            'description' => 'Nested venue and map details.',
-            'fields' => array('location'),
-        ),
-        array(
-            'key' => 'organizers',
-            'label' => 'Organizers',
-            'description' => 'Organizer aliases and nested organizer payloads.',
-            'fields' => array('organizer', 'organizers'),
-        ),
-        array(
-            'key' => 'presentation',
-            'label' => 'Presentation',
-            'description' => 'Color styling fields.',
-            'fields' => array('event_color', 'event_color_secondary'),
-        ),
-        array(
-            'key' => 'flags',
-            'label' => 'Flags',
-            'description' => 'Boolean EventON display and access toggles.',
-            'fields' => array('flags'),
-        ),
-        array(
-            'key' => 'interaction',
-            'label' => 'Interaction',
-            'description' => 'Event click interaction settings.',
-            'fields' => array('interaction'),
-        ),
-        array(
-            'key' => 'health',
-            'label' => 'Health',
-            'description' => 'Health guideline settings.',
-            'fields' => array('health'),
-        ),
-        array(
-            'key' => 'virtual',
-            'label' => 'Virtual event',
-            'description' => 'Virtual event settings and end-of-event behavior.',
-            'fields' => array('virtual'),
-        ),
-        array(
-            'key' => 'repeat',
-            'label' => 'Repeat',
-            'description' => 'Repeat interval rules.',
-            'fields' => array('repeat'),
-        ),
-        array(
-            'key' => 'related',
-            'label' => 'Related events',
-            'description' => 'Related event references and display flags.',
-            'fields' => array('related_events'),
-        ),
-        array(
-            'key' => 'seo',
-            'label' => 'SEO',
-            'description' => 'Extra schema offer fields.',
-            'fields' => array('seo'),
-        ),
-        array(
-            'key' => 'faqs',
-            'label' => 'FAQs',
-            'description' => 'FAQ taxonomy assignments and subtitle.',
-            'fields' => array('faqs'),
-        ),
-        array(
-            'key' => 'rsvp',
-            'label' => 'RSVP',
-            'description' => 'RSVP addon settings.',
-            'fields' => array('rsvp'),
-        ),
-        array(
-            'key' => 'read_only',
-            'label' => 'Read-only output',
-            'description' => 'Compatibility fields returned by the API but not writable.',
-            'fields' => array('link', 'featured_image', 'created', 'modified'),
-        ),
-    );
-}
-
-/**
  * Return the example EventON payload used in documentation and MCP discovery.
  *
  * @return array<string, mixed>
@@ -1423,6 +1311,19 @@ function eventon_apify_build_mcp_availability(array $public, array $admin_only) 
 }
 
 /**
+ * Base runtime availability flags shared across MCP manifest sections.
+ *
+ * @return array<string, bool>
+ */
+function eventon_apify_get_mcp_availability_flags() {
+    return array(
+        'eventon_available' => eventon_apify_is_eventon_available(),
+        'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
+        'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+    );
+}
+
+/**
  * Return the current runtime availability flags relevant to MCP clients.
  *
  * @return array<string, mixed>
@@ -1432,12 +1333,12 @@ function eventon_apify_get_mcp_availability_state() {
     $wp_v2_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
 
     return eventon_apify_build_mcp_availability(
-        array(
-            'eventon_available' => $eventon_available,
-            'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
-            'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
-            'wp_v2_compatibility_enabled' => $wp_v2_enabled,
-            'preferred_mcp_ready' => $eventon_available && $wp_v2_enabled,
+        array_merge(
+            eventon_apify_get_mcp_availability_flags(),
+            array(
+                'wp_v2_compatibility_enabled' => $wp_v2_enabled,
+                'preferred_mcp_ready' => $eventon_available && $wp_v2_enabled,
+            )
         ),
         // The granular capability matrix reveals exactly which write/RSVP routes
         // are open, so it is restricted to authenticated administrators.
@@ -1624,11 +1525,7 @@ function eventon_apify_get_mcp_content_type_manifest() {
  */
 function eventon_apify_get_mcp_rsvp_content_type_manifest() {
     $availability = eventon_apify_build_mcp_availability(
-        array(
-            'eventon_available' => eventon_apify_is_eventon_available(),
-            'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
-            'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
-        ),
+        eventon_apify_get_mcp_availability_flags(),
         // Per-capability RSVP flags reveal which attendee/count routes are open,
         // so they are restricted to authenticated administrators.
         array(

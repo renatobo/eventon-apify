@@ -98,14 +98,7 @@ function eventon_apify_bootstrap_settings() {
         $backup = array();
     }
 
-    $api_enabled = get_option(EVENTON_APIFY_OPTION_ENABLE_API, null);
-    if (null === $api_enabled) {
-        if (array_key_exists('enable_api', $backup)) {
-            update_option(EVENTON_APIFY_OPTION_ENABLE_API, !empty($backup['enable_api']));
-        } else {
-            add_option(EVENTON_APIFY_OPTION_ENABLE_API, false);
-        }
-    }
+    eventon_apify_restore_or_seed_boolean_option(EVENTON_APIFY_OPTION_ENABLE_API, $backup, 'enable_api');
 
     $capabilities = get_option(EVENTON_APIFY_OPTION_API_CAPABILITIES, null);
     if (!is_array($capabilities)) {
@@ -116,16 +109,31 @@ function eventon_apify_bootstrap_settings() {
         }
     }
 
-    $wp_v2_compat = get_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, null);
-    if (null === $wp_v2_compat) {
-        if (array_key_exists('enable_wp_v2_compat', $backup)) {
-            update_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, !empty($backup['enable_wp_v2_compat']));
-        } else {
-            add_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, false);
-        }
-    }
+    eventon_apify_restore_or_seed_boolean_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, $backup, 'enable_wp_v2_compat');
 
     eventon_apify_sync_settings_backup();
+}
+
+/**
+ * Seed a boolean option from its backup value, or false when no backup exists.
+ *
+ * No-op when the option already has a stored value.
+ *
+ * @param string               $option     Option name.
+ * @param array<string, mixed> $backup     Settings backup snapshot.
+ * @param string               $backup_key Key within the backup holding this option.
+ */
+function eventon_apify_restore_or_seed_boolean_option($option, array $backup, $backup_key) {
+    if (null !== get_option($option, null)) {
+        return;
+    }
+
+    if (array_key_exists($backup_key, $backup)) {
+        update_option($option, !empty($backup[$backup_key]));
+        return;
+    }
+
+    add_option($option, false);
 }
 
 /**
@@ -158,13 +166,7 @@ function eventon_apify_sync_settings_backup() {
  * @param mixed  $value     New option value.
  */
 function eventon_apify_sync_settings_backup_on_option_change($option, $old_value, $value) {
-    unset($old_value, $value);
-
-    if (!eventon_apify_is_tracked_settings_option($option)) {
-        return;
-    }
-
-    eventon_apify_sync_settings_backup();
+    eventon_apify_maybe_sync_settings_backup($option);
 }
 
 /**
@@ -174,8 +176,15 @@ function eventon_apify_sync_settings_backup_on_option_change($option, $old_value
  * @param mixed  $value  Stored option value.
  */
 function eventon_apify_sync_settings_backup_on_option_add($option, $value) {
-    unset($value);
+    eventon_apify_maybe_sync_settings_backup($option);
+}
 
+/**
+ * Refresh the backup snapshot when the changed option is one we track.
+ *
+ * @param string $option Option name.
+ */
+function eventon_apify_maybe_sync_settings_backup($option) {
     if (!eventon_apify_is_tracked_settings_option($option)) {
         return;
     }
@@ -213,15 +222,13 @@ function eventon_apify_sanitize_checkbox($value) {
  * @return array<string, bool>
  */
 function eventon_apify_get_default_api_capabilities() {
-    return array(
-        'list' => true,
-        'read' => true,
-        'create' => true,
-        'update' => true,
-        'delete' => true,
-        'rsvp_counts' => false,
-        'rsvp_attendees' => false,
-    );
+    $defaults = array();
+
+    foreach (eventon_apify_get_api_capability_definitions() as $capability => $definition) {
+        $defaults[$capability] = !empty($definition['default']);
+    }
+
+    return $defaults;
 }
 
 /**
@@ -236,42 +243,49 @@ function eventon_apify_get_api_capability_definitions() {
             'description' => __('Allow GET requests to the events collection endpoint.', 'eventon-apify'),
             'methods' => 'GET',
             'route' => '/events',
+            'default' => true,
         ),
         'read' => array(
             'label' => __('Read single event', 'eventon-apify'),
             'description' => __('Allow GET requests for an individual event.', 'eventon-apify'),
             'methods' => 'GET',
             'route' => '/events/<id>',
+            'default' => true,
         ),
         'create' => array(
             'label' => __('Create events', 'eventon-apify'),
             'description' => __('Allow POST requests that create ajde_events records.', 'eventon-apify'),
             'methods' => 'POST',
             'route' => '/events',
+            'default' => true,
         ),
         'update' => array(
             'label' => __('Update events', 'eventon-apify'),
             'description' => __('Allow PUT and PATCH requests for existing events.', 'eventon-apify'),
             'methods' => 'PUT, PATCH',
             'route' => '/events/<id>',
+            'default' => true,
         ),
         'delete' => array(
             'label' => __('Delete events', 'eventon-apify'),
             'description' => __('Allow DELETE requests that trash events.', 'eventon-apify'),
             'methods' => 'DELETE',
             'route' => '/events/<id>',
+            'default' => true,
         ),
         'rsvp_counts' => array(
             'label' => __('Read RSVP summary', 'eventon-apify'),
             'description' => __('Allow GET requests for the yes-only RSVP summary of an event.', 'eventon-apify'),
             'methods' => 'GET',
             'route' => '/events/<id>/rsvps/summary',
+            'default' => false,
         ),
         'rsvp_attendees' => array(
             'label' => __('List RSVP attendees', 'eventon-apify'),
             'description' => __('Allow GET requests for RSVP attendee records and contact details.', 'eventon-apify'),
             'methods' => 'GET',
             'route' => '/events/<id>/rsvps',
+            'default' => false,
         ),
     );
 }
@@ -322,6 +336,16 @@ function eventon_apify_is_api_capability_enabled($capability) {
  */
 function eventon_apify_is_wp_v2_compatibility_enabled() {
     return (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, false);
+}
+
+/**
+ * Whether wp/v2 compatibility output should be filtered for the current request.
+ *
+ * True only when compatibility mode is on and the current user is not an
+ * administrator; administrators see the full compatibility surface.
+ */
+function eventon_apify_should_filter_wp_v2_compatibility_for_request() {
+    return eventon_apify_is_wp_v2_compatibility_enabled() && !current_user_can('manage_options');
 }
 
 /**
@@ -398,7 +422,7 @@ function eventon_apify_get_wp_v2_compatibility_taxonomies() {
 
     $taxonomies = get_object_taxonomies('ajde_events', 'names');
     if (!is_array($taxonomies)) {
-        return $fallback;
+        return $cache = $fallback;
     }
 
     $taxonomies = array_values(
@@ -420,7 +444,7 @@ function eventon_apify_get_wp_v2_compatibility_taxonomies() {
  * @return array<string, mixed>
  */
 function eventon_apify_filter_wp_v2_compatibility_endpoints($endpoints) {
-    if (!eventon_apify_is_wp_v2_compatibility_enabled() || current_user_can('manage_options')) {
+    if (!eventon_apify_should_filter_wp_v2_compatibility_for_request()) {
         return $endpoints;
     }
 
@@ -444,8 +468,7 @@ function eventon_apify_filter_wp_v2_compatibility_endpoints($endpoints) {
 function eventon_apify_filter_wp_v2_compatibility_responses($response, $_server, WP_REST_Request $request) {
 
     if (
-        !eventon_apify_is_wp_v2_compatibility_enabled()
-        || current_user_can('manage_options')
+        !eventon_apify_should_filter_wp_v2_compatibility_for_request()
         || !($response instanceof WP_HTTP_Response)
     ) {
         return $response;
@@ -480,7 +503,7 @@ function eventon_apify_filter_wp_v2_compatibility_responses($response, $_server,
  */
 function eventon_apify_filter_wp_v2_compatibility_post_search_query(array $query_args) {
 
-    if (!eventon_apify_is_wp_v2_compatibility_enabled() || current_user_can('manage_options')) {
+    if (!eventon_apify_should_filter_wp_v2_compatibility_for_request()) {
         return $query_args;
     }
 
@@ -503,7 +526,7 @@ function eventon_apify_filter_wp_v2_compatibility_post_search_query(array $query
  */
 function eventon_apify_filter_wp_v2_compatibility_term_search_query(array $query_args) {
 
-    if (!eventon_apify_is_wp_v2_compatibility_enabled() || current_user_can('manage_options')) {
+    if (!eventon_apify_should_filter_wp_v2_compatibility_for_request()) {
         return $query_args;
     }
 
@@ -517,7 +540,3 @@ function eventon_apify_filter_wp_v2_compatibility_term_search_query(array $query
 
     return $query_args;
 }
-
-/**
- * Render the plugin settings page.
- */
