@@ -49,7 +49,19 @@ require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-examples.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-availability.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-rsvp.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-manifest.php';
-require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-helpers.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-access-control.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-request-validation.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-wp-v2-compat.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-events-read.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-events-list.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-events-write.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-event-payload.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-event-validation.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-event-meta.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-event-terms.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-rsvp.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest-routes.php';
 
 if (version_compare(PHP_VERSION, '8.0.0', '<')) {
     add_action('admin_notices', 'eventon_apify_php_version_notice');
