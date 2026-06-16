@@ -36,7 +36,10 @@ define('EVENTON_APIFY_MAX_SLUG_FILTER', 100);
 define('EVENTON_APIFY_PLUGIN_FILE', __FILE__);
 define('EVENTON_APIFY_PLUGIN_DIR', __DIR__);
 
-require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/core.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/bootstrap.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/capabilities.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/settings-backup.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/wp-v2-compat.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/admin.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest.php';
