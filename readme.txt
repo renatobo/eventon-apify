@@ -140,6 +140,7 @@ RSVP attendee list endpoint:
 
 Create/update fields:
 - `title` (string)
+- `slug` (string; sanitized to a WordPress `post_name`)
 - `description` (string)
 - `excerpt` (string)
 - `featured_media` (integer image attachment ID; upload media first, then send the attachment ID, or use `0` to clear)
@@ -209,6 +210,7 @@ The API responds with a `400` error explaining which date/time combination could
 == Changelog ==
 
 = 2.2.0 =
+* Added support for a top-level `slug` on event create/update, sanitized and stored as the WordPress `post_name` (fixes #4).
 * Restricted the public MCP schema manifest so the granular capability matrix and per-capability RSVP flags are returned only to authenticated administrators; anonymous callers receive coarse availability booleans only.
 * Capped the events `slug` filter at 100 values and applied `sanitize_title` to every value to keep the `post_name__in` query bounded.
 * Moved the settings-page styles and scripts into enqueued asset files so they are cacheable and no longer rendered inline.

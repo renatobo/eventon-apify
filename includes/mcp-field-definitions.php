@@ -13,6 +13,16 @@ function eventon_apify_get_contract_field_definitions() {
                 'wp_v2' => 'title',
             ),
         ),
+        'slug' => array(
+            'type' => 'string',
+            'group' => 'core',
+            'description' => 'Desired URL slug, sanitized and stored as the WordPress post_name. Omit to derive it from the title; WordPress may append a suffix to keep it unique.',
+            'aliases' => array('post_name'),
+            'transport' => array(
+                'custom_namespace' => 'slug',
+                'wp_v2' => 'slug',
+            ),
+        ),
         'description' => array(
             'type' => 'string',
             'group' => 'core',

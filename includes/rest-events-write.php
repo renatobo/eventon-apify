@@ -18,6 +18,29 @@ function eventon_apify_get_event(WP_REST_Request $request) {
 }
 
 /**
+ * Apply a requested slug to a post array as post_name.
+ *
+ * A non-empty sanitized slug sets post_name; an absent or blank slug leaves the
+ * array untouched so WordPress keeps the existing or auto-generated slug.
+ *
+ * @param array<string, mixed> $postarr WordPress post array for insert/update.
+ * @param array<string, mixed> $params  Normalized request parameters.
+ * @return array<string, mixed>
+ */
+function eventon_apify_apply_requested_slug(array $postarr, array $params) {
+    if (!array_key_exists('slug', $params)) {
+        return $postarr;
+    }
+
+    $slug = sanitize_title((string) $params['slug']);
+    if ($slug !== '') {
+        $postarr['post_name'] = $slug;
+    }
+
+    return $postarr;
+}
+
+/**
  * Create a new EventON event.
  */
 function eventon_apify_create_event(WP_REST_Request $request) {
@@ -32,7 +55,7 @@ function eventon_apify_create_event(WP_REST_Request $request) {
         return $validation;
     }
 
-    $post_id = wp_insert_post(
+    $postarr = eventon_apify_apply_requested_slug(
         array(
             'post_type' => 'ajde_events',
             'post_title' => sanitize_text_field((string) $params['title']),
@@ -40,8 +63,10 @@ function eventon_apify_create_event(WP_REST_Request $request) {
             'post_excerpt' => sanitize_textarea_field((string) ($params['excerpt'] ?? '')),
             'post_status' => eventon_apify_get_sanitized_status($params['status'] ?? 'draft'),
         ),
-        true
+        $params
     );
+
+    $post_id = wp_insert_post($postarr, true);
 
     if (is_wp_error($post_id)) {
         return $post_id;
@@ -102,6 +127,8 @@ function eventon_apify_update_event(WP_REST_Request $request) {
     if (array_key_exists('status', $params)) {
         $updates['post_status'] = eventon_apify_get_sanitized_status($params['status']);
     }
+
+    $updates = eventon_apify_apply_requested_slug($updates, $params);
 
     if (count($updates) > 1) {
         $result = wp_update_post($updates, true);

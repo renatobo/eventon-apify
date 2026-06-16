@@ -343,6 +343,7 @@ curl -u your_username:your_app_password \
 | Name | Type | Required on create | Description |
 | --- | --- | --- | --- |
 | `title` | string | Yes | Event title |
+| `slug` | string | No | Desired URL slug; sanitized and stored as the WordPress `post_name`. Omit to let WordPress derive it from the title. WordPress may append a suffix to keep it unique. |
 | `description` | string | No | Event content/body |
 | `status` | string | No | `publish`, `draft`, `private`, `pending`, or `future` |
 | `excerpt` | string | No | WordPress post excerpt |
@@ -374,6 +375,7 @@ curl -u your_username:your_app_password \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Ride to Big Bear",
+    "slug": "ride-to-big-bear",
     "description": "Optional HTML content",
     "excerpt": "Short summary",
     "featured_media": 456,

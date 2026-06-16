@@ -862,6 +862,10 @@
           "title": {
             "type": "string"
           },
+          "slug": {
+            "type": "string",
+            "description": "Desired URL slug; sanitized and stored as the WordPress post_name. Omit to derive it from the title. WordPress may append a suffix to keep it unique."
+          },
           "description": {
             "type": "string",
             "description": "HTML body content."
