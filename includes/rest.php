@@ -2791,6 +2791,27 @@ function eventon_apify_get_request_payload(WP_REST_Request $request) {
 }
 
 /**
+ * Merge values from a source array into the normalized payload using an alias map.
+ *
+ * For each target key, the first present alias from the source is copied in,
+ * unless the target was already set by an explicit top-level value.
+ *
+ * @param array<string, mixed>              $normalized Normalized payload so far.
+ * @param array<string, mixed>              $source     Source sub-array to read aliases from.
+ * @param array<string, array<int, string>> $map        Target key => candidate alias keys.
+ * @return array<string, mixed>
+ */
+function eventon_apify_apply_alias_map(array $normalized, array $source, array $map) {
+    foreach ($map as $target => $aliases) {
+        if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($source, $aliases)) {
+            $normalized[$target] = eventon_apify_array_get($source, $aliases);
+        }
+    }
+
+    return $normalized;
+}
+
+/**
  * Normalize flexible API input into the canonical keys used internally.
  *
  * @param array<string, mixed> $params Raw request payload.
@@ -2869,11 +2890,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'time_extend_type' => array('time_extend_type', 'extend_type'),
         );
 
-        foreach ($eventon_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['eventon'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['eventon'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['eventon'], $eventon_map);
     }
 
     if (isset($params['flags']) && is_array($params['flags'])) {
@@ -2893,11 +2910,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'organizer_as_performer' => array('organizer_as_performer'),
         );
 
-        foreach ($flags_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['flags'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['flags'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['flags'], $flags_map);
     }
 
     if (array_key_exists('interaction', $params)) {
@@ -2908,11 +2921,7 @@ function eventon_apify_normalize_request_payload(array $params) {
                 'interaction_new_window' => array('new_window', 'target'),
             );
 
-            foreach ($interaction_map as $target => $aliases) {
-                if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['interaction'], $aliases)) {
-                    $normalized[$target] = eventon_apify_array_get($params['interaction'], $aliases);
-                }
-            }
+            $normalized = eventon_apify_apply_alias_map($normalized, $params['interaction'], $interaction_map);
         } elseif (!array_key_exists('interaction_mode', $normalized)) {
             $normalized['interaction_mode'] = $params['interaction'];
         }
@@ -2942,11 +2951,7 @@ function eventon_apify_normalize_request_payload(array $params) {
                 'location_getdir_latlng' => array('use_latlng_for_directions', 'location_getdir_latlng'),
             );
 
-            foreach ($location_map as $target => $aliases) {
-                if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['location'], $aliases)) {
-                    $normalized[$target] = eventon_apify_array_get($params['location'], $aliases);
-                }
-            }
+            $normalized = eventon_apify_apply_alias_map($normalized, $params['location'], $location_map);
         }
     }
 
@@ -2980,11 +2985,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'health_other' => array('other'),
         );
 
-        foreach ($health_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['health'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['health'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['health'], $health_map);
     }
 
     if (isset($params['virtual']) && is_array($params['virtual'])) {
@@ -3004,11 +3005,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'virtual_end_enabled' => array('end_time_enabled', 'end_enabled'),
         );
 
-        foreach ($virtual_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['virtual'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['virtual'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['virtual'], $virtual_map);
 
         if (eventon_apify_array_has_any($params['virtual'], array('end_at')) && !array_key_exists('virtual_end_date', $normalized)) {
             $normalized = eventon_apify_apply_datetime_parts_to_payload($normalized, 'virtual_end', $params['virtual']['end_at']);
@@ -3033,11 +3030,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'repeat_intervals' => array('intervals'),
         );
 
-        foreach ($repeat_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['repeat'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['repeat'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['repeat'], $repeat_map);
     }
 
     if (isset($params['related_events']) && is_array($params['related_events'])) {
@@ -3047,11 +3040,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'related_hide_past' => array('hide_past'),
         );
 
-        foreach ($related_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['related_events'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['related_events'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['related_events'], $related_map);
 
         if (!array_key_exists('related_items', $normalized)) {
             $normalized['related_items'] = eventon_apify_array_get($params['related_events'], array('items', 'events'), array());
@@ -3064,11 +3053,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'seo_offer_currency' => array('offer_currency', 'currency'),
         );
 
-        foreach ($seo_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['seo'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['seo'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['seo'], $seo_map);
     }
 
     if (array_key_exists('faqs', $params)) {
@@ -3105,11 +3090,7 @@ function eventon_apify_normalize_request_payload(array $params) {
             'rsvp_repeat_capacities' => array('repeat_capacities'),
         );
 
-        foreach ($rsvp_map as $target => $aliases) {
-            if (!array_key_exists($target, $normalized) && eventon_apify_array_has_any($params['rsvp'], $aliases)) {
-                $normalized[$target] = eventon_apify_array_get($params['rsvp'], $aliases);
-            }
-        }
+        $normalized = eventon_apify_apply_alias_map($normalized, $params['rsvp'], $rsvp_map);
     }
 
     return $normalized;
