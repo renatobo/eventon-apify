@@ -700,6 +700,7 @@
           },
           "availability": {
             "type": "object",
+            "description": "Coarse runtime availability booleans. The granular capability matrix (custom_event_api_capabilities and the per-capability rsvp_*_enabled flags) is included only for authenticated administrators.",
             "additionalProperties": true
           },
           "content_types": {
@@ -710,7 +711,7 @@
         "example": {
           "schema_version": "1.0.0",
           "provider": "eventon-apify",
-          "provider_version": "1.7.0",
+          "provider_version": "2.1.1",
           "generated_at": "2026-03-30T00:00:00Z",
           "site_url": "https://example.com",
           "namespace": "eventonapify/v1",

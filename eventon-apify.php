@@ -32,6 +32,7 @@ define('EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT', 'eventon_apify_enable_wp_v2_c
 define('EVENTON_APIFY_OPTION_SETTINGS_BACKUP', 'eventon_apify_settings_backup');
 define('EVENTON_APIFY_OPTION_INSTALLED_VERSION', 'eventon_apify_installed_version');
 define('EVENTON_APIFY_RSVP_UPDATED_AT_META', '_eventon_apify_updated_at_gmt');
+define('EVENTON_APIFY_MAX_SLUG_FILTER', 100);
 define('EVENTON_APIFY_PLUGIN_FILE', __FILE__);
 define('EVENTON_APIFY_PLUGIN_DIR', __DIR__);
 

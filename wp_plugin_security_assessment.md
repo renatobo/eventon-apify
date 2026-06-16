@@ -10,7 +10,7 @@
   - Critical: 0
   - High: 0
   - Medium: 0
-  - Low: 4
+  - Low: 4 (WPSEC-002, WPSEC-003, WPSEC-004 remediated in the working tree, pending the 2.1.2 release)
 
 ## Critical
 
@@ -36,18 +36,21 @@ No medium-severity issues identified in the reviewed scope. See WPSEC-001 below 
 
 ### WPSEC-002 Public MCP manifest exposes live feature configuration
 
+- Status: Resolved (pending 2.1.2). The capability matrix and per-capability RSVP flags are now gated behind `manage_options` in `eventon_apify_get_mcp_availability_state()` and `eventon_apify_get_mcp_rsvp_content_type_manifest()`; anonymous callers get coarse booleans only.
 - Files: `includes/rest.php:10` and `includes/rest.php:22` (routes registered with `permission_callback => '__return_true'`); `includes/mcp.php:1411` (`eventon_apify_get_mcp_availability_state()`), embedded at `includes/mcp.php:1520`, repeated at `includes/mcp.php:1588` and `includes/mcp.php:1610`.
 - Impact: unauthenticated callers learn which addons are active, whether the custom API and `wp/v2` compatibility are enabled, and the full capability matrix (`custom_event_api_capabilities`, `rsvp_attendees_enabled`, `rsvp_counts_enabled`). Low-risk reconnaissance; no records, secrets, or PII are exposed. The endpoint is public by design (`includes/admin.php:307`).
 - Remediation: move the live `availability` block behind an authenticated path, or reduce the public payload to coarse booleans and drop the capability matrix.
 
 ### WPSEC-003 Slug filter has no count cap; sanitizer string branch is inconsistent
 
+- Status: Resolved (pending 2.1.2). Slug input is capped at `EVENTON_APIFY_MAX_SLUG_FILTER` (100) and `sanitize_title` is applied to every value in both branches.
 - Files: `includes/rest.php:893` (`eventon_apify_sanitize_slug_filter()`), `includes/rest.php:1662` (query-time normalization to `post_name__in`).
 - Impact: no injection (values are `sanitize_title`'d before reaching `WP_Query`), but there is no upper bound on the number of slugs, so a very large list produces a large `IN` clause (minor performance/DoS consideration).
 - Remediation: cap the slug list (e.g. `array_slice(..., 0, 100)`) and apply `sanitize_title` in the string branch for consistency.
 
 ### WPSEC-004 `uninstall.php` leaves RSVP delta-sync post meta
 
+- Status: Resolved (pending 2.1.2). `uninstall.php` now calls `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')`.
 - Files: `uninstall.php:6` (option cleanup), missing removal of `_eventon_apify_updated_at_gmt` (defined `eventon-apify.php:34`, written `includes/rest.php:250`).
 - Impact: incomplete cleanup; orphaned timestamp meta remains after uninstall. No security/PII impact.
 - Remediation: add `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')` to `uninstall.php`.

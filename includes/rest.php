@@ -885,17 +885,20 @@ function eventon_apify_sanitize_per_page($value) {
  * Sanitize a slug filter that accepts a comma-separated string or an array.
  *
  * Preserves the array form (?slug[]=a&slug[]=b) instead of collapsing it to an
- * empty string, while still sanitizing each value as a slug.
+ * empty string, sanitizes each value as a slug, and caps the number of slugs to
+ * keep the resulting post_name__in query bounded.
  *
  * @param mixed $value Request parameter.
- * @return string|array Sanitized slug string or array of slugs.
+ * @return array Sanitized list of slugs.
  */
 function eventon_apify_sanitize_slug_filter($value) {
-    if (is_array($value)) {
-        return array_values(array_filter(array_map('sanitize_title', $value)));
+    if (!is_array($value)) {
+        $value = explode(',', (string) $value);
     }
 
-    return sanitize_text_field($value);
+    $slugs = array_values(array_filter(array_map('sanitize_title', $value)));
+
+    return array_slice($slugs, 0, EVENTON_APIFY_MAX_SLUG_FILTER);
 }
 
 /**
@@ -1660,14 +1663,16 @@ function eventon_apify_get_events_database_response(WP_REST_Request $request, $p
     );
 
     $slug_param = $request->get_param('slug');
-    if (is_string($slug_param)) {
-        $slug_param = explode(',', $slug_param);
+    if (!is_array($slug_param)) {
+        $slug_param = explode(',', (string) $slug_param);
     }
-    if (is_array($slug_param)) {
-        $slugs = array_values(array_filter(array_map('sanitize_title', $slug_param)));
-        if (!empty($slugs)) {
-            $query_args['post_name__in'] = $slugs;
-        }
+    $slugs = array_slice(
+        array_values(array_filter(array_map('sanitize_title', $slug_param))),
+        0,
+        EVENTON_APIFY_MAX_SLUG_FILTER
+    );
+    if (!empty($slugs)) {
+        $query_args['post_name__in'] = $slugs;
     }
 
     $meta_query = array();

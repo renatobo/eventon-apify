@@ -1412,14 +1412,21 @@ function eventon_apify_get_mcp_availability_state() {
     $eventon_available = eventon_apify_is_eventon_available();
     $wp_v2_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
 
-    return array(
+    $availability = array(
         'eventon_available' => $eventon_available,
         'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
         'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
-        'custom_event_api_capabilities' => eventon_apify_get_api_capabilities(),
         'wp_v2_compatibility_enabled' => $wp_v2_enabled,
         'preferred_mcp_ready' => $eventon_available && $wp_v2_enabled,
     );
+
+    // The granular capability matrix reveals exactly which write/RSVP routes are
+    // open, so expose it only to authenticated administrators.
+    if (current_user_can('manage_options')) {
+        $availability['custom_event_api_capabilities'] = eventon_apify_get_api_capabilities();
+    }
+
+    return $availability;
 }
 
 /**
@@ -1598,6 +1605,19 @@ function eventon_apify_get_mcp_content_type_manifest() {
  * @return array<string, mixed>
  */
 function eventon_apify_get_mcp_rsvp_content_type_manifest() {
+    $availability = array(
+        'eventon_available' => eventon_apify_is_eventon_available(),
+        'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
+        'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
+    );
+
+    // Per-capability RSVP flags reveal which attendee/count routes are open, so
+    // expose them only to authenticated administrators.
+    if (current_user_can('manage_options')) {
+        $availability['rsvp_attendees_enabled'] = eventon_apify_is_api_capability_enabled('rsvp_attendees');
+        $availability['rsvp_counts_enabled'] = eventon_apify_is_api_capability_enabled('rsvp_counts');
+    }
+
     return array(
         'slug' => 'event_rsvps',
         'label' => 'EventON RSVP Attendee',
@@ -1607,13 +1627,7 @@ function eventon_apify_get_mcp_rsvp_content_type_manifest() {
         'supported_operations' => array('list'),
         'fields' => eventon_apify_get_mcp_rsvp_contract_fields(),
         'examples' => eventon_apify_get_mcp_rsvp_contract_examples(),
-        'availability' => array(
-            'eventon_available' => eventon_apify_is_eventon_available(),
-            'eventon_rsvp_available' => eventon_apify_is_eventon_rsvp_available(),
-            'custom_event_api_enabled' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
-            'rsvp_attendees_enabled' => eventon_apify_is_api_capability_enabled('rsvp_attendees'),
-            'rsvp_counts_enabled' => eventon_apify_is_api_capability_enabled('rsvp_counts'),
-        ),
+        'availability' => $availability,
         'parent_context' => array(
             'content_type' => 'ajde_events',
             'id_param' => 'event_id',

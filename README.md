@@ -203,9 +203,11 @@ The manifest describes:
 - normalized EventON `fields` with nested object and array shapes
 - executable `validation_rules` plus additional runtime `validation_notes`
 - `examples.create` and `examples.update` payloads for MCP clients
-- runtime availability such as whether `WP v2 compatibility` is currently enabled
+- coarse runtime availability such as whether EventON is active, the custom API is enabled, and `WP v2 compatibility` is on
 - when the RSVP addon is active, a read-only `event_rsvps` content type for `/wp-json/eventonapify/v1/events/{event_id}/rsvps`
 - when the RSVP addon is active, the related RSVP summary endpoint `/wp-json/eventonapify/v1/events/{event_id}/rsvps/summary`
+
+The manifest routes are public, but the granular capability matrix (`custom_event_api_capabilities`, and the per-capability `rsvp_attendees_enabled` / `rsvp_counts_enabled` flags) is included only for authenticated administrators. Anonymous callers receive the coarse availability booleans only.
 
 Important: the manifest is discovery-only. Compatible clients should follow the advertised `preferred_endpoint`, which for `ajde_events` is `/wp-json/eventonapify/v1/events`. The contract examples are client-facing normalized payloads, not raw WordPress REST requests.
 

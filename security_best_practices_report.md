@@ -6,7 +6,7 @@ _Plugin version reviewed: 2.1.1. Method: static source review of `eventon-apify.
 
 The plugin follows sound WordPress security practices: the custom `eventonapify/v1` routes are consistently administrator-gated, the API and its sensitive capabilities default to disabled, all REST inputs are sanitized/validated, no raw SQL is used (everything goes through `WP_Query` and the WP CRUD APIs), and the optional `wp/v2` compatibility surface redacts PII and disables `show_in_rest` for non-admins.
 
-No Critical or High severity issues were found. The previously reported Medium issue (`wp/v2` route-allowlist leak) is now substantially mitigated and is downgraded to a defense-in-depth note. Remaining items are Low severity.
+No Critical or High severity issues were found. The previously reported Medium issue (`wp/v2` route-allowlist leak) is now substantially mitigated and is downgraded to a defense-in-depth note. The three Low findings (SEC-002, SEC-003, SEC-004) have since been remediated in the working tree (pending the 2.1.2 release); each is annotated below.
 
 ## Low Severity
 
@@ -28,6 +28,8 @@ Recommended fix (hardening): keep `show_in_rest=false`-for-non-admins as the pri
 
 ### SEC-002: Public MCP schema endpoint exposes live feature configuration
 
+**Status: Resolved (pending 2.1.2).** The granular capability matrix (`custom_event_api_capabilities`) and per-capability RSVP flags are now emitted only for `manage_options` users (`includes/mcp.php`); anonymous callers receive coarse availability booleans only.
+
 Impact: unauthenticated callers can learn whether EventON and the RSVP addon are active, whether the custom API is enabled, the full CRUD/RSVP capability matrix, and whether `wp/v2` compatibility is on. This is low-risk reconnaissance data (it reveals which surfaces to probe and whether attendee PII endpoints are enabled), but it exposes no records, secrets, or PII directly. The endpoint is public by design.
 
 - Both MCP schema routes register `permission_callback => '__return_true'` (`includes/rest.php:10`, `includes/rest.php:22`).
@@ -36,6 +38,8 @@ Impact: unauthenticated callers can learn whether EventON and the RSVP addon are
 Recommended fix: if public discovery is required, keep only the static contract/shape data public and move the live `availability` block behind an authenticated path (e.g. `permission_callback => 'eventon_apify_admin_only'`), or reduce the public payload to coarse booleans and drop `custom_event_api_capabilities` / `rsvp_*_enabled`.
 
 ### SEC-003: Slug filter has no count cap and an inconsistent string branch
+
+**Status: Resolved (pending 2.1.2).** The slug list is now capped at `EVENTON_APIFY_MAX_SLUG_FILTER` (100) and the string branch runs every value through `sanitize_title` (`includes/rest.php`).
 
 Impact: minor robustness/performance, not exploitable. There is no SQL injection vector (slug values are normalized with `sanitize_title` at the point of use and passed to `WP_Query` `post_name__in`).
 
@@ -46,6 +50,8 @@ Impact: minor robustness/performance, not exploitable. There is no SQL injection
 Recommended fix: cap the slug list (e.g. `array_slice($slugs, 0, 100)`) and apply `sanitize_title` in the sanitizer's string branch for consistency.
 
 ### SEC-004: `uninstall.php` leaves RSVP delta-sync post meta behind
+
+**Status: Resolved (pending 2.1.2).** `uninstall.php` now calls `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')`.
 
 Impact: incomplete cleanup, not a security issue (the orphaned data is a timestamp key, no PII or secrets).
 
@@ -64,7 +70,7 @@ Recommended fix: add `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')` 
 
 ## Recommended Remediation Order
 
-1. Reduce or authenticate the live `availability` flags in the public MCP schema output (SEC-002).
-2. Add a slug-count cap and align the sanitizer string branch (SEC-003).
-3. Extend `uninstall.php` to remove the RSVP timestamp meta (SEC-004).
-4. Add regression tests for non-admin `wp/v2` access and keep `show_in_rest=false` as the primary compatibility control (SEC-001).
+1. ~~Reduce or authenticate the live `availability` flags in the public MCP schema output (SEC-002).~~ Done (pending 2.1.2).
+2. ~~Add a slug-count cap and align the sanitizer string branch (SEC-003).~~ Done (pending 2.1.2).
+3. ~~Extend `uninstall.php` to remove the RSVP timestamp meta (SEC-004).~~ Done (pending 2.1.2).
+4. Add regression tests for non-admin `wp/v2` access and keep `show_in_rest=false` as the primary compatibility control (SEC-001). Still recommended.
