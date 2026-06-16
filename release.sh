@@ -93,10 +93,19 @@ update_file "eventon-apify.php" "^define('EVENTON_APIFY_VERSION', '.*');$" "defi
 assert_versions_match
 
 git add readme.txt eventon-apify.php "$NOTES_FILE"
-git commit -m "Bump version to $VERSION"
+
+if git diff --cached --quiet; then
+  echo "No version changes to commit; files already at $VERSION."
+else
+  git commit -m "Bump version to $VERSION"
+fi
+
 git tag -a "$TAG" -m "Release $VERSION"
 git push origin main
 git push origin "$TAG"
+
+echo "Building plugin zip locally with ./build.sh"
+./build.sh
 
 cat <<EOF
 Release prepared for $TAG.
