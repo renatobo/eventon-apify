@@ -236,6 +236,7 @@ curl "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
 | `page` | integer | No | Page number, default `1` |
 | `search` | string | No | Search against event title/content |
 | `status` | string | No | Comma-separated post statuses such as `publish,draft` |
+| `slug` | string or array | No | Limit results to events matching one or more exact slugs; accepts a single slug, a comma-separated list, or an array (`slug[]=a&slug[]=b`) |
 
 ### RSVP summary response
 
