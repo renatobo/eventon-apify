@@ -165,6 +165,33 @@ if (!function_exists('add_option')) {
     }
 }
 
+if (!function_exists('get_post_meta')) {
+    function get_post_meta($post_id, $key = '', $single = false) {
+        $store = $GLOBALS['__eventon_test_post_meta'][$post_id] ?? array();
+        if ($key === '') {
+            return $store;
+        }
+        if (!array_key_exists($key, $store)) {
+            return $single ? '' : array();
+        }
+        return $single ? $store[$key] : array($store[$key]);
+    }
+}
+
+if (!function_exists('update_post_meta')) {
+    function update_post_meta($post_id, $key, $value) {
+        $GLOBALS['__eventon_test_post_meta'][$post_id][$key] = $value;
+        return true;
+    }
+}
+
+if (!function_exists('delete_post_meta')) {
+    function delete_post_meta($post_id, $key) {
+        unset($GLOBALS['__eventon_test_post_meta'][$post_id][$key]);
+        return true;
+    }
+}
+
 if (!function_exists('post_type_exists')) {
     function post_type_exists($post_type) {
         return !empty($GLOBALS['__eventon_test_post_types'][$post_type]);

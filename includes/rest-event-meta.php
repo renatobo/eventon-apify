@@ -1,25 +1,15 @@
 <?php
 
 /**
- * Save EventON meta fields from request parameters.
+ * Persist the plain-text EventON meta fields from request parameters.
+ *
+ * URL-bearing keys are escaped with esc_url_raw; all others are run through
+ * sanitize_text_field. Empty values delete the meta key.
  *
  * @param int                  $post_id Event post ID.
  * @param array<string, mixed> $params  Request body parameters.
- * @return true|WP_Error
  */
-function eventon_apify_save_event_meta($post_id, array $params) {
-    $datetime_result = eventon_apify_save_datetime_meta($post_id, $params);
-    if (is_wp_error($datetime_result)) {
-        return $datetime_result;
-    }
-
-    if (array_key_exists('featured_media', $params)) {
-        $featured_media_result = eventon_apify_save_featured_media($post_id, $params['featured_media']);
-        if (is_wp_error($featured_media_result)) {
-            return $featured_media_result;
-        }
-    }
-
+function eventon_apify_save_event_text_meta($post_id, array $params) {
     $text_meta_map = array(
         'event_subtitle' => 'evcal_subtitle',
         'event_excerpt' => 'evo_excerpt',
@@ -50,6 +40,63 @@ function eventon_apify_save_event_meta($post_id, array $params) {
 
         eventon_apify_update_or_delete_meta($post_id, $meta_key, $value);
     }
+}
+
+/**
+ * Persist the EventON yes/no flag meta fields from request parameters.
+ *
+ * @param int                  $post_id Event post ID.
+ * @param array<string, mixed> $params  Request body parameters.
+ */
+function eventon_apify_save_event_flag_meta($post_id, array $params) {
+    $flag_meta_map = array(
+        'featured' => '_featured',
+        'completed' => '_completed',
+        'exclude_from_calendar' => 'evo_exclude_ev',
+        'loggedin_only' => '_onlyloggedin',
+        'hide_end_time' => 'evo_hide_endtime',
+        'span_hidden_end' => 'evo_span_hidden_end',
+        'hide_location_name' => 'evcal_hide_locname',
+        'hide_organizer_card' => 'evo_evcrd_field_org',
+        'generate_gmap' => 'evcal_gmap_gen',
+        'open_google_maps_link' => 'evcal_gmap_link',
+        'location_access_loggedin_only' => 'evo_access_control_location',
+        'location_info_over_image' => 'evcal_name_over_img',
+        'organizer_as_performer' => 'evo_event_org_as_perf',
+        'virtual_enabled' => '_virtual',
+        'virtual_hide_when_live' => '_vir_hide',
+        'virtual_disable_redirect_hiding' => '_vir_nohiding',
+        'virtual_end_enabled' => '_evo_virtual_endtime',
+    );
+
+    foreach ($flag_meta_map as $request_key => $meta_key) {
+        if (array_key_exists($request_key, $params)) {
+            eventon_apify_update_yes_no_meta($post_id, $meta_key, $params[$request_key]);
+        }
+    }
+}
+
+/**
+ * Save EventON meta fields from request parameters.
+ *
+ * @param int                  $post_id Event post ID.
+ * @param array<string, mixed> $params  Request body parameters.
+ * @return true|WP_Error
+ */
+function eventon_apify_save_event_meta($post_id, array $params) {
+    $datetime_result = eventon_apify_save_datetime_meta($post_id, $params);
+    if (is_wp_error($datetime_result)) {
+        return $datetime_result;
+    }
+
+    if (array_key_exists('featured_media', $params)) {
+        $featured_media_result = eventon_apify_save_featured_media($post_id, $params['featured_media']);
+        if (is_wp_error($featured_media_result)) {
+            return $featured_media_result;
+        }
+    }
+
+    eventon_apify_save_event_text_meta($post_id, $params);
 
     if (array_key_exists('event_status', $params)) {
         eventon_apify_update_or_delete_meta($post_id, '_status', sanitize_key((string) $params['event_status']));
@@ -120,31 +167,7 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         }
     }
 
-    $flag_meta_map = array(
-        'featured' => '_featured',
-        'completed' => '_completed',
-        'exclude_from_calendar' => 'evo_exclude_ev',
-        'loggedin_only' => '_onlyloggedin',
-        'hide_end_time' => 'evo_hide_endtime',
-        'span_hidden_end' => 'evo_span_hidden_end',
-        'hide_location_name' => 'evcal_hide_locname',
-        'hide_organizer_card' => 'evo_evcrd_field_org',
-        'generate_gmap' => 'evcal_gmap_gen',
-        'open_google_maps_link' => 'evcal_gmap_link',
-        'location_access_loggedin_only' => 'evo_access_control_location',
-        'location_info_over_image' => 'evcal_name_over_img',
-        'organizer_as_performer' => 'evo_event_org_as_perf',
-        'virtual_enabled' => '_virtual',
-        'virtual_hide_when_live' => '_vir_hide',
-        'virtual_disable_redirect_hiding' => '_vir_nohiding',
-        'virtual_end_enabled' => '_evo_virtual_endtime',
-    );
-
-    foreach ($flag_meta_map as $request_key => $meta_key) {
-        if (array_key_exists($request_key, $params)) {
-            eventon_apify_update_yes_no_meta($post_id, $meta_key, $params[$request_key]);
-        }
-    }
+    eventon_apify_save_event_flag_meta($post_id, $params);
 
     if (array_key_exists('interaction_new_window', $params)) {
         eventon_apify_update_yes_no_meta($post_id, '_evcal_exlink_target', $params['interaction_new_window']);
