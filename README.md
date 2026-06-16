@@ -8,6 +8,23 @@
 
 WordPress plugin that exposes protected REST API endpoints for EventON `ajde_events`, including pagination, search, create, update, delete, and RSVP delta-sync operations for administrator-authenticated integrations.
 
+## Contents
+
+- [Quick start](#quick-start)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Packaging](#packaging)
+- [Releases](#releases)
+- [Authentication](#authentication)
+- [Privacy](#privacy)
+- [MCP compatibility](#mcp-compatibility)
+- [MCP schema manifest](#mcp-schema-manifest)
+- [API reference](#api-reference)
+- [Automatic updates](#automatic-updates)
+- [Related packages](#related-packages)
+- [License](#license)
+
 ## Quick start
 
 1. Copy this plugin into your WordPress plugins directory.
@@ -22,12 +39,12 @@ curl -u your_username:your_app_password \
   "https://your-site.com/wp-json/eventonapify/v1/events?per_page=10&page=1"
 ```
 
-Version `1.8.0` adds RSVP attendee delta sync with canonical `updated_at` timestamps plus `updated_after` and `updated_after_id` checkpoint parameters.
+See [GitHub Releases](https://github.com/renatobo/eventon-apify/releases) for the changelog and the latest packaged build.
 
 ## Features
 
 - Dedicated namespace: `eventonapify/v1`
-- List EventON events with pagination, search, and status filtering
+- List EventON events with pagination, search, status filtering, and exact slug lookup
 - Fetch a single event by ID
 - Create new `ajde_events` posts via REST
 - Update existing events, including EventON timestamps, status, virtual, repeat, RSVP, and taxonomy-backed location/organizer metadata
@@ -511,12 +528,6 @@ This repository is set up for a dual distribution model:
 - GitHub Releases is the active channel and publishes the packaged zip used by direct installs.
 - [Git Updater](https://github.com/afragen/git-updater) can track this repository and install updates from the attached GitHub release asset because the main plugin file includes the required Git Updater headers.
 - WordPress.org is intended as a secondary channel later; it is not the active install or release path yet.
-
-## Release process
-
-- `readme.txt` keeps the `Stable tag` version
-- GitHub Actions can package zip releases for `v*` tags
-- `release.sh` bumps the main plugin version and `Stable tag`
 
 ## Related packages
 
