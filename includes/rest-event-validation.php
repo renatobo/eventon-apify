@@ -1,6 +1,37 @@
 <?php
 
 /**
+ * Validate that an optional enum field, when present, holds an allowed value.
+ *
+ * Centralizes the present-check + sanitize_key + allowlist + 400 pattern shared
+ * by the event_status, attendance_mode, time_extend_type, and repeat_frequency
+ * fields.
+ *
+ * @param array<string, mixed> $params      Request body parameters.
+ * @param string               $key         Parameter name to validate.
+ * @param array<int, string>   $allowed     Allowed sanitized values.
+ * @param string               $error_code  WP_Error code on failure.
+ * @param string               $message     WP_Error message on failure.
+ * @param bool                 $allow_empty When true, a blank value is accepted.
+ * @return true|WP_Error
+ */
+function eventon_apify_validate_enum_field(array $params, $key, array $allowed, $error_code, $message, $allow_empty = false) {
+    if (!array_key_exists($key, $params)) {
+        return true;
+    }
+
+    if ($allow_empty && trim((string) $params[$key]) === '') {
+        return true;
+    }
+
+    if (!in_array(sanitize_key((string) $params[$key]), $allowed, true)) {
+        return new WP_Error($error_code, $message, array('status' => 400));
+    }
+
+    return true;
+}
+
+/**
  * Validate request payload fields before create/update.
  *
  * @param array<string, mixed> $params    Request body parameters.
@@ -58,28 +89,37 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         }
     }
 
-    if (array_key_exists('event_status', $params) && !in_array(sanitize_key((string) $params['event_status']), eventon_apify_get_allowed_event_statuses(), true)) {
-        return new WP_Error(
-            'eventon_apify_invalid_event_status',
-            'event_status must be one of: ' . implode(', ', eventon_apify_get_allowed_event_statuses()) . '.',
-            array('status' => 400)
-        );
+    $event_status_check = eventon_apify_validate_enum_field(
+        $params,
+        'event_status',
+        eventon_apify_get_allowed_event_statuses(),
+        'eventon_apify_invalid_event_status',
+        'event_status must be one of: ' . implode(', ', eventon_apify_get_allowed_event_statuses()) . '.'
+    );
+    if (is_wp_error($event_status_check)) {
+        return $event_status_check;
     }
 
-    if (array_key_exists('attendance_mode', $params) && !in_array(sanitize_key((string) $params['attendance_mode']), eventon_apify_get_allowed_attendance_modes(), true)) {
-        return new WP_Error(
-            'eventon_apify_invalid_attendance_mode',
-            'attendance_mode must be one of: offline, online, mixed.',
-            array('status' => 400)
-        );
+    $attendance_mode_check = eventon_apify_validate_enum_field(
+        $params,
+        'attendance_mode',
+        eventon_apify_get_allowed_attendance_modes(),
+        'eventon_apify_invalid_attendance_mode',
+        'attendance_mode must be one of: offline, online, mixed.'
+    );
+    if (is_wp_error($attendance_mode_check)) {
+        return $attendance_mode_check;
     }
 
-    if (array_key_exists('time_extend_type', $params) && !in_array(sanitize_key((string) $params['time_extend_type']), array('n', 'dl', 'ml', 'yl'), true)) {
-        return new WP_Error(
-            'eventon_apify_invalid_time_extend_type',
-            'time_extend_type must be one of: n, dl, ml, yl.',
-            array('status' => 400)
-        );
+    $time_extend_type_check = eventon_apify_validate_enum_field(
+        $params,
+        'time_extend_type',
+        array('n', 'dl', 'ml', 'yl'),
+        'eventon_apify_invalid_time_extend_type',
+        'time_extend_type must be one of: n, dl, ml, yl.'
+    );
+    if (is_wp_error($time_extend_type_check)) {
+        return $time_extend_type_check;
     }
 
     if (array_key_exists('timezone_key', $params) && trim((string) $params['timezone_key']) !== '' && !eventon_apify_is_valid_timezone((string) $params['timezone_key'])) {
@@ -150,12 +190,16 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         }
     }
 
-    if (array_key_exists('repeat_frequency', $params) && trim((string) $params['repeat_frequency']) !== '' && !in_array(sanitize_key((string) $params['repeat_frequency']), eventon_apify_get_allowed_repeat_frequencies(), true)) {
-        return new WP_Error(
-            'eventon_apify_invalid_repeat_frequency',
-            'repeat.frequency must be one of: ' . implode(', ', eventon_apify_get_allowed_repeat_frequencies()) . '.',
-            array('status' => 400)
-        );
+    $repeat_frequency_check = eventon_apify_validate_enum_field(
+        $params,
+        'repeat_frequency',
+        eventon_apify_get_allowed_repeat_frequencies(),
+        'eventon_apify_invalid_repeat_frequency',
+        'repeat.frequency must be one of: ' . implode(', ', eventon_apify_get_allowed_repeat_frequencies()) . '.',
+        true
+    );
+    if (is_wp_error($repeat_frequency_check)) {
+        return $repeat_frequency_check;
     }
 
     if (array_key_exists('repeat_intervals', $params)) {

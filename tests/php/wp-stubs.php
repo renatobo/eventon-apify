@@ -182,3 +182,15 @@ if (!function_exists('wp_timezone')) {
         return new DateTimeZone('UTC');
     }
 }
+
+if (!function_exists('wp_timezone_string')) {
+    function wp_timezone_string() {
+        return 'UTC';
+    }
+}
+
+if (!function_exists('sanitize_key')) {
+    function sanitize_key($key) {
+        return preg_replace('/[^a-z0-9_\-]/', '', strtolower((string) $key));
+    }
+}
