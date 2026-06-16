@@ -209,6 +209,9 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 2.2.1 =
+* Corrected the bundled OpenAPI spec version, which still read 2.1.1 in the 2.2.0 build; the release script now bumps and verifies it.
+
 = 2.2.0 =
 * Added support for a top-level `slug` on event create/update, sanitized and stored as the WordPress `post_name` (fixes #4).
 * Restricted the public MCP schema manifest so the granular capability matrix and per-capability RSVP flags are returned only to authenticated administrators; anonymous callers receive coarse availability booleans only.
