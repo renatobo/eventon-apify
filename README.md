@@ -254,6 +254,11 @@ curl "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
 | `search` | string | No | Search against event title/content |
 | `status` | string | No | Comma-separated post statuses such as `publish,draft` |
 | `slug` | string or array | No | Limit results to events matching one or more exact slugs; accepts a single slug, a comma-separated list, or an array (`slug[]=a&slug[]=b`) |
+| `starts_on_or_after` | string | No | Only return events that start on or after this local date (`YYYY-MM-DD`) |
+| `starts_before` | string | No | Only return events that start strictly before this local date (`YYYY-MM-DD`) |
+| `upcoming` | boolean | No | When true, only return events starting today or later in the site timezone; ignored if `starts_on_or_after` is set |
+| `order` | string | No | Sort direction: `asc` (default) or `desc` |
+| `orderby` | string | No | Sort field: `start_at` (default), `created`, `modified`, or `title` |
 
 ### RSVP summary response
 
@@ -351,6 +356,7 @@ curl -u your_username:your_app_password \
 | `organizers` | array | No | EventON `event_organizer` terms |
 | `event_color` / `event_color_secondary` | string | No | Hex colors, with or without `#` |
 | `event_type` | array or string | No | Event type terms as array or comma-separated string |
+| `tags` | array or string | No | Post tags as array or comma-separated string |
 | `flags` | object | No | EventON yes/no flags such as `featured`, `generate_gmap`, `hide_end_time` |
 | `virtual` | object | No | Virtual event metadata such as URL, password, embed, and visible end |
 | `repeat` | object | No | Repeat settings, including `frequency`, `count`, and custom `intervals` |
@@ -396,6 +402,7 @@ curl -u your_username:your_app_password \
     ],
     "event_color": "#ff0000",
     "event_type": ["Rides", "Featured"],
+    "tags": ["bike night", "ducati"],
     "flags": {
       "featured": true,
       "generate_gmap": true,
@@ -475,6 +482,15 @@ curl -u your_username:your_app_password \
       ],
       "event_color": "#ff0000",
       "event_type": ["Rides", "Featured"],
+      "event_type_terms": [
+        { "term_id": 7, "name": "Rides", "slug": "rides" },
+        { "term_id": 8, "name": "Featured", "slug": "featured" }
+      ],
+      "tags": ["bike night", "ducati"],
+      "tag_terms": [
+        { "term_id": 31, "name": "bike night", "slug": "bike-night" },
+        { "term_id": 32, "name": "ducati", "slug": "ducati" }
+      ],
       "event_status": "scheduled",
       "attendance_mode": "offline",
       "featured_image": ""
@@ -482,6 +498,8 @@ curl -u your_username:your_app_password \
   ]
 }
 ```
+
+Each event also includes `event_type_terms` and `tag_terms` arrays carrying `term_id`, `name`, and `slug` for every term. The label-only `event_type` and `tags` arrays remain for backward compatibility.
 
 ### Common error responses
 

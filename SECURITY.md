@@ -4,7 +4,7 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 1.3.x   | Yes       |
+| 2.1.x   | Yes       |
 
 ## Reporting a Vulnerability
 

@@ -1557,6 +1557,11 @@ function eventon_apify_get_mcp_content_type_manifest() {
                 'status' => array(
                     'maps_to' => 'status',
                 ),
+                'slug' => array(
+                    'maps_to' => 'slug',
+                    'field' => 'post_name',
+                    'format' => 'slug_or_slug_list',
+                ),
                 'search' => array(
                     'maps_to' => 'search',
                 ),

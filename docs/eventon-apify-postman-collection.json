@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9c76fdcf-11f4-4682-9359-96e38da94749",
     "name": "EventON APIfy API",
-    "description": "Postman collection for the public MCP discovery routes and the administrator-protected EventON APIfy REST endpoints, including RSVP delta sync introduced in 1.8.0.",
+    "description": "Postman collection for the public MCP discovery routes and the administrator-protected EventON APIfy REST endpoints, including RSVP delta sync, event date-range filtering, sorting, and exact slug lookup.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -117,6 +117,24 @@
             "header": [],
             "url": "{{baseUrl}}/{{namespace}}/events?status=publish,future&starts_on_or_after=2026-03-30",
             "description": "List EventON events whose start date is on or after the supplied local date."
+          }
+        },
+        {
+          "name": "List events within a date range (sorted)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/{{namespace}}/events?starts_on_or_after=2026-03-01&starts_before=2026-04-01&orderby=start_at&order=desc",
+            "description": "List EventON events bounded by start date, sorted by start_at descending. orderby accepts start_at, created, modified, or title; order accepts asc or desc."
+          }
+        },
+        {
+          "name": "List events by slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/{{namespace}}/events?slug=ride-to-big-bear,bike-night",
+            "description": "Resolve events by one or more exact slugs. Accepts a single slug, a comma-separated list, or repeated slug[]= array parameters."
           }
         },
         {

@@ -4,7 +4,7 @@
     "title": "EventON APIfy REST API",
     "summary": "OpenAPI definition for the public discovery routes and the administrator-protected EventON event endpoints.",
     "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and public MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
-    "version": "1.8.0"
+    "version": "2.1.1"
   },
   "externalDocs": {
     "description": "Plugin repository",
@@ -151,6 +151,24 @@
             "description": "Comma-separated WordPress post statuses. Allowed values are `publish`, `draft`, `private`, `pending`, and `future`."
           },
           {
+            "name": "slug",
+            "in": "query",
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "description": "Limit results to events matching one or more exact slugs. Accepts a single slug, a comma-separated list, or an array (`slug[]=a&slug[]=b`). Mapped to `post_name__in`."
+          },
+          {
             "name": "starts_on_or_after",
             "in": "query",
             "schema": {
@@ -160,12 +178,49 @@
             "description": "Only return events that start on or after the given local date."
           },
           {
+            "name": "starts_before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Only return events that start strictly before the given local date."
+          },
+          {
             "name": "upcoming",
             "in": "query",
             "schema": {
               "type": "boolean"
             },
             "description": "When true, only return events starting today or later in the site timezone. Ignored if starts_on_or_after is provided."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "description": "Sort direction for the event collection."
+          },
+          {
+            "name": "orderby",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "start_at",
+                "created",
+                "modified",
+                "title"
+              ],
+              "default": "start_at"
+            },
+            "description": "Field used to sort the event collection."
           }
         ],
         "responses": {
@@ -990,7 +1045,15 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Label-only tag names, preserved for backward compatibility."
+          },
+          "tag_terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TermObject"
+            },
+            "description": "Tag terms with `term_id`, `name`, and `slug` for each term."
           },
           "event_subtitle": {
             "type": "string"
@@ -1058,7 +1121,15 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Label-only event type names, preserved for backward compatibility."
+          },
+          "event_type_terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TermObject"
+            },
+            "description": "Event type terms with `term_id`, `name`, and `slug` for each term."
           },
           "event_status": {
             "type": "string"
@@ -1136,6 +1207,18 @@
             "bike night",
             "ducati"
           ],
+          "tag_terms": [
+            {
+              "term_id": 31,
+              "name": "bike night",
+              "slug": "bike-night"
+            },
+            {
+              "term_id": 32,
+              "name": "ducati",
+              "slug": "ducati"
+            }
+          ],
           "event_subtitle": "High-altitude ride day",
           "event_excerpt": "Ride to Big Bear is a one-day ride in Big Bear Lake on April 1, 2026 from 9:00 to 17:00 PT.",
           "link": "https://example.com/events/ride-to-big-bear",
@@ -1169,6 +1252,18 @@
           "event_type": [
             "Rides",
             "Featured"
+          ],
+          "event_type_terms": [
+            {
+              "term_id": 7,
+              "name": "Rides",
+              "slug": "rides"
+            },
+            {
+              "term_id": 8,
+              "name": "Featured",
+              "slug": "featured"
+            }
           ],
           "event_status": "scheduled",
           "attendance_mode": "offline",
@@ -1290,6 +1385,21 @@
           "map_url": {
             "type": "string",
             "format": "uri"
+          }
+        }
+      },
+      "TermObject": {
+        "type": "object",
+        "description": "A taxonomy term with its identifier, display name, and slug.",
+        "properties": {
+          "term_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
           }
         }
       },

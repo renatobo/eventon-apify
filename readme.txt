@@ -208,9 +208,21 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 2.1.1 =
+* Fixed the `slug` filter dropping array input (`slug[]=a&slug[]=b`) by sanitizing each value while preserving both the comma-separated string and array forms.
+
 = 2.1.0 =
 * Added an exact `slug` filter to the `eventonapify/v1/events` list endpoint (accepts a single slug, a comma-separated list, or an array) so events can be resolved by slug or public URL without scanning the full collection.
 * Added identifier-bearing `event_type_terms` and `tag_terms` arrays (`term_id`, `name`, `slug`) to event payloads alongside the existing label-only `event_type`/`tags` arrays, which remain unchanged for backward compatibility.
+
+= 2.0.0 =
+* Added native event date-range filtering to the `eventonapify/v1/events` list endpoint with `starts_on_or_after`, `starts_before`, `order`, and `orderby`.
+* Published MCP read-contract metadata for `ajde_events`, including the read endpoint, list/get support, and filter mappings for bounded event reads.
+* Kept event collection pagination and totals SQL-backed when filtering by date bounds for better performance on larger catalogs.
+* Split the plugin bootstrap, admin UI, MCP manifest, and REST/event handlers into dedicated `includes/` modules.
+
+= 1.8.0 =
+* Added RSVP attendee delta sync with canonical `updated_at` timestamps plus `updated_after` and `updated_after_id` checkpoint parameters.
 
 = 1.6.0 =
 * Corrected the `ajde_events` MCP manifest contract so `preferred_endpoint` now advertises `/wp-json/eventonapify/v1/events`, matching the working EventON APIfy events routes.
