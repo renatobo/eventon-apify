@@ -53,7 +53,7 @@ function eventon_apify_register_routes() {
                     ),
                     'slug' => array(
                         'default' => '',
-                        'sanitize_callback' => 'sanitize_text_field',
+                        'sanitize_callback' => 'eventon_apify_sanitize_slug_filter',
                         'description' => 'Limit results to events matching one or more exact slugs (comma-separated string or array).',
                     ),
                     'status' => array(
@@ -879,6 +879,23 @@ function eventon_apify_sanitize_per_page($value) {
     }
 
     return min($per_page, 100);
+}
+
+/**
+ * Sanitize a slug filter that accepts a comma-separated string or an array.
+ *
+ * Preserves the array form (?slug[]=a&slug[]=b) instead of collapsing it to an
+ * empty string, while still sanitizing each value as a slug.
+ *
+ * @param mixed $value Request parameter.
+ * @return string|array Sanitized slug string or array of slugs.
+ */
+function eventon_apify_sanitize_slug_filter($value) {
+    if (is_array($value)) {
+        return array_values(array_filter(array_map('sanitize_title', $value)));
+    }
+
+    return sanitize_text_field($value);
 }
 
 /**
