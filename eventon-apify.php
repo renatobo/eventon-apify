@@ -41,7 +41,14 @@ require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/capabilities.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/settings-backup.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/wp-v2-compat.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/admin.php';
-require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-field-definitions.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-field-metadata.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-contract-builder.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-validation.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-examples.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-availability.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-rsvp.php';
+require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/mcp-manifest.php';
 require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/rest.php';
 
 if (version_compare(PHP_VERSION, '8.0.0', '<')) {
