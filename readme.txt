@@ -208,9 +208,11 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
-= 2.1.2 =
+= 2.2.0 =
 * Restricted the public MCP schema manifest so the granular capability matrix and per-capability RSVP flags are returned only to authenticated administrators; anonymous callers receive coarse availability booleans only.
 * Capped the events `slug` filter at 100 values and applied `sanitize_title` to every value to keep the `post_name__in` query bounded.
+* Moved the settings-page styles and scripts into enqueued asset files so they are cacheable and no longer rendered inline.
+* Restructured the plugin internals into focused modules and added a PHP unit test suite; no change to API behavior.
 * Removed the orphaned RSVP delta-sync post meta (`_eventon_apify_updated_at_gmt`) during plugin uninstall.
 
 = 2.1.1 =
