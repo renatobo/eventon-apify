@@ -1,0 +1,30 @@
+name: PHP Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+
+      - name: Lint PHP sources
+        run: |
+          set -e
+          for file in eventon-apify.php uninstall.php includes/*.php; do
+            php -l "$file"
+          done
+
+      - name: Run unit suite
+        run: php tests/php/run.php
