@@ -97,6 +97,74 @@ function eventon_apify_get_event_rsvp_summary(WP_REST_Request $request) {
 }
 
 /**
+ * Apply the rsvp / status / search list filters to RSVP attendees.
+ *
+ * @param array<int, array<string, mixed>> $attendees     Attendee records.
+ * @param string                           $rsvp_filter   'all' or an exact rsvp value.
+ * @param string                           $status_filter '', 'all', or a lowercased status.
+ * @param string                           $search        Lowercased search term, or ''.
+ * @return array<int, array<string, mixed>>
+ */
+function eventon_apify_filter_rsvp_attendees(array $attendees, $rsvp_filter, $status_filter, $search) {
+    if ($rsvp_filter !== 'all') {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($rsvp_filter) {
+                    return ($attendee['rsvp'] ?? '') === $rsvp_filter;
+                }
+            )
+        );
+    }
+
+    if ($status_filter !== '' && $status_filter !== 'all') {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($status_filter) {
+                    return strtolower((string) ($attendee['status'] ?? '')) === $status_filter;
+                }
+            )
+        );
+    }
+
+    if ($search !== '') {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($search) {
+                    return eventon_apify_rsvp_attendee_matches_search($attendee, $search);
+                }
+            )
+        );
+    }
+
+    return $attendees;
+}
+
+/**
+ * Paginate a list, returning the requested page slice plus collection metadata.
+ *
+ * @param array<int, mixed> $items    Items to paginate.
+ * @param int               $page     1-based page number.
+ * @param int               $per_page Page size.
+ * @return array<string, mixed>
+ */
+function eventon_apify_paginate_list(array $items, $page, $per_page) {
+    $total = count($items);
+    $pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
+    $offset = max(0, ($page - 1) * $per_page);
+
+    return array(
+        'total' => $total,
+        'pages' => $pages,
+        'page' => $page,
+        'per_page' => $per_page,
+        'items' => array_slice($items, $offset, $per_page),
+    );
+}
+
+/**
  * List RSVP attendee records for an EventON event.
  */
 function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
@@ -137,38 +205,7 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         );
     }
 
-    if ($rsvp_filter !== 'all') {
-        $attendees = array_values(
-            array_filter(
-                $attendees,
-                static function (array $attendee) use ($rsvp_filter) {
-                    return ($attendee['rsvp'] ?? '') === $rsvp_filter;
-                }
-            )
-        );
-    }
-
-    if ($status_filter !== '' && $status_filter !== 'all') {
-        $attendees = array_values(
-            array_filter(
-                $attendees,
-                static function (array $attendee) use ($status_filter) {
-                    return strtolower((string) ($attendee['status'] ?? '')) === $status_filter;
-                }
-            )
-        );
-    }
-
-    if ($search !== '') {
-        $attendees = array_values(
-            array_filter(
-                $attendees,
-                static function (array $attendee) use ($search) {
-                    return eventon_apify_rsvp_attendee_matches_search($attendee, $search);
-                }
-            )
-        );
-    }
+    $attendees = eventon_apify_filter_rsvp_attendees($attendees, $rsvp_filter, $status_filter, $search);
 
     if ($updated_after instanceof DateTimeImmutable) {
         $checkpoint_timestamp = eventon_apify_get_rsvp_datetime_sort_key($updated_after);
@@ -190,18 +227,20 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         $attendees = array_column($keyed, 'data');
     }
 
-    $per_page = (int) $request->get_param('per_page');
-    $page = (int) $request->get_param('page');
-    $total = count($attendees);
-    $pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
-    $offset = max(0, ($page - 1) * $per_page);
-    $paged_attendees = array_slice($attendees, $offset, $per_page);
+    $pagination = eventon_apify_paginate_list(
+        $attendees,
+        (int) $request->get_param('page'),
+        (int) $request->get_param('per_page')
+    );
+    $paged_attendees = $pagination['items'];
+    $pages = $pagination['pages'];
+    $page = $pagination['page'];
 
     $response = array(
-        'total' => $total,
+        'total' => $pagination['total'],
         'pages' => $pages,
         'page' => $page,
-        'per_page' => $per_page,
+        'per_page' => $pagination['per_page'],
         'attendees' => $paged_attendees,
     );
 
