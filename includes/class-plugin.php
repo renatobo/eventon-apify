@@ -25,6 +25,13 @@ final class Plugin {
         }
 
         self::$booted = true;
+
+        if (version_compare(PHP_VERSION, '8.0.0', '<')) {
+            require_once EVENTON_APIFY_PLUGIN_DIR . '/includes/bootstrap.php';
+            add_action('admin_notices', 'eventon_apify_php_version_notice');
+            return;
+        }
+
         self::load_modules();
         self::register_hooks();
     }
@@ -79,11 +86,6 @@ final class Plugin {
      * Register all plugin integration points.
      */
     private static function register_hooks() {
-        if (version_compare(PHP_VERSION, '8.0.0', '<')) {
-            add_action('admin_notices', 'eventon_apify_php_version_notice');
-            return;
-        }
-
         if (is_admin()) {
             add_action('admin_menu', 'eventon_apify_add_settings_page');
             add_action('admin_enqueue_scripts', 'eventon_apify_enqueue_settings_assets');

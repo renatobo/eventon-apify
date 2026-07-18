@@ -109,7 +109,9 @@ function eventon_apify_register_routes() {
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => 'eventon_apify_create_event',
                 'permission_callback' => 'eventon_apify_admin_only',
-                'args' => eventon_apify_get_event_write_args(true),
+                // Required create fields are checked after compatibility payloads
+                // have been normalized into their canonical form.
+                'args' => eventon_apify_get_event_write_args(false),
             ),
         )
     );

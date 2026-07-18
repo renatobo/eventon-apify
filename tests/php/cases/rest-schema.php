@@ -1,11 +1,18 @@
 <?php
 
-test('create REST schema requires canonical create fields', function () {
+test('canonical create schema identifies required domain fields', function () {
     $args = eventon_apify_get_event_write_args(true);
 
     ok($args['title']['required']);
     ok($args['start_date']['required']);
     eq($args['slug']['required'], false);
+});
+
+test('route-compatible create schema defers required fields until normalization', function () {
+    $args = eventon_apify_get_event_write_args(false);
+
+    eq($args['title']['required'], false);
+    eq($args['start_date']['required'], false);
 });
 
 test('update REST schema does not require create-only fields', function () {
