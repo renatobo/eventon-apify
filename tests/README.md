@@ -42,3 +42,12 @@ npm run test:dev
 - invalid checkpoint validation smoke test
 
 These tests target a real environment and are intentionally read-only.
+
+## WordPress 7 integration
+
+CI installs WordPress 7.0.2 with MySQL and runs
+`tests/integration/wp-rest-smoke.php`. That smoke test verifies plugin startup,
+REST route registration, administrator authorization, protected MCP discovery,
+write schemas, and compensating rollback after a partial write failure. The
+fixture supplies the EventON post type and taxonomies; production smoke testing
+remains responsible for compatibility with the proprietary EventON runtime.

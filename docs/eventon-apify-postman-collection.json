@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9c76fdcf-11f4-4682-9359-96e38da94749",
     "name": "EventON APIfy API",
-    "description": "Postman collection for the public MCP discovery routes and the administrator-protected EventON APIfy REST endpoints, including RSVP delta sync, event date-range filtering, sorting, and exact slug lookup.",
+    "description": "Postman collection for the administrator-protected MCP discovery and EventON APIfy REST endpoints, including RSVP delta sync, event date-range filtering, sorting, and exact slug lookup.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -64,10 +64,7 @@
   ],
   "item": [
     {
-      "name": "Public discovery",
-      "auth": {
-        "type": "noauth"
-      },
+      "name": "Authenticated discovery",
       "item": [
         {
           "name": "Get MCP schema manifest",
@@ -75,7 +72,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/{{namespace}}/mcp-schema",
-            "description": "Returns the public MCP schema manifest."
+            "description": "Returns the administrator-authenticated MCP schema manifest."
           }
         },
         {
@@ -84,7 +81,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/{{namespace}}/mcp-schema/{{contentType}}",
-            "description": "Returns one public MCP content-type manifest. Set `contentType` to `ajde_events` or `event_rsvps`."
+            "description": "Returns one administrator-authenticated MCP content-type manifest. Set `contentType` to `ajde_events` or `event_rsvps`."
           }
         }
       ]

@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Return a single EventON event.
  */
@@ -72,16 +76,9 @@ function eventon_apify_create_event(WP_REST_Request $request) {
         return $post_id;
     }
 
-    $meta_result = eventon_apify_save_event_meta($post_id, $params);
-    if (is_wp_error($meta_result)) {
-        wp_delete_post($post_id, true);
-        return $meta_result;
-    }
-
-    $term_result = eventon_apify_save_event_terms($post_id, $params);
-    if (is_wp_error($term_result)) {
-        wp_delete_post($post_id, true);
-        return $term_result;
+    $write_result = EventON_APIfy_Event_Write_Coordinator::persist($post_id, $params, true);
+    if (is_wp_error($write_result)) {
+        return $write_result;
     }
 
     $response = rest_ensure_response(eventon_apify_format_event(get_post($post_id)));
@@ -130,21 +127,9 @@ function eventon_apify_update_event(WP_REST_Request $request) {
 
     $updates = eventon_apify_apply_requested_slug($updates, $params);
 
-    if (count($updates) > 1) {
-        $result = wp_update_post($updates, true);
-        if (is_wp_error($result)) {
-            return $result;
-        }
-    }
-
-    $meta_result = eventon_apify_save_event_meta($post->ID, $params);
-    if (is_wp_error($meta_result)) {
-        return $meta_result;
-    }
-
-    $term_result = eventon_apify_save_event_terms($post->ID, $params);
-    if (is_wp_error($term_result)) {
-        return $term_result;
+    $write_result = EventON_APIfy_Event_Write_Coordinator::persist($post->ID, $params, false, $updates);
+    if (is_wp_error($write_result)) {
+        return $write_result;
     }
 
     return rest_ensure_response(eventon_apify_format_event(get_post($post->ID)));

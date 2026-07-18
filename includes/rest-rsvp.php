@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Record a canonical change timestamp whenever an RSVP post itself is saved.
  *

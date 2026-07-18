@@ -61,6 +61,8 @@
   - the OpenAPI spec file
   - the Postman collection
   - the current site REST root / Postman `baseUrl` value
+- Describe MCP discovery as administrator-authenticated; it uses the same
+  Application Password and `manage_options` policy as the protected event API.
 
 ## Maintenance
 

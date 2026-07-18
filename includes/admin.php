@@ -1,4 +1,8 @@
 <?php
+
+if (!defined('ABSPATH')) {
+    exit;
+}
 function eventon_apify_render_settings_page() {
     $site_url = untrailingslashit(get_site_url());
     $rest_root_url = $site_url . '/wp-json';
@@ -276,7 +280,7 @@ function eventon_apify_render_settings_page() {
                         <div class="eventon-apify-example-grid">
                             <div class="eventon-apify-example">
                                 <strong><?php esc_html_e('OpenAPI 3.1 spec', 'eventon-apify'); ?></strong>
-                                <p><?php esc_html_e('Covers the public MCP discovery routes plus the protected EventON event and RSVP endpoints.', 'eventon-apify'); ?></p>
+                                <p><?php esc_html_e('Covers the administrator-authenticated MCP discovery, EventON event, and RSVP endpoints.', 'eventon-apify'); ?></p>
                                 <code id="eventon-apify-openapi-spec"><?php echo esc_html($openapi_spec_url); ?></code>
                                 <div class="eventon-apify-example-actions">
                                     <a class="button button-primary" href="<?php echo esc_url($openapi_spec_url); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Open spec', 'eventon-apify'); ?></a>

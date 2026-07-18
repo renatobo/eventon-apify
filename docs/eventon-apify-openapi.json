@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "EventON APIfy REST API",
-    "summary": "OpenAPI definition for the public discovery routes and the administrator-protected EventON event endpoints.",
-    "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and public MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
+    "summary": "OpenAPI definition for administrator-protected discovery and EventON event endpoints.",
+    "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and authenticated MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
     "version": "2.2.1"
   },
   "externalDocs": {
@@ -24,7 +24,7 @@
   "tags": [
     {
       "name": "Discovery",
-      "description": "Public discovery documents and MCP schema manifests."
+      "description": "Administrator-authenticated discovery documents and MCP schema manifests."
     },
     {
       "name": "Events",
@@ -42,8 +42,12 @@
           "Discovery"
         ],
         "summary": "Get the full MCP schema manifest",
-        "description": "Returns the public MCP discovery document for the published EventON content contracts.",
-        "security": [],
+        "description": "Returns the authenticated MCP discovery document for the published EventON content contracts.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Manifest envelope",
@@ -64,8 +68,12 @@
           "Discovery"
         ],
         "summary": "Get a single MCP content-type manifest",
-        "description": "Returns the public MCP discovery document for a single published content type.",
-        "security": [],
+        "description": "Returns the authenticated MCP discovery document for a single published content type.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "content_type",

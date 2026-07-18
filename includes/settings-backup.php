@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Seed and restore plugin settings so upgrades do not silently disable the API surface.
  */

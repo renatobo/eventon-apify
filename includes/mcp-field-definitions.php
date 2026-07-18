@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 function eventon_apify_get_contract_field_definitions() {
     return array(
         'title' => array(

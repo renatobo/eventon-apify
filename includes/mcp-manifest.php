@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Return authoring guidance for MCP agents that prepare EventON payloads.
  *

@@ -2,7 +2,7 @@
 Contributors: renatobo
 Tags: eventon, api, rest-api, events
 Requires at least: 6.0
-Tested up to: 6.9.4
+Tested up to: 7.0.2
 Requires PHP: 8.0
 Stable tag: 2.2.1
 License: GPLv2 or later
