@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Save event taxonomy terms.
  *
@@ -601,32 +605,7 @@ function eventon_apify_save_term_meta_payload($taxonomy, $term_id, array $term_m
         $payload[$meta_key] = (string) $meta_value;
     }
 
-    if (function_exists('evo_save_term_metas')) {
-        evo_save_term_metas($taxonomy, $term_id, $payload);
-        return true;
-    }
-
-    $all_term_meta = get_option('evo_tax_meta', array());
-    if (!is_array($all_term_meta)) {
-        $all_term_meta = array();
-    }
-
-    $existing = $all_term_meta[$taxonomy][$term_id] ?? array();
-    if (!is_array($existing)) {
-        $existing = array();
-    }
-
-    $merged = array_merge($existing, $payload);
-    foreach ($merged as $key => $value) {
-        if ($value === '') {
-            unset($merged[$key]);
-        }
-    }
-
-    $all_term_meta[$taxonomy][$term_id] = $merged;
-    update_option('evo_tax_meta', $all_term_meta);
-
-    return true;
+    return EventON_APIfy_Taxonomy_Meta_Store::save($taxonomy, $term_id, $payload);
 }
 
 /**

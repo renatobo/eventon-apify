@@ -2,61 +2,37 @@
 
 ## Executive Summary
 
-- Plugin version reviewed: 2.1.1.
-- Scope reviewed: `eventon-apify.php`, `uninstall.php`, and the `includes/{core,admin,mcp,rest}.php` modules.
-- Method: static source review only. No live instance was deployed and no dynamic/runtime testing was performed in this run.
-- Overall risk: Low. The custom `eventonapify/v1` routes are consistently administrator-gated, no raw SQL is used, and the optional `wp/v2` compatibility mode now disables `show_in_rest` for non-admins and filters core search. The previously reported Medium `wp/v2` search leak is substantially mitigated.
-- Finding counts by severity:
-  - Critical: 0
-  - High: 0
-  - Medium: 0
-  - Low: 4 (WPSEC-002, WPSEC-003, WPSEC-004 remediated in the working tree, pending the 2.1.2 release)
+- Plugin version reviewed: 2.2.1.
+- Scope reviewed: the plugin bootstrap, all files in `includes/`, `uninstall.php`, REST routes, WordPress `wp/v2` compatibility hooks, settings, RSVP reads, event writes, taxonomy writes, and the current PHP test/CI configuration.
+- Method: static source tracing plus the 65-test PHP suite and PHP syntax checks under PHP 8.5.8. A WordPress 7.0.2 integration smoke job is included in CI; no live EventON/RSVP instance or authenticated penetration test was available locally.
+- Overall risk: Low. No concrete critical, high, or medium vulnerability was identified. Protected event and RSVP routes consistently require `manage_options`; inputs are normalized and validated before writes; rendered admin output is contextually escaped; and no raw SQL, upload, filesystem-write, or command-execution surface exists.
+- Finding counts: Critical 0, High 0, Medium 0, Low 0. One prior Low finding is resolved on this branch.
 
 ## Critical
 
-No critical issues identified in the reviewed scope.
+No critical issues identified.
 
 ## High
 
-No high-severity issues identified in the reviewed scope.
+No high-severity issues identified.
 
 ## Medium
 
-No medium-severity issues identified in the reviewed scope. See WPSEC-001 below for the prior Medium finding, now downgraded to Low after mitigation.
+No medium-severity issues identified.
 
 ## Low
 
-### WPSEC-001 `wp/v2` compatibility authorization depends on a route-prefix allowlist (mitigated; defense-in-depth)
+No unresolved low-severity issues identified.
 
-- Prior status: Medium (unauthenticated `/wp/v2/search?subtype=ajde_events` leaked EventON titles/URLs in compatibility mode). Current status: substantially mitigated.
-- Files: `includes/core.php:360` (allowlist `eventon_apify_is_wp_v2_compatibility_route()`), `includes/core.php:335` (auth filter, hooked at `eventon-apify.php:60`).
-- Why mitigated: for non-admin requests the post type and taxonomies are registered with `show_in_rest = false` (`includes/rest.php:274`, `includes/rest.php:305`), compatibility fields register only for admins (`includes/rest.php:324`), and core search is explicitly stripped of `ajde_events` for non-admins via `rest_post_search_query` / `rest_term_search_query` filters (`includes/core.php:481`, `includes/core.php:504`). Index/types/taxonomies responses are also scrubbed (`includes/core.php:422`, `includes/core.php:444`).
-- Residual concern: the design still enumerates routes/filters rather than using a single deny-by-default gate, so a future core route that surfaces `show_in_rest` post types by an unanticipated path could regress admin-context exposure (non-admins remain protected by `show_in_rest=false`).
-- Remediation: keep `show_in_rest=false`-for-non-admins as the primary control; treat the allowlist as belt-and-suspenders. Add regression tests for non-admin access to `/wp/v2/search?subtype=ajde_events`, `/wp/v2/ajde_events`, `/wp/v2/types`, and `/wp/v2/taxonomies`.
+### Resolved: WPSEC-001 Schema endpoints were accessible without authentication
 
-### WPSEC-002 Public MCP manifest exposes live feature configuration
-
-- Status: Resolved (pending 2.1.2). The capability matrix and per-capability RSVP flags are now gated behind `manage_options` in `eventon_apify_get_mcp_availability_state()` and `eventon_apify_get_mcp_rsvp_content_type_manifest()`; anonymous callers get coarse booleans only.
-- Files: `includes/rest.php:10` and `includes/rest.php:22` (routes registered with `permission_callback => '__return_true'`); `includes/mcp.php:1411` (`eventon_apify_get_mcp_availability_state()`), embedded at `includes/mcp.php:1520`, repeated at `includes/mcp.php:1588` and `includes/mcp.php:1610`.
-- Impact: unauthenticated callers learn which addons are active, whether the custom API and `wp/v2` compatibility are enabled, and the full capability matrix (`custom_event_api_capabilities`, `rsvp_attendees_enabled`, `rsvp_counts_enabled`). Low-risk reconnaissance; no records, secrets, or PII are exposed. The endpoint is public by design (`includes/admin.php:307`).
-- Remediation: move the live `availability` block behind an authenticated path, or reduce the public payload to coarse booleans and drop the capability matrix.
-
-### WPSEC-003 Slug filter has no count cap; sanitizer string branch is inconsistent
-
-- Status: Resolved (pending 2.1.2). Slug input is capped at `EVENTON_APIFY_MAX_SLUG_FILTER` (100) and `sanitize_title` is applied to every value in both branches.
-- Files: `includes/rest.php:893` (`eventon_apify_sanitize_slug_filter()`), `includes/rest.php:1662` (query-time normalization to `post_name__in`).
-- Impact: no injection (values are `sanitize_title`'d before reaching `WP_Query`), but there is no upper bound on the number of slugs, so a very large list produces a large `IN` clause (minor performance/DoS consideration).
-- Remediation: cap the slug list (e.g. `array_slice(..., 0, 100)`) and apply `sanitize_title` in the string branch for consistency.
-
-### WPSEC-004 `uninstall.php` leaves RSVP delta-sync post meta
-
-- Status: Resolved (pending 2.1.2). `uninstall.php` now calls `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')`.
-- Files: `uninstall.php:6` (option cleanup), missing removal of `_eventon_apify_updated_at_gmt` (defined `eventon-apify.php:34`, written `includes/rest.php:250`).
-- Impact: incomplete cleanup; orphaned timestamp meta remains after uninstall. No security/PII impact.
-- Remediation: add `delete_post_meta_by_key('_eventon_apify_updated_at_gmt')` to `uninstall.php`.
+- Files: `includes/rest-routes.php:4-31`, `includes/mcp-manifest.php:54-176`.
+- Resolution: both MCP schema routes now use `eventon_apify_admin_only`, matching the event API and the stated authenticated-automation-client policy. OpenAPI, Postman, README, and settings UI copy now describe the authenticated behavior.
 
 ## Notes
 
-- Assumptions: WPSEC-001's residual risk depends on `wp/v2` compatibility being enabled and on future WordPress core changes; non-admin exposure is closed in 2.1.1.
-- Strengths confirmed: centralized admin-only permission callback on all event routes (`includes/rest.php:855`); API and sensitive capabilities disabled by default (`includes/core.php:67`, `:222`); PII/secret redaction on the `wp/v2` surface (`includes/rest.php:411`); strict input validation and allowlists for dates, order/orderby, status, and enums (`includes/rest.php:644`, `:703`, `:742`); no direct `$wpdb` usage anywhere in `includes/`; Settings API nonce/CSRF and escaped admin output (`includes/admin.php:99`).
-- Areas not verified this run: no live/dynamic testing, no exhaustive per-endpoint core REST probing, no addon-interaction testing. No SQL, file-upload, command-execution, or nonce issues were found in the reviewed scope.
+- Strong controls: all event and RSVP data routes use `eventon_apify_admin_only()` (`includes/rest-routes.php:34-196`, `includes/rest-access-control.php:6-8`); write callbacks re-check feature/capability enablement; the optional `wp/v2` compatibility surface is hidden and rejected for non-administrators; shared taxonomy mutation has an explicit administrator check; and user-facing settings output is escaped.
+- No direct use of `$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, or `$_FILES` was found. No direct `$wpdb`, dynamic include, unsafe upload, shell command, or arbitrary filesystem operation was found.
+- `maybe_unserialize()` is used only on EventON values read through WordPress metadata APIs. No attacker-controlled deserialization path was established in this review.
+- Multi-step event writes now use compensating rollback across post fields, post metadata, term assignments, and EventON's shared taxonomy metadata option.
+- Residual gaps: no live EventON/RSVP test, no multisite test, no full role/application-password matrix, no concurrent-write stress test, and no automated dynamic scanner. CodeRabbit was unavailable locally.

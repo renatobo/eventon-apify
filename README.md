@@ -2,7 +2,7 @@
 
 [![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
-[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-6.9.4-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-7.0.2-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Release](https://img.shields.io/github/v/release/renatobo/eventon-apify?label=release)](https://github.com/renatobo/eventon-apify/releases)
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
@@ -15,6 +15,7 @@ WordPress plugin that exposes protected REST API endpoints for EventON `ajde_eve
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Packaging](#packaging)
+- [Development quality gates](#development-quality-gates)
 - [Releases](#releases)
 - [Authentication](#authentication)
 - [Privacy](#privacy)
@@ -86,6 +87,25 @@ Build an installable plugin zip from the repo root:
 ```
 
 That creates a file like `eventon-apify-x.y.z.zip` in the project root, ready to upload in **Plugins -> Add New -> Upload Plugin**.
+
+## Development quality gates
+
+Composer dependencies are development-only and are excluded from release packages. Install and run the complete local gate with:
+
+```bash
+composer install
+composer quality
+```
+
+The individual commands are:
+
+- `composer lint` — WordPress security, deprecated API, alternative-function, and global-prefix PHPCS rules.
+- `composer analyse` — PHPStan analysis against WordPress stubs.
+- `composer test` — the dependency-free PHP unit suite.
+- `composer performance` — the deterministic 10,000-record RSVP helper budget.
+- `XDEBUG_MODE=coverage composer coverage` — unit coverage report and minimum line-coverage gate; writes `coverage.json`.
+
+CI runs the quality gate with Xdebug, uploads the coverage report, and separately exercises the supported PHP matrix and WordPress integration smoke test.
 
 ## Releases
 
@@ -207,7 +227,7 @@ The manifest describes:
 - when the RSVP addon is active, a read-only `event_rsvps` content type for `/wp-json/eventonapify/v1/events/{event_id}/rsvps`
 - when the RSVP addon is active, the related RSVP summary endpoint `/wp-json/eventonapify/v1/events/{event_id}/rsvps/summary`
 
-The manifest routes are public, but the granular capability matrix (`custom_event_api_capabilities`, and the per-capability `rsvp_attendees_enabled` / `rsvp_counts_enabled` flags) is included only for authenticated administrators. Anonymous callers receive the coarse availability booleans only.
+The manifest routes require an authenticated administrator, matching the event API authorization policy. Use a WordPress Application Password for automation clients.
 
 Important: the manifest is discovery-only. Compatible clients should follow the advertised `preferred_endpoint`, which for `ajde_events` is `/wp-json/eventonapify/v1/events`. The contract examples are client-facing normalized payloads, not raw WordPress REST requests.
 
@@ -216,7 +236,8 @@ When using `wp/v2`, clients may send those normalized EventON fields directly on
 Example:
 
 ```bash
-curl "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
+curl -u your_username:your_application_password \
+  "https://your-site.com/wp-json/eventonapify/v1/mcp-schema/ajde_events"
 ```
 
 ## API reference

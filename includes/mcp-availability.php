@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Merge MCP availability flags, exposing the admin-only set only to
  * authenticated administrators.

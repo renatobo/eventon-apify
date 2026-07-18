@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Record a canonical change timestamp whenever an RSVP post itself is saved.
  *
@@ -264,39 +268,10 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
  * @return array<int, array<string, mixed>>|WP_Error
  */
 function eventon_apify_get_event_rsvp_attendees($event_id) {
-    if (!eventon_apify_is_eventon_rsvp_available()) {
-        return new WP_Error(
-            'eventon_apify_rsvp_missing',
-            __('The EventON RSVP addon is not active or the evo-rsvp post type is unavailable.', 'eventon-apify'),
-            array('status' => 404)
-        );
-    }
-
-    $query = new WP_Query(
-        array(
-            'post_type' => 'evo-rsvp',
-            'post_status' => array('publish', 'private', 'draft'),
-            'posts_per_page' => -1,
-            'orderby' => 'ID',
-            'order' => 'DESC',
-            'no_found_rows' => true,
-            'update_post_term_cache' => false,
-            'meta_query' => array(
-                array(
-                    'key' => 'e_id',
-                    'value' => (string) $event_id,
-                    'compare' => '=',
-                ),
-            ),
-        )
+    $repository = new \EventON_APIfy\RSVP_Attendee_Repository(
+        new \EventON_APIfy\RSVP_Attendee_Formatter()
     );
-
-    $attendees = array();
-    foreach ($query->posts as $post) {
-        $attendees[] = eventon_apify_format_rsvp_attendee($post);
-    }
-
-    return $attendees;
+    return $repository->find_by_event($event_id);
 }
 
 /**
@@ -305,64 +280,8 @@ function eventon_apify_get_event_rsvp_attendees($event_id) {
  * @return array<string, mixed>
  */
 function eventon_apify_format_rsvp_attendee(WP_Post $post) {
-    $meta = get_post_meta($post->ID);
-    $rsvp_object = class_exists('EVO_RSVP_CPT') ? new EVO_RSVP_CPT($post->ID) : null;
-    $first_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('first_name'), array('first_name')));
-    $last_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('last_name'), array('last_name')));
-    $email = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('email'), array('email')));
-    $phone = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array(), array('phone')));
-    $count = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('count'), array('count')));
-    $event_id = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('event_id'), array('e_id')));
-    $repeat_interval = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('repeat_interval'), array('repeat_interval')));
-
-    if ($count < 1) {
-        $count = 1;
-    }
-
-    $rsvp_value = eventon_apify_normalize_rsvp_response(
-        eventon_apify_get_rsvp_field_value(
-            $rsvp_object,
-            $meta,
-            array('get_rsvp_status'),
-            array('rsvp')
-        )
-    );
-    $status = strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('checkin_status'), array('status'))));
-    $rsvp_type = strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('get_rsvp_type'), array('rsvp_type'))));
-    $other_attendees = eventon_apify_normalize_rsvp_other_attendees(
-        eventon_apify_get_rsvp_field_value(
-            $rsvp_object,
-            $meta,
-            array('get_names'),
-            array('names')
-        )
-    );
-    $email_updates_value = eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('get_updates'), array('updates'));
-    $full_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('full_name'), array()));
-    $event_time = eventon_apify_get_rsvp_event_time($event_id, $repeat_interval);
-
-    if ($full_name === '') {
-        $full_name = trim((string) $post->post_title);
-    }
-
-    return array(
-        'id' => $post->ID,
-        'created_at' => eventon_apify_get_post_created_at_iso8601($post),
-        'updated_at' => eventon_apify_get_rsvp_updated_at_iso8601($post),
-        'first_name' => $first_name,
-        'last_name' => $last_name,
-        'full_name' => $full_name,
-        'email' => $email,
-        'phone' => $phone,
-        'email_updates' => eventon_apify_is_yes($email_updates_value),
-        'rsvp' => $rsvp_value,
-        'status' => $status,
-        'rsvp_type' => $rsvp_type,
-        'count' => $count,
-        'event_time' => $event_time,
-        'other_attendees' => $other_attendees,
-        'custom_fields' => eventon_apify_get_rsvp_custom_fields($meta),
-    );
+    $formatter = new \EventON_APIfy\RSVP_Attendee_Formatter();
+    return $formatter->format($post);
 }
 
 /**

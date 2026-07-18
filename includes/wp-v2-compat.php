@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Determine whether the standard wp/v2 compatibility layer is enabled.
  */

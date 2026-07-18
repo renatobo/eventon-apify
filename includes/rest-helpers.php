@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Normalize an API interaction mode value.
  */

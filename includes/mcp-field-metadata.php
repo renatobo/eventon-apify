@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Return the normalized plugin-specific fields exported in the MCP contract.
  *

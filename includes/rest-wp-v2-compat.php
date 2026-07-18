@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Expose EventON's event post type on the standard wp/v2 REST API when compatibility mode is enabled.
  *
@@ -74,6 +78,7 @@ function eventon_apify_register_wp_v2_compatibility_fields() {
             $field_name,
             array(
                 'get_callback' => 'eventon_apify_get_wp_v2_rest_field',
+                'schema' => eventon_apify_get_wp_v2_field_schema($field_name),
             )
         );
     }
@@ -85,6 +90,7 @@ function eventon_apify_register_wp_v2_compatibility_fields() {
             array(
                 'get_callback' => 'eventon_apify_get_wp_v2_rest_field',
                 'update_callback' => 'eventon_apify_update_wp_v2_rest_field',
+                'schema' => eventon_apify_get_wp_v2_field_schema($field_name),
             )
         );
     }
@@ -95,6 +101,12 @@ function eventon_apify_register_wp_v2_compatibility_fields() {
             $field_name,
             array(
                 'update_callback' => 'eventon_apify_update_wp_v2_wrapped_rest_field',
+                'schema' => array(
+                    'description' => __('EventON field wrapper.', 'eventon-apify'),
+                    'type' => 'object',
+                    'context' => array('edit'),
+                    'additionalProperties' => true,
+                ),
             )
         );
     }

@@ -12,6 +12,8 @@ $GLOBALS['__eventon_test_options'] = array();
 $GLOBALS['__eventon_test_post_meta'] = array();
 $GLOBALS['__eventon_test_post_types'] = array();
 $GLOBALS['__eventon_test_can'] = false;
+$GLOBALS['__eventon_test_actions'] = array();
+$GLOBALS['__eventon_test_filters'] = array();
 
 /**
  * Reset all in-memory WordPress state between tests.
@@ -21,6 +23,8 @@ function eventon_test_reset_wp_state() {
     $GLOBALS['__eventon_test_post_meta'] = array();
     $GLOBALS['__eventon_test_post_types'] = array('ajde_events' => true);
     $GLOBALS['__eventon_test_can'] = false;
+    $GLOBALS['__eventon_test_actions'] = array();
+    $GLOBALS['__eventon_test_filters'] = array();
 }
 
 /**
@@ -201,6 +205,32 @@ if (!function_exists('post_type_exists')) {
 if (!function_exists('apply_filters')) {
     function apply_filters($tag, $value) {
         return $value;
+    }
+}
+
+if (!function_exists('is_admin')) {
+    function is_admin() {
+        return false;
+    }
+}
+
+if (!function_exists('add_action')) {
+    function add_action($hook, $callback, $priority = 10, $accepted_args = 1) {
+        $GLOBALS['__eventon_test_actions'][$hook][] = $callback;
+        return true;
+    }
+}
+
+if (!function_exists('add_filter')) {
+    function add_filter($hook, $callback, $priority = 10, $accepted_args = 1) {
+        $GLOBALS['__eventon_test_filters'][$hook][] = $callback;
+        return true;
+    }
+}
+
+if (!function_exists('plugin_basename')) {
+    function plugin_basename($file) {
+        return basename(dirname($file)) . '/' . basename($file);
     }
 }
 

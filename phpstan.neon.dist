@@ -1,0 +1,15 @@
+parameters:
+    level: 1
+    paths:
+        - eventon-apify.php
+        - includes
+        - uninstall.php
+    scanFiles:
+        - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+    bootstrapFiles:
+        - tests/phpstan-bootstrap.php
+    excludePaths:
+        analyse:
+            - includes/admin.php
+    reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
