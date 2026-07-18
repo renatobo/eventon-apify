@@ -4,7 +4,7 @@
     "title": "EventON APIfy REST API",
     "summary": "OpenAPI definition for administrator-protected discovery and EventON event endpoints.",
     "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and authenticated MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
-    "version": "2.2.1"
+    "version": "3.0.0"
   },
   "externalDocs": {
     "description": "Plugin repository",
@@ -719,7 +719,7 @@
         "example": {
           "schema_version": "1.0.0",
           "provider": "eventon-apify",
-          "provider_version": "2.2.1",
+          "provider_version": "3.0.0",
           "generated_at": "2026-03-30T00:00:00Z",
           "site_url": "https://example.com",
           "namespace": "eventonapify/v1",

@@ -4,7 +4,7 @@ Tags: eventon, api, rest-api, events
 Requires at least: 6.0
 Tested up to: 7.0.2
 Requires PHP: 8.0
-Stable tag: 2.2.1
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -208,6 +208,12 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 3.0.0 =
+* Refactored plugin startup and event persistence into documented architectural boundaries with compensating rollback for partial writes.
+* Extracted RSVP attendee access and formatting behind compatibility-preserving repository and formatter classes.
+* Added release-blocking PHPCS, PHPStan, coverage, and RSVP performance gates, with immutable GitHub Actions pins.
+* Corrected settings guidance so MCP schema routes are consistently documented as administrator-authenticated.
 
 = 2.2.1 =
 * Corrected the bundled OpenAPI spec version, which still read 2.1.1 in the 2.2.0 build; the release script now bumps and verifies it.
