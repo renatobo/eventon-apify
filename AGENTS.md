@@ -31,6 +31,13 @@
 - Pushing a `v*` tag triggers `.github/workflows/package-plugin.yml`, which runs `./build.sh`, uploads the generated zip to the GitHub Release, and uses `release-notes/<version>.md` as the descriptive release body before appending the changelog comparison link.
 - `.github/workflows/update-stable-tag.yml` can create and push `v<Stable tag>` from `readme.txt` on `main` pushes, or from a manually supplied version via `workflow_dispatch`.
 
+## Testing
+
+- Use `npm run test:unit` for the PHP unit harness in `tests/php/run.php`.
+- Use `npm run test:prod` for the production integration test wrapper in `scripts/test-production.sh`.
+- Use `npm run test:dev` when you need the same production test path against `.env.development`.
+- `scripts/test-production.sh` expects an env file at `.env.production.local` by default, or a custom file via `EVENTON_APIFY_ENV_FILE`.
+
 ## UI Documentation
 
 - The current settings header and tabs design is documented in `ui.md`.
