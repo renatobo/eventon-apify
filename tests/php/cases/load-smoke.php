@@ -38,4 +38,7 @@ test('a representative function from every module is defined', function () {
     foreach ($representatives as $fn) {
         ok(function_exists($fn), "missing function: {$fn}");
     }
+
+    ok(class_exists('EventON_APIfy\\RSVP_Attendee_Formatter'), 'missing RSVP attendee formatter');
+    ok(class_exists('EventON_APIfy\\RSVP_Attendee_Repository'), 'missing RSVP attendee repository');
 });

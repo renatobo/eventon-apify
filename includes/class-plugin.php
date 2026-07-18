@@ -60,6 +60,8 @@ final class Plugin {
             'rest-event-terms.php',
             'event-write-coordinator.php',
             'rest-events-write.php',
+            'class-rsvp-attendee-formatter.php',
+            'class-rsvp-attendee-repository.php',
             'rest-rsvp.php',
             'rest-routes.php',
         );

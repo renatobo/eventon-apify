@@ -28,7 +28,10 @@ and owns hook registration. Admin UI code is loaded only in admin requests.
    isolates the proprietary shared taxonomy option and prefers EventON's public
    helper when available.
 5. **Presentation:** `rest-events-read.php` and `rest-rsvp.php` map WordPress and
-   EventON records to stable response objects. `admin.php` owns settings UI only.
+   EventON records to stable response objects. RSVP post access and attendee
+   mapping are isolated behind `RSVP_Attendee_Repository` and
+   `RSVP_Attendee_Formatter`; the published procedural callbacks remain as
+   compatibility adapters. `admin.php` owns settings UI only.
 
 ## Reliability model
 

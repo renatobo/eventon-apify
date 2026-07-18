@@ -57,6 +57,7 @@
 - Prefer flat cards, subtle borders, and native admin spacing.
 - Keep toggles and capability controls on the `Event API` tab.
 - Keep `WP v2 compatibility`, `API Specs`, `MCP schema manifest`, `Request fields`, and `Application Passwords` as separate tabs.
+- Describe the MCP schema manifest as read-only discovery that still requires an authenticated administrator; do not describe either manifest route as public.
 - Keep the `API Specs` tab focused on checked-in artifact links for:
   - the OpenAPI spec file
   - the Postman collection

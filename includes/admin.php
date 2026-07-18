@@ -308,7 +308,7 @@ function eventon_apify_render_settings_page() {
                             </div>
                             <div class="eventon-apify-code-card">
                                 <strong><?php esc_html_e('Authentication', 'eventon-apify'); ?></strong>
-                                <span><?php esc_html_e('Use a WordPress administrator username and an Application Password for secured routes. The MCP schema manifest routes remain public.', 'eventon-apify'); ?></span>
+                                <span><?php esc_html_e('Use a WordPress administrator username and an Application Password for all API routes, including the MCP schema manifest.', 'eventon-apify'); ?></span>
                             </div>
                         </div>
 
@@ -346,10 +346,10 @@ function eventon_apify_render_settings_page() {
                         </div>
 
                         <p>
-                            <?php esc_html_e('The manifest is read-only and safe to expose. It describes the executable EventON field contract using', 'eventon-apify'); ?> <code>preferred_endpoint</code>, <code>preferred_write_mode</code>, <?php esc_html_e('structured', 'eventon-apify'); ?> <code>fields</code>, <?php esc_html_e('executable', 'eventon-apify'); ?> <code>validation_rules</code>, <?php esc_html_e('and normalized', 'eventon-apify'); ?> <code>examples.create</code> <?php esc_html_e('and', 'eventon-apify'); ?> <code>examples.update</code> <?php esc_html_e('payloads for', 'eventon-apify'); ?> <code>ajde_events</code>.
+                            <?php esc_html_e('The administrator-authenticated manifest is read-only. It describes the executable EventON field contract using', 'eventon-apify'); ?> <code>preferred_endpoint</code>, <code>preferred_write_mode</code>, <?php esc_html_e('structured', 'eventon-apify'); ?> <code>fields</code>, <?php esc_html_e('executable', 'eventon-apify'); ?> <code>validation_rules</code>, <?php esc_html_e('and normalized', 'eventon-apify'); ?> <code>examples.create</code> <?php esc_html_e('and', 'eventon-apify'); ?> <code>examples.update</code> <?php esc_html_e('payloads for', 'eventon-apify'); ?> <code>ajde_events</code>.
                         </p>
                         <p class="eventon-apify-note">
-                            <?php esc_html_e('The manifest is discovery-only. Compatible MCP clients should follow the advertised', 'eventon-apify'); ?> <code>preferred_endpoint</code> <?php esc_html_e('and use the EventON APIfy events routes when interacting with', 'eventon-apify'); ?> <code>ajde_events</code>.
+                            <?php esc_html_e('The manifest is discovery-only but still requires administrator credentials. Compatible MCP clients should follow the advertised', 'eventon-apify'); ?> <code>preferred_endpoint</code> <?php esc_html_e('and use the EventON APIfy events routes when interacting with', 'eventon-apify'); ?> <code>ajde_events</code>.
                         </p>
                     </div>
                 </section>

@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php-version }}
 
@@ -31,6 +31,45 @@ jobs:
 
       - name: Run unit suite
         run: php tests/php/run.php
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Set up PHP, Composer, and coverage
+        uses: shivammathur/setup-php@f3e473d116dccc5834248c87452386958240 # v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Install quality tooling
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Check WordPress coding standards
+        run: composer lint
+
+      - name: Run static analysis
+        run: composer analyse
+
+      - name: Enforce RSVP helper performance budget
+        run: composer performance
+
+      - name: Generate and enforce coverage report
+        env:
+          XDEBUG_MODE: coverage
+          EVENTON_APIFY_MIN_COVERAGE: '10'
+        run: composer coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: php-line-coverage
+          path: coverage.json
+          if-no-files-found: error
 
   wordpress-7-integration:
     runs-on: ubuntu-latest
@@ -51,10 +90,10 @@ jobs:
           --health-retries=10
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Set up PHP and WP-CLI
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dccc5834248c87452386958240 # v2
         with:
           php-version: '8.3'
           tools: wp-cli

@@ -1,7 +1,7 @@
 # PHP Unit Suite
 
-Fast, dependency-free unit tests for the plugin's pure logic. They run with just
-`php` — no database, no WordPress install, no Composer. WordPress functions the
+Fast, dependency-free unit tests for the plugin's pure logic. The tests themselves
+run with just `php` — no database, no WordPress install, and no Composer runtime. WordPress functions the
 code calls are replaced by small in-memory doubles in [`wp-stubs.php`](wp-stubs.php).
 
 ## Run
@@ -48,9 +48,10 @@ for refactors such as decomposing the larger write/validation functions. They do
 route/bootstrap integration, while the production smoke suite (`npm run
 test:prod`, see [../README.md](../README.md)) covers a configured EventON site.
 
-## Migrating to PHPUnit (optional)
+## Quality tooling
 
-The cases map almost 1:1 onto PHPUnit: `test('name', fn)` → a `test*()` method,
-`eq($a, $b)` → `assertSame($b, $a)`, `ok($c)` → `assertTrue($c)`. Point a
-`phpunit.xml` at `bootstrap.php` and convert the case files if/when Composer is
-added to the toolchain.
+The repository uses Composer for development-only PHPCS, PHPStan, and WordPress
+stub dependencies. `composer quality` runs standards, static analysis, this unit
+suite, and the RSVP helper performance budget. With Xdebug coverage mode enabled,
+`composer coverage` also writes `coverage.json` and enforces the configured line
+coverage floor.

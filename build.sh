@@ -38,11 +38,16 @@ rsync -a \
   --exclude '.DS_Store' \
   --exclude '.env' \
   --exclude '.env.*' \
+  --exclude 'vendor/' \
   --exclude '*.zip' \
   --exclude '*.md' \
   --exclude '.gitignore' \
   --exclude 'build.sh' \
   --exclude 'package.json' \
+  --exclude 'composer.json' \
+  --exclude 'composer.lock' \
+  --exclude 'phpcs.xml.dist' \
+  --exclude 'phpstan.neon.dist' \
   --exclude 'release.sh' \
   --exclude 'scripts/' \
   --exclude 'tests/' \

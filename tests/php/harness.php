@@ -64,7 +64,7 @@ function throws(callable $fn, $expected_class = 'Throwable', $message = '') {
 /**
  * Run all registered tests, print results, and exit with a status code.
  */
-function eventon_run_tests() {
+function eventon_run_tests($exit = true) {
     $passed = 0;
     $failed = 0;
 
@@ -89,5 +89,10 @@ function eventon_run_tests() {
     echo "\n" . ($failed === 0 ? 'PASS' : 'FAIL')
         . ": {$passed} passed, {$failed} failed\n";
 
-    exit($failed === 0 ? 0 : 1);
+    $exit_code = $failed === 0 ? 0 : 1;
+    if ($exit) {
+        exit($exit_code);
+    }
+
+    return $exit_code;
 }

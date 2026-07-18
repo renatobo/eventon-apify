@@ -15,6 +15,7 @@ WordPress plugin that exposes protected REST API endpoints for EventON `ajde_eve
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Packaging](#packaging)
+- [Development quality gates](#development-quality-gates)
 - [Releases](#releases)
 - [Authentication](#authentication)
 - [Privacy](#privacy)
@@ -86,6 +87,25 @@ Build an installable plugin zip from the repo root:
 ```
 
 That creates a file like `eventon-apify-x.y.z.zip` in the project root, ready to upload in **Plugins -> Add New -> Upload Plugin**.
+
+## Development quality gates
+
+Composer dependencies are development-only and are excluded from release packages. Install and run the complete local gate with:
+
+```bash
+composer install
+composer quality
+```
+
+The individual commands are:
+
+- `composer lint` — WordPress security, deprecated API, alternative-function, and global-prefix PHPCS rules.
+- `composer analyse` — PHPStan analysis against WordPress stubs.
+- `composer test` — the dependency-free PHP unit suite.
+- `composer performance` — the deterministic 10,000-record RSVP helper budget.
+- `XDEBUG_MODE=coverage composer coverage` — unit coverage report and minimum line-coverage gate; writes `coverage.json`.
+
+CI runs the quality gate with Xdebug, uploads the coverage report, and separately exercises the supported PHP matrix and WordPress integration smoke test.
 
 ## Releases
 
