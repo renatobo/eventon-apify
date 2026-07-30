@@ -619,8 +619,12 @@ function eventon_apify_get_term_meta_payload($taxonomy, $term_id) {
     }
 
     if (function_exists('evo_get_term_meta')) {
-        $meta = evo_get_term_meta($taxonomy, $term_id, true);
-        return is_array($meta) ? $meta : array();
+        // Third arg is a pre-fetched options array, not a $single flag; '' lets
+        // EventON read its own store, true enables the legacy taxonomy_<id> fallback.
+        $meta = evo_get_term_meta($taxonomy, $term_id, '', true);
+        if (is_array($meta) && !empty($meta)) {
+            return $meta;
+        }
     }
 
     $all_term_meta = get_option('evo_tax_meta', array());
