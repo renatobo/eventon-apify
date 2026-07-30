@@ -16,11 +16,6 @@ function eventon_apify_filter_post_type_args_for_wp_v2_compat(array $args, $post
         return $args;
     }
 
-    if (!current_user_can('manage_options')) {
-        $args['show_in_rest'] = false;
-        return $args;
-    }
-
     $args['show_in_rest'] = true;
     $args['rest_base'] = 'ajde_events';
 
@@ -43,12 +38,16 @@ function eventon_apify_filter_taxonomy_args_for_wp_v2_compat(array $args, $taxon
         return $args;
     }
 
-    if (!in_array($taxonomy, array('event_type', 'event_location', 'event_organizer'), true)) {
-        return $args;
-    }
+    $taxonomies = array(
+        'event_type',
+        'event_type_2',
+        'event_type_3',
+        'event_type_4',
+        'event_location',
+        'event_organizer',
+    );
 
-    if (!current_user_can('manage_options')) {
-        $args['show_in_rest'] = false;
+    if (!in_array($taxonomy, $taxonomies, true)) {
         return $args;
     }
 
