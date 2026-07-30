@@ -28,6 +28,7 @@
   - `## New Features`
   - `## Improvements`
   - `## Bug Fixes`
+- Write `## New Features` as `- None.` when there are none; `release.sh` requires the heading to be present regardless.
 - Pushing a `v*` tag triggers `.github/workflows/package-plugin.yml`, which runs `./build.sh`, uploads the generated zip to the GitHub Release, and uses `release-notes/<version>.md` as the descriptive release body before appending the changelog comparison link.
 - `.github/workflows/update-stable-tag.yml` can create and push `v<Stable tag>` from `readme.txt` on `main` pushes, or from a manually supplied version via `workflow_dispatch`.
 
@@ -37,6 +38,15 @@
 - Use `npm run test:prod` for the production integration test wrapper in `scripts/test-production.sh`.
 - Use `npm run test:dev` when you need the same production test path against `.env.development`.
 - `scripts/test-production.sh` expects an env file at `.env.production.local` by default, or a custom file via `EVENTON_APIFY_ENV_FILE`.
+- Use `composer quality` for the full gate (`phpcs` lint, `phpstan` analyse, unit tests, performance gate).
+- If `composer` is not on PATH, run the gate directly: `vendor/bin/phpcs`, `vendor/bin/phpstan analyse --no-progress --memory-limit=1G`, `php tests/php/run.php`, `php scripts/performance-gate.php`.
+- The gate is unit-level only. It cannot verify REST route registration; that needs a post-deploy check against the live site.
+
+## wp/v2 Compatibility Layer
+
+- Never call `current_user_can()` inside `register_post_type_args` / `register_taxonomy_args` filters in `includes/rest-wp-v2-compat.php`. Those fire on `init`, before application-password auth resolves, so the current user is always 0 and `show_in_rest` would be forced false for every REST client.
+- Admin-only access is enforced at request time in `includes/wp-v2-compat.php` via `eventon_apify_should_filter_wp_v2_compatibility_for_request()`: a `rest_pre_dispatch` 401, REST index stripping, `/wp/v2/types` + `/wp/v2/taxonomies` response stripping, and the search-query exclusions.
+- Do not source the registration whitelist from `eventon_apify_get_wp_v2_compatibility_taxonomies()`. It has a `static $cache` and depends on `post_type_exists('ajde_events')`; calling it at `init` poisons the cache the request-time guards read, registering routes the guards no longer recognize.
 
 ## UI Documentation
 
