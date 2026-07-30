@@ -448,6 +448,14 @@ function eventon_apify_get_contract_field_definitions() {
             ),
             'wp_v2_field_mode' => 'additional',
         ),
+        'access_control' => array(
+            'type' => 'object',
+            'group' => 'access',
+            'read_only' => true,
+            'description' => 'Membership gating configuration for the event, as configured in ARMember. Reports configuration, not per-user authorization.',
+            'shape' => eventon_apify_get_access_control_contract_shape(),
+            'wp_v2_field_mode' => 'read_only',
+        ),
         'start_timestamp' => array(
             'type' => 'integer',
             'group' => 'timing',
@@ -724,6 +732,28 @@ function eventon_apify_get_faq_contract_shape() {
                 'slug' => array('type' => 'string', 'description' => 'Optional FAQ slug for lookup or creation.'),
                 'answer' => array('type' => 'string', 'description' => 'FAQ answer stored as the term description.'),
             ),
+        ),
+    );
+}
+
+/**
+ * Return the nested access-control shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_access_control_contract_shape() {
+    return array(
+        'restricted' => array('type' => 'boolean', 'description' => 'Whether any ARMember gate applies to this event.'),
+        'provider' => array('type' => 'string', 'description' => 'Access-control provider: "armember" when a rule was found, empty otherwise.'),
+        'membership_plan_ids' => array(
+            'type' => 'array',
+            'item_type' => 'integer',
+            'description' => 'ARMember membership plan IDs permitted to view the event.',
+        ),
+        'restricted_by' => array(
+            'type' => 'array',
+            'item_type' => 'string',
+            'description' => 'Rule sources that apply: "post" and/or "term".',
         ),
     );
 }

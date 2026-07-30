@@ -388,6 +388,8 @@ curl -u your_username:your_app_password \
 
 Preferred payloads use nested `location`, `organizers`, `virtual`, `repeat`, `rsvp`, and `flags` objects. Legacy flat aliases like `location_name`, `location_address`, `map_url`, and `organizer` are still accepted for backward compatibility.
 
+Read responses additionally include a read-only `access_control` object reporting ARMember membership gating: `restricted` (boolean), `provider` (`armember` or empty), `membership_plan_ids` (integer array), and `restricted_by` (`post` and/or `term`). It reflects configuration, not per-user authorization, returns the empty state when ARMember is inactive, and is rejected on write.
+
 ### Example create request
 
 ```bash

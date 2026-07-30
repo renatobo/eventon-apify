@@ -37,6 +37,7 @@ function eventon_apify_format_event(WP_Post $post) {
     $status_reason = eventon_apify_get_event_status_reason_from_meta($meta, $event_status);
     $gradient_angle = eventon_apify_get_meta_text($meta, '_evo_event_grad_ang');
     $health = eventon_apify_get_health_payload($post->ID);
+    $access_control = eventon_apify_get_access_control_payload($post->ID, $meta);
 
     return array(
         'id' => $post->ID,
@@ -95,6 +96,7 @@ function eventon_apify_format_event(WP_Post $post) {
             'gradient_enabled' => eventon_apify_get_yes_no_flag($meta, '_evo_event_grad_colors'),
         ),
         'health' => $health,
+        'access_control' => $access_control,
         'gradient_angle' => is_numeric($gradient_angle) ? (0 + $gradient_angle) : null,
         'virtual' => eventon_apify_get_virtual_payload($meta, $timezone_key, $virtual_end_timestamp),
         'repeat' => eventon_apify_get_repeat_payload($meta, $timezone_key),
@@ -509,6 +511,88 @@ function eventon_apify_get_organizer_payload($post_id, array $meta) {
     }
 
     return $organizers;
+}
+
+/**
+ * Build the read-only ARMember access-control payload.
+ *
+ * Reports gating configuration, not per-user authorization. Post-level rules
+ * come from the multi-row `arm_access_plan` post meta (a `0` row marks the
+ * post as protected; other rows are permitted plan IDs). Term-level rules
+ * live in ARMember's own term meta table, reachable only through
+ * get_arm_term_meta(), which exists only when ARMember Pro is active.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_access_control_payload($post_id, array $meta) {
+    $payload = array(
+        'restricted' => false,
+        'provider' => '',
+        'membership_plan_ids' => array(),
+        'restricted_by' => array(),
+    );
+
+    $plan_ids = array();
+
+    if (isset($meta['arm_access_plan']) && is_array($meta['arm_access_plan']) && !empty($meta['arm_access_plan'])) {
+        $payload['restricted'] = true;
+        $payload['restricted_by'][] = 'post';
+
+        foreach ($meta['arm_access_plan'] as $plan_id) {
+            $plan_ids[] = (int) $plan_id;
+        }
+    }
+
+    if (function_exists('get_arm_term_meta')) {
+        $taxonomies = array(
+            'event_type',
+            'event_type_2',
+            'event_type_3',
+            'event_type_4',
+            'event_location',
+            'event_organizer',
+            'post_tag',
+        );
+
+        foreach ($taxonomies as $taxonomy) {
+            $terms = wp_get_post_terms($post_id, $taxonomy);
+            if (!$terms || is_wp_error($terms)) {
+                continue;
+            }
+
+            foreach ($terms as $term) {
+                // Same predicate ARMember's own frontend gate uses
+                // (class.arm_restriction.php): protection is the single
+                // '1' marker, plans are multi-row term meta.
+                $protection = get_arm_term_meta($term->term_id, 'arm_protection', true);
+                if (empty($protection) || '1' != $protection) {
+                    continue;
+                }
+
+                $payload['restricted'] = true;
+                if (!in_array('term', $payload['restricted_by'], true)) {
+                    $payload['restricted_by'][] = 'term';
+                }
+
+                $term_plans = get_arm_term_meta($term->term_id, 'arm_access_plan');
+                if (is_array($term_plans)) {
+                    foreach ($term_plans as $plan_id) {
+                        $plan_ids[] = (int) $plan_id;
+                    }
+                }
+            }
+        }
+    }
+
+    if ($payload['restricted']) {
+        $payload['provider'] = 'armember';
+        $plan_ids = array_values(array_unique(array_filter($plan_ids)));
+        sort($plan_ids);
+        $payload['membership_plan_ids'] = $plan_ids;
+    }
+
+    return $payload;
 }
 
 /**

@@ -1175,6 +1175,9 @@
           "health": {
             "$ref": "#/components/schemas/Health"
           },
+          "access_control": {
+            "$ref": "#/components/schemas/AccessControl"
+          },
           "gradient_angle": {
             "type": "number"
           },
@@ -1548,6 +1551,39 @@
           },
           "other": {
             "type": "string"
+          }
+        }
+      },
+      "AccessControl": {
+        "type": "object",
+        "description": "Membership gating configuration for the event, as configured in ARMember. Read-only; reports configuration, not per-user authorization.",
+        "readOnly": true,
+        "properties": {
+          "restricted": {
+            "type": "boolean",
+            "description": "Whether any ARMember gate applies to this event."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Access-control provider: 'armember' when a rule was found, empty otherwise."
+          },
+          "membership_plan_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "ARMember membership plan IDs permitted to view the event."
+          },
+          "restricted_by": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "post",
+                "term"
+              ]
+            },
+            "description": "Rule sources that apply: 'post' and/or 'term'."
           }
         }
       },
