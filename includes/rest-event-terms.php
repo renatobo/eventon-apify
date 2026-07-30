@@ -113,13 +113,17 @@ function eventon_apify_sync_simple_terms($post_id, $taxonomy, $terms) {
         $term_ids[] = (int) $term->term_id;
 
         if ($taxonomy === 'event_type' && is_array($term_input)) {
-            $term_color = eventon_apify_array_get($term_input, array('et_color', 'color'), '');
-            $normalized_color = eventon_apify_normalize_color_input($term_color);
+            if (eventon_apify_array_has_any($term_input, array('et_color', 'color'))) {
+                $term_color = eventon_apify_array_get($term_input, array('et_color', 'color'), '');
+                $normalized_color = eventon_apify_normalize_color_input($term_color);
 
-            if ($normalized_color !== null && $normalized_color !== '') {
-                $term_meta_result = eventon_apify_save_term_meta_payload('event_type', (int) $term->term_id, array('et_color' => $normalized_color));
-                if (is_wp_error($term_meta_result)) {
-                    return $term_meta_result;
+                // An explicitly empty color clears the stored value; only an
+                // unparseable color is skipped.
+                if ($normalized_color !== null) {
+                    $term_meta_result = eventon_apify_save_term_meta_payload('event_type', (int) $term->term_id, array('et_color' => $normalized_color));
+                    if (is_wp_error($term_meta_result)) {
+                        return $term_meta_result;
+                    }
                 }
             }
         }
@@ -218,7 +222,11 @@ function eventon_apify_sync_location_term($post_id, array $params) {
     }
 
     if (array_key_exists('location_email', $params)) {
-        $term_meta['loc_email'] = sanitize_email((string) $params['location_email']);
+        // Validation rejects malformed addresses, so an empty result here can
+        // only come from an intentionally blank value (which clears it).
+        $term_meta['loc_email'] = trim((string) $params['location_email']) === ''
+            ? ''
+            : sanitize_email((string) $params['location_email']);
     }
 
     if (array_key_exists('location_link', $params)) {
@@ -301,7 +309,9 @@ function eventon_apify_sync_organizer_terms($post_id, array $params) {
         }
 
         if (array_key_exists('email', $organizer)) {
-            $term_meta['evcal_org_contact_e'] = sanitize_email((string) $organizer['email']);
+            $term_meta['evcal_org_contact_e'] = trim((string) $organizer['email']) === ''
+                ? ''
+                : sanitize_email((string) $organizer['email']);
         }
 
         if (array_key_exists('link', $organizer)) {
@@ -356,6 +366,7 @@ function eventon_apify_sync_faq_terms($post_id, $items) {
     }
 
     if (!is_array($items) || empty($items)) {
+        delete_post_meta($post_id, '_evotax_order_evo_faq');
         $result = wp_set_post_terms($post_id, array(), 'evo_faq', false);
         return is_wp_error($result) ? $result : true;
     }
@@ -398,6 +409,15 @@ function eventon_apify_sync_faq_terms($post_id, $items) {
         }
 
         $term_ids[] = (int) $term->term_id;
+    }
+
+    // EventON renders FAQs in the order stored here (class-faq.php), so the
+    // payload order must be persisted rather than left to alphabetical
+    // term ordering.
+    if (!empty($term_ids)) {
+        update_post_meta($post_id, '_evotax_order_evo_faq', implode(',', $term_ids));
+    } else {
+        delete_post_meta($post_id, '_evotax_order_evo_faq');
     }
 
     $result = wp_set_post_terms($post_id, $term_ids, 'evo_faq', false);
@@ -479,10 +499,16 @@ function eventon_apify_resolve_taxonomy_term($taxonomy, array $item, $create_if_
         );
     }
 
+    // term_exists() matches slugs before names, so a name whose sanitized
+    // form collides with a differently-named term would otherwise rename
+    // that shared term. Reuse an existing term only on an exact name match.
     $existing = term_exists($name, $taxonomy);
     if ($existing) {
         $existing_term_id = is_array($existing) ? (int) $existing['term_id'] : (int) $existing;
         $term = get_term($existing_term_id, $taxonomy);
+        if ($term instanceof WP_Term && $term->name !== $name && $slug === '') {
+            $term = null;
+        }
         if ($term instanceof WP_Term) {
             if (eventon_apify_term_payload_has_term_changes($item) && count($item) > 1) {
                 $authorization = eventon_apify_assert_can_manage_shared_terms();

@@ -156,7 +156,7 @@
               "type": "string",
               "default": ""
             },
-            "description": "Comma-separated WordPress post statuses. Allowed values are `publish`, `draft`, `private`, `pending`, and `future`."
+            "description": "Comma-separated post statuses (publish, draft, private, pending, future). Unknown values return 400."
           },
           {
             "name": "slug",
@@ -183,7 +183,7 @@
               "type": "string",
               "format": "date"
             },
-            "description": "Only return events that start on or after the given local date."
+            "description": "Only return events that start on or after the given local date. Repeat occurrences are matched, not only the first occurrence."
           },
           {
             "name": "starts_before",
@@ -192,7 +192,7 @@
               "type": "string",
               "format": "date"
             },
-            "description": "Only return events that start strictly before the given local date."
+            "description": "Only return events that start strictly before the given local date. Repeat occurrences are matched, not only the first occurrence."
           },
           {
             "name": "upcoming",
@@ -538,7 +538,8 @@
                 "all",
                 "yes",
                 "no",
-                "maybe"
+                "maybe",
+                "waitlist"
               ],
               "default": "all"
             },
@@ -572,6 +573,16 @@
               "default": 0
             },
             "description": "RSVP ID tie-breaker used with updated_after."
+          },
+          {
+            "name": "repeat_interval",
+            "in": "query",
+            "required": false,
+            "description": "Limit to RSVPs for a single repeat occurrence index.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -622,6 +633,16 @@
               "minimum": 1
             },
             "description": "Event post ID."
+          },
+          {
+            "name": "repeat_interval",
+            "in": "query",
+            "required": false,
+            "description": "Limit to RSVPs for a single repeat occurrence index.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -764,6 +785,10 @@
             "items": {
               "$ref": "#/components/schemas/Event"
             }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Present and true when a date-filtered occurrence scan hit its candidate cap, so results are partial."
           }
         }
       },
@@ -1199,6 +1224,11 @@
           "rsvp": {
             "$ref": "#/components/schemas/RsvpSettings"
           },
+          "featured_media": {
+            "type": "integer",
+            "description": "Featured image attachment ID, or 0 when unset.",
+            "readOnly": true
+          },
           "featured_image": {
             "type": "string",
             "format": "uri"
@@ -1481,6 +1511,10 @@
       "EventFlags": {
         "type": "object",
         "properties": {
+          "all_day": {
+            "type": "boolean",
+            "description": "EventON all-day event flag (evcal_allday)."
+          },
           "featured": {
             "type": "boolean"
           },
@@ -1679,18 +1713,22 @@
             "type": "integer"
           },
           "start_timestamp": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Occurrence start in EventON storage space (wall clock interpreted as UTC)."
           },
           "start_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Occurrence start as an ISO 8601 datetime in the event timezone."
           },
           "end_timestamp": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Occurrence end in EventON storage space (wall clock interpreted as UTC)."
           },
           "end_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Occurrence end as an ISO 8601 datetime in the event timezone."
           }
         }
       },
@@ -1900,10 +1938,19 @@
             "type": "string"
           },
           "count": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Displayed party size (at least 1)."
+          },
+          "headcount": {
+            "type": "integer",
+            "description": "Raw stored party size used for summary math; 0 excludes the record from totals."
           },
           "event_time": {
             "type": "string"
+          },
+          "repeat_interval": {
+            "type": "integer",
+            "description": "Repeat occurrence index this RSVP belongs to."
           },
           "other_attendees": {
             "type": "array",
@@ -1934,6 +1981,14 @@
           },
           "yes_additional_attendees": {
             "type": "integer"
+          },
+          "waitlist_records": {
+            "type": "integer",
+            "description": "Number of waitlisted RSVP records."
+          },
+          "waitlist_attendees_total": {
+            "type": "integer",
+            "description": "Total headcount across waitlisted records, excluded from yes totals."
           }
         }
       },

@@ -22,13 +22,9 @@ final class RSVP_Attendee_Formatter {
         $last_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('last_name'), array('last_name')));
         $email = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('email'), array('email')));
         $phone = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array(), array('phone')));
-        $count = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('count'), array('count')));
+        $stored_count = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('count'), array('count')));
         $event_id = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('event_id'), array('e_id')));
         $repeat_interval = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('repeat_interval'), array('repeat_interval')));
-
-        if ($count < 1) {
-            $count = 1;
-        }
 
         $rsvp_value = eventon_apify_normalize_rsvp_response(
             eventon_apify_get_rsvp_field_value(
@@ -68,7 +64,12 @@ final class RSVP_Attendee_Formatter {
             'rsvp' => $rsvp_value,
             'status' => $status,
             'rsvp_type' => $rsvp_type,
-            'count' => $count,
+            // Displayed party size keeps the historical minimum of one, while
+            // headcount carries the stored value used for summary math
+            // (EventON's count sync skips rows whose stored count is <= 0).
+            'count' => max(1, $stored_count),
+            'headcount' => $stored_count,
+            'repeat_interval' => $repeat_interval,
             'event_time' => eventon_apify_get_rsvp_event_time($event_id, $repeat_interval),
             'other_attendees' => $other_attendees,
             'custom_fields' => eventon_apify_get_rsvp_custom_fields($meta),

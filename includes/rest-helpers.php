@@ -117,7 +117,26 @@ function eventon_apify_is_valid_timezone($timezone_key) {
 }
 
 /**
- * Split HH:MM time strings into EventON-compatible pieces.
+ * Determine whether an interaction mode input is one of the known
+ * modes or stored codes, before normalization coerces it to a default.
+ *
+ * @param mixed $value Raw interaction mode input.
+ */
+function eventon_apify_is_known_interaction_mode($value) {
+    if (!is_scalar($value)) {
+        return false;
+    }
+
+    return in_array(
+        trim((string) $value),
+        array('X', '1', '2', '3', '4', 'do_nothing', 'slide_down_eventcard', 'external_link', 'popup_window', 'open_event_page'),
+        true
+    );
+}
+
+/**
+ * Split HH:MM (optionally HH:MM:SS; seconds are dropped) time strings into
+ * EventON-compatible pieces.
  *
  * @param string $time Time string.
  * @return array<string, string>|null
@@ -129,7 +148,7 @@ function eventon_apify_split_time_string($time) {
         return null;
     }
 
-    if (!preg_match('/^(\d{1,2}):(\d{2})$/', $time, $matches)) {
+    if (!preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $time, $matches)) {
         return null;
     }
 
@@ -161,6 +180,16 @@ function eventon_apify_build_timestamp($date, $time = '', $timezone_key = '') {
         return null;
     }
 
+    // Reject impossible calendar dates instead of letting PHP roll them over
+    // (2026-02-31 must not silently become 2026-03-03).
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $date_parts)) {
+        if (!checkdate((int) $date_parts[2], (int) $date_parts[3], (int) $date_parts[1])) {
+            return null;
+        }
+    } else {
+        return null;
+    }
+
     try {
         $timezone = $timezone_key !== '' ? new DateTimeZone($timezone_key) : wp_timezone();
     } catch (Exception $exception) {
@@ -176,4 +205,39 @@ function eventon_apify_build_timestamp($date, $time = '', $timezone_key = '') {
     }
 
     return $datetime->getTimestamp();
+}
+
+/**
+ * Build a timestamp in EventON's storage coordinate space: the wall-clock
+ * date/time interpreted as UTC ("wall-as-UTC"), the convention used by
+ * evcal_srow/evcal_erow and repeat_intervals.
+ *
+ * @return int|null
+ */
+function eventon_apify_build_wall_utc_timestamp($date, $time = '') {
+    return eventon_apify_build_timestamp($date, $time, 'UTC');
+}
+
+/**
+ * Format a wall-as-UTC timestamp (EventON's evcal_srow/repeat_intervals
+ * space) as a real datetime in the given timezone: the stored wall clock is
+ * read back in UTC, then re-interpreted in the event timezone so ISO output
+ * carries the correct offset.
+ */
+function eventon_apify_format_wall_timestamp($timestamp, $timezone_key, $format) {
+    $wall = gmdate('Y-m-d H:i:s', (int) $timestamp);
+
+    try {
+        $timezone = $timezone_key !== '' ? new DateTimeZone((string) $timezone_key) : wp_timezone();
+    } catch (Exception $exception) {
+        $timezone = new DateTimeZone('UTC');
+    }
+
+    try {
+        $datetime = new DateTimeImmutable($wall, $timezone);
+    } catch (Exception $exception) {
+        return '';
+    }
+
+    return $datetime->format($format);
 }

@@ -40,6 +40,35 @@ test('wp v2 custom fields expose schema metadata', function () {
 test('REST schema exports nested object and array shapes', function () {
     $args = eventon_apify_get_event_write_args(false);
 
-    eq($args['location']['properties']['lat']['type'], 'number');
+    eq($args['location']['properties']['lat']['type'], 'string');
+    eq($args['location']['properties']['lon']['type'], 'string');
     eq($args['organizers']['items']['properties']['email']['type'], 'string');
+});
+
+test('coercible fields accept both object and string forms', function () {
+    $args = eventon_apify_get_event_write_args(false);
+
+    eq($args['location']['type'], array('object', 'string'));
+    eq($args['timezone']['type'], array('object', 'string'));
+    eq($args['organizers']['type'], 'array');
+    eq($args['organizers']['items']['type'], array('object', 'string'));
+});
+
+test('wp v2 field schemas accept both object and string forms for coercible fields', function () {
+    eq(eventon_apify_get_wp_v2_field_schema('location')['type'], array('object', 'string'));
+    eq(eventon_apify_get_wp_v2_field_schema('timezone')['type'], array('object', 'string'));
+    eq(eventon_apify_get_wp_v2_field_schema('organizers')['items']['type'], array('object', 'string'));
+});
+
+test('fields and custom_fields wrappers are declared write args', function () {
+    $args = eventon_apify_get_event_write_args(false);
+
+    eq($args['fields']['type'], 'object');
+    eq($args['fields']['required'], false);
+    eq($args['custom_fields']['type'], 'object');
+    eq($args['custom_fields']['required'], false);
+
+    $create_args = eventon_apify_get_event_write_args(true);
+    eq($create_args['fields']['required'], false);
+    eq($create_args['custom_fields']['required'], false);
 });

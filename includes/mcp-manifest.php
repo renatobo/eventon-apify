@@ -124,42 +124,53 @@ function eventon_apify_get_mcp_content_type_manifest() {
             'default_orderby' => 'start_at',
             'default_order' => 'asc',
             'filters' => array(
-                'after' => array(
-                    'maps_to' => 'starts_on_or_after',
+                'starts_on_or_after' => array(
                     'field' => 'start_at',
                     'inclusive' => true,
                     'format' => 'date_or_datetime',
+                    'description' => 'Include events starting at or after this value. Date-only values are interpreted at local midnight in the site timezone.',
                 ),
-                'before' => array(
-                    'maps_to' => 'starts_before',
+                'starts_before' => array(
                     'field' => 'start_at',
                     'inclusive' => false,
                     'format' => 'date_or_datetime',
+                    'description' => 'Include events starting strictly before this value. Date-only values are exclusive at local midnight in the site timezone.',
+                ),
+                'upcoming' => array(
+                    'field' => 'start_at',
+                    'format' => 'boolean',
+                    'description' => 'When true and starts_on_or_after is absent, filters to events starting today or later in the site timezone.',
                 ),
                 'status' => array(
-                    'maps_to' => 'status',
+                    'format' => 'status_or_status_list',
+                    'enum' => array('publish', 'draft', 'private', 'pending', 'future'),
+                    'default' => 'publish,draft,private',
+                    'description' => 'Comma-separated WordPress post statuses to include.',
                 ),
                 'slug' => array(
-                    'maps_to' => 'slug',
                     'field' => 'post_name',
                     'format' => 'slug_or_slug_list',
+                    'description' => 'Limit results to events matching one or more exact slugs.',
                 ),
                 'search' => array(
-                    'maps_to' => 'search',
+                    'description' => 'Free-text search across event content.',
                 ),
                 'page' => array(
-                    'maps_to' => 'page',
+                    'default' => 1,
+                    'description' => 'Result page number, starting at 1.',
                 ),
                 'per_page' => array(
-                    'maps_to' => 'per_page',
+                    'default' => 20,
+                    'maximum' => 100,
+                    'description' => 'Number of events per page, between 1 and 100.',
                 ),
                 'order' => array(
-                    'maps_to' => 'order',
                     'enum' => array('asc', 'desc'),
+                    'default' => 'asc',
                 ),
                 'orderby' => array(
-                    'maps_to' => 'orderby',
                     'enum' => array('start_at', 'created', 'modified', 'title'),
+                    'default' => 'start_at',
                 ),
             ),
         ),

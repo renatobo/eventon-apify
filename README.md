@@ -277,19 +277,24 @@ curl -u your_username:your_application_password \
 | `search` | string | No | Search against event title/content |
 | `status` | string | No | Comma-separated post statuses such as `publish,draft` |
 | `slug` | string or array | No | Limit results to events matching one or more exact slugs; accepts a single slug, a comma-separated list, or an array (`slug[]=a&slug[]=b`) |
-| `starts_on_or_after` | string | No | Only return events that start on or after this local date (`YYYY-MM-DD`) |
-| `starts_before` | string | No | Only return events that start strictly before this local date (`YYYY-MM-DD`) |
+| `starts_on_or_after` | string | No | Only return events with an occurrence on or after this local date (`YYYY-MM-DD`); repeat occurrences are matched, not only the first |
+| `starts_before` | string | No | Only return events with an occurrence strictly before this local date (`YYYY-MM-DD`); repeat occurrences are matched, not only the first |
 | `upcoming` | boolean | No | When true, only return events starting today or later in the site timezone; ignored if `starts_on_or_after` is set |
 | `order` | string | No | Sort direction: `asc` (default) or `desc` |
 | `orderby` | string | No | Sort field: `start_at` (default), `created`, `modified`, or `title` |
+
+When a date filter (`starts_on_or_after`, `starts_before`, or `upcoming`) is active, occurrence matching runs in PHP so repeating events are matched on any occurrence. The candidate set is capped at 2000 events (filterable via `eventon_apify_occurrence_scan_limit`); if the cap is reached the response includes `truncated: true` rather than presenting a partial result as complete.
 
 ### RSVP summary response
 
 `GET /wp-json/eventonapify/v1/events/<id>/rsvps/summary` is available only when the `EventON - RSVP Events` addon is active.
 
 - `yes_submissions`: number of RSVP records whose RSVP response is `yes`
-- `yes_attendees_total`: total headcount across those `yes` records, using the RSVP `Count` field and falling back to `1`
+- `yes_attendees_total`: total headcount across those `yes` records, using each record's stored `headcount`
 - `yes_additional_attendees`: `yes_attendees_total - yes_submissions`
+- `waitlist_records` / `waitlist_attendees_total`: waitlisted RSVPs, reported separately and excluded from the `yes` totals
+
+Totals follow EventON's own capacity math: only published RSVP records count, records with a stored headcount of `0` are skipped, and waitlisted records are bucketed separately rather than counted as `yes`. Pass `repeat_interval` to scope the summary to a single occurrence.
 
 Example:
 
@@ -307,8 +312,9 @@ curl -u your_username:your_app_password \
 | `per_page` | integer | No | Items per page, default `50`, max `100` |
 | `page` | integer | No | Page number, default `1` |
 | `search` | string | No | Search attendee names, email, phone, RSVP fields, and custom RSVP fields |
-| `rsvp` | string | No | `all`, `yes`, `no`, or `maybe`; default `all` |
+| `rsvp` | string | No | `all`, `yes`, `no`, `maybe`, or `waitlist`; default `all` |
 | `status` | string | No | Exact RSVP attendee status filter; default `all` |
+| `repeat_interval` | integer | No | Limit to RSVPs for a single repeat occurrence index |
 | `updated_after` | string | No | ISO 8601 UTC checkpoint for delta sync, for example `2026-04-08T18:00:00Z` |
 | `updated_after_id` | integer | No | RSVP ID tie-breaker used with `updated_after`; default `0` |
 
@@ -326,8 +332,10 @@ Each attendee item exposes:
 - `rsvp`
 - `status`
 - `rsvp_type`
-- `count`
+- `count` (displayed party size, at least `1`)
+- `headcount` (raw stored party size; `0` excludes the record from summary totals)
 - `event_time`
+- `repeat_interval`
 - `other_attendees`
 - `custom_fields`
 
@@ -381,14 +389,14 @@ curl -u your_username:your_app_password \
 | `event_color` / `event_color_secondary` | string | No | Hex colors, with or without `#` |
 | `event_type` | array or string | No | Event type terms as array or comma-separated string |
 | `tags` | array or string | No | Post tags as array or comma-separated string |
-| `flags` | object | No | EventON yes/no flags such as `featured`, `generate_gmap`, `hide_end_time` |
+| `flags` | object | No | EventON yes/no flags such as `all_day`, `featured`, `generate_gmap`, `hide_end_time` |
 | `virtual` | object | No | Virtual event metadata such as URL, password, embed, and visible end |
 | `repeat` | object | No | Repeat settings, including `frequency`, `count`, and custom `intervals` |
 | `rsvp` | object | No | RSVP addon metadata such as capacity and repeat capacities |
 
 Preferred payloads use nested `location`, `organizers`, `virtual`, `repeat`, `rsvp`, and `flags` objects. Legacy flat aliases like `location_name`, `location_address`, `map_url`, and `organizer` are still accepted for backward compatibility.
 
-Read responses additionally include a read-only `access_control` object reporting ARMember membership gating: `restricted` (boolean), `provider` (`armember` or empty), `membership_plan_ids` (integer array), and `restricted_by` (`post` and/or `term`). It reflects configuration, not per-user authorization, returns the empty state when ARMember is inactive, and is rejected on write.
+Read responses also expose `featured_media` (the featured image attachment ID, so a read-modify-write clone keeps its image) and a read-only `access_control` object reporting ARMember membership gating: `restricted` (boolean), `provider` (`armember` or empty), `membership_plan_ids` (integer array), and `restricted_by` (`post` and/or `term`). It reflects configuration, not per-user authorization, returns the empty state when ARMember is inactive, and is rejected on write.
 
 ### Example create request
 

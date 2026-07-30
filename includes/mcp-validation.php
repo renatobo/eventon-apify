@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
  */
 function eventon_apify_get_mcp_validation_rules() {
     return array(
-        'required_for_create' => array('start_date'),
+        'required_for_create' => array('title', 'start_date'),
         'required_for_update' => array(),
         'required_together' => array(),
         'one_of_required' => array(),
@@ -72,7 +72,7 @@ function eventon_apify_get_mcp_validation_notes() {
             'level' => 'error',
             'when' => 'create_or_update',
             'fields' => array('event_color', 'event_color_secondary'),
-            'message' => 'Event colors must use 6-character hex notation with or without a leading #.',
+            'message' => 'Event colors must use 3- or 6-character hex notation with or without a leading #.',
         ),
         array(
             'id' => 'absolute_urls_only',

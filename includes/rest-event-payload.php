@@ -47,7 +47,10 @@ function eventon_apify_apply_alias_map(array $normalized, array $source, array $
  * @return array<string, mixed>
  */
 function eventon_apify_normalize_request_payload(array $params) {
-    $normalized = eventon_apify_flatten_wrapped_request_payload($params);
+    // Wrapper contents (fields/custom_fields) must feed every lookup below,
+    // so the flattened array replaces the raw body from here on.
+    $params = eventon_apify_flatten_wrapped_request_payload($params);
+    $normalized = $params;
 
     if (!array_key_exists('description', $normalized) && array_key_exists('content', $params)) {
         $normalized['description'] = $params['content'];
@@ -81,14 +84,12 @@ function eventon_apify_normalize_request_payload(array $params) {
         $normalized['event_status'] = $params['_status'];
     }
 
-    if (array_key_exists('start_at', $params) && !array_key_exists('start_date', $normalized)) {
-        $normalized = eventon_apify_apply_datetime_parts_to_payload($normalized, 'start', $params['start_at']);
+    if (!array_key_exists('time_extend_type', $normalized) && array_key_exists('extend_type', $params)) {
+        $normalized['time_extend_type'] = $params['extend_type'];
     }
 
-    if (array_key_exists('end_at', $params) && !array_key_exists('end_date', $normalized)) {
-        $normalized = eventon_apify_apply_datetime_parts_to_payload($normalized, 'end', $params['end_at']);
-    }
-
+    // The timezone must resolve before start_at/end_at, which convert
+    // offset-bearing instants into the event timezone's wall clock.
     if (array_key_exists('timezone', $params)) {
         if (is_array($params['timezone'])) {
             if (!array_key_exists('timezone_key', $normalized)) {
@@ -101,6 +102,14 @@ function eventon_apify_normalize_request_payload(array $params) {
         } elseif (!array_key_exists('timezone_key', $normalized)) {
             $normalized['timezone_key'] = $params['timezone'];
         }
+    }
+
+    if (array_key_exists('start_at', $params) && !array_key_exists('start_date', $normalized)) {
+        $normalized = eventon_apify_apply_datetime_parts_to_payload($normalized, 'start', $params['start_at']);
+    }
+
+    if (array_key_exists('end_at', $params) && !array_key_exists('end_date', $normalized)) {
+        $normalized = eventon_apify_apply_datetime_parts_to_payload($normalized, 'end', $params['end_at']);
     }
 
     if (isset($params['eventon']) && is_array($params['eventon'])) {
@@ -124,6 +133,7 @@ function eventon_apify_normalize_request_payload(array $params) {
 
     if (isset($params['flags']) && is_array($params['flags'])) {
         $flags_map = array(
+            'all_day' => array('all_day'),
             'featured' => array('featured'),
             'completed' => array('completed'),
             'exclude_from_calendar' => array('exclude_from_calendar'),
@@ -360,6 +370,32 @@ function eventon_apify_apply_datetime_parts_to_payload(array $payload, $prefix, 
 
     if (!$parts) {
         return $payload;
+    }
+
+    // An explicit UTC/offset designator (Z, +05:00) is a real instant, not a
+    // usable stored timezone: convert it into the event timezone so the wall
+    // clock persisted below represents the same moment.
+    if ($parts['timezone'] !== '' && !eventon_apify_is_valid_timezone($parts['timezone']) && preg_match('/^(?:Z|UTC|[+-]\d{2}:?\d{2})$/i', $parts['timezone'])) {
+        $target_key = '';
+        if (array_key_exists('timezone_key', $payload) && eventon_apify_is_valid_timezone((string) $payload['timezone_key'])) {
+            $target_key = (string) $payload['timezone_key'];
+        }
+
+        if ($target_key === '') {
+            $site_key = wp_timezone_string() ?: 'UTC';
+            $target_key = eventon_apify_is_valid_timezone($site_key) ? $site_key : 'UTC';
+        }
+
+        try {
+            $converted = (new DateTimeImmutable((string) $value))->setTimezone(new DateTimeZone($target_key));
+            $parts['date'] = $converted->format('Y-m-d');
+            $parts['time'] = $converted->format('H:i');
+            // Pin the zone the wall clock was converted into, so the save
+            // path interprets it in the same zone and the instant survives.
+            $parts['timezone'] = $target_key;
+        } catch (Exception $exception) {
+            unset($exception);
+        }
     }
 
     $payload[$prefix . '_date'] = $parts['date'];

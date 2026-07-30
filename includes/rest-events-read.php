@@ -80,6 +80,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'learn_more_link_target' => eventon_apify_get_yes_no_flag($meta, 'evcal_lmlink_target'),
         'interaction' => eventon_apify_get_interaction_payload($post->ID, $meta),
         'flags' => array(
+            'all_day' => eventon_apify_get_yes_no_flag($meta, 'evcal_allday'),
             'featured' => eventon_apify_get_yes_no_flag($meta, '_featured'),
             'completed' => eventon_apify_get_yes_no_flag($meta, '_completed'),
             'exclude_from_calendar' => eventon_apify_get_yes_no_flag($meta, 'evo_exclude_ev'),
@@ -104,6 +105,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'seo' => eventon_apify_get_seo_payload($meta),
         'faqs' => eventon_apify_get_faq_payload($post->ID),
         'rsvp' => eventon_apify_get_rsvp_payload($meta),
+        'featured_media' => (int) get_post_thumbnail_id($post->ID),
         'featured_image' => get_the_post_thumbnail_url($post->ID, 'full') ?: '',
         'created' => $post->post_date_gmt ? get_date_from_gmt($post->post_date_gmt, 'c') : '',
         'modified' => $post->post_modified_gmt ? get_date_from_gmt($post->post_modified_gmt, 'c') : '',
@@ -186,8 +188,15 @@ function eventon_apify_get_event_effective_start_timestamp(array $meta) {
 function eventon_apify_get_timezone_key_from_meta(array $meta) {
     $timezone_key = eventon_apify_get_meta_text($meta, '_evo_tz');
 
-    if ($timezone_key !== '' && eventon_apify_is_valid_timezone($timezone_key)) {
-        return $timezone_key;
+    if ($timezone_key !== '') {
+        // Accept anything DateTimeZone can construct, including UTC-offset
+        // keys, not just named identifiers.
+        try {
+            new DateTimeZone($timezone_key);
+            return $timezone_key;
+        } catch (Exception $exception) {
+            unset($exception);
+        }
     }
 
     $wp_timezone = wp_timezone_string();
@@ -304,6 +313,8 @@ function eventon_apify_get_faq_payload($post_id) {
     $terms = taxonomy_exists('evo_faq') ? wp_get_post_terms($post_id, 'evo_faq') : array();
 
     if ($terms && !is_wp_error($terms)) {
+        $order_raw = (string) get_post_meta($post_id, '_evotax_order_evo_faq', true);
+        $terms = eventon_apify_sort_terms_by_saved_order($terms, array('_evotax_order_evo_faq' => array($order_raw)), '_evotax_order_evo_faq');
         foreach ($terms as $term) {
             $items[] = array(
                 'term_id' => (int) $term->term_id,
@@ -321,6 +332,34 @@ function eventon_apify_get_faq_payload($post_id) {
 }
 
 /**
+ * Sort taxonomy terms by EventON's saved comma-separated order meta
+ * (_evotax_order_<taxonomy>), falling back to the given order when absent.
+ *
+ * @param array<int, WP_Term>              $terms Terms to sort.
+ * @param array<string, array<int, mixed>> $meta  Post meta array.
+ * @return array<int, WP_Term>
+ */
+function eventon_apify_sort_terms_by_saved_order(array $terms, array $meta, $order_meta_key) {
+    $order_raw = trim((string) ($meta[$order_meta_key][0] ?? ''));
+    if ($order_raw === '') {
+        return $terms;
+    }
+
+    $order = array_flip(array_map('absint', explode(',', $order_raw)));
+
+    usort(
+        $terms,
+        static function ($left, $right) use ($order) {
+            $left_pos = $order[(int) $left->term_id] ?? PHP_INT_MAX;
+            $right_pos = $order[(int) $right->term_id] ?? PHP_INT_MAX;
+            return $left_pos <=> $right_pos;
+        }
+    );
+
+    return $terms;
+}
+
+/**
  * Format timestamps in the provided timezone.
  */
 function eventon_apify_format_timestamp_for_timezone($timestamp, $timezone_key, $format) {
@@ -328,8 +367,11 @@ function eventon_apify_format_timestamp_for_timezone($timestamp, $timezone_key, 
         return '';
     }
 
+    // Offset keys like "-07:00" (sites configured via gmt_offset) are valid
+    // DateTimeZone input even though they are not named identifiers; falling
+    // back to UTC for them silently shifts every formatted time.
     try {
-        $timezone = new DateTimeZone(eventon_apify_is_valid_timezone($timezone_key) ? $timezone_key : 'UTC');
+        $timezone = new DateTimeZone((string) $timezone_key);
     } catch (Exception $exception) {
         $timezone = new DateTimeZone('UTC');
     }
@@ -448,6 +490,8 @@ function eventon_apify_get_location_payload($post_id, array $meta) {
         $location['city'] = eventon_apify_get_meta_text($meta, 'evcal_location_city');
         $location['state'] = eventon_apify_get_meta_text($meta, 'evcal_location_state');
         $location['country'] = eventon_apify_get_meta_text($meta, 'evcal_location_country');
+        $location['lat'] = eventon_apify_get_meta_text($meta, 'evcal_lat');
+        $location['lon'] = eventon_apify_get_meta_text($meta, 'evcal_lon');
     }
 
     if ($location['lat'] !== '' && $location['lon'] !== '') {
@@ -474,6 +518,7 @@ function eventon_apify_get_organizer_payload($post_id, array $meta) {
     $organizers = array();
 
     if ($terms && !is_wp_error($terms)) {
+        $terms = eventon_apify_sort_terms_by_saved_order($terms, $meta, '_evotax_order_event_organizer');
         foreach ($terms as $term) {
             $term_meta = eventon_apify_get_term_meta_payload('event_organizer', $term->term_id);
             $archive_url = get_term_link($term, 'event_organizer');
@@ -639,12 +684,15 @@ function eventon_apify_get_repeat_payload(array $meta, $timezone_key) {
                 continue;
             }
 
+            // Interval values are stored in EventON's wall-as-UTC space, not
+            // as real epochs; format them by re-interpreting the wall clock
+            // in the event timezone so the ISO offset comes out right.
             $items[] = array(
                 'index' => (int) $index,
                 'start_timestamp' => (int) $interval[0],
-                'start_at' => eventon_apify_format_timestamp_for_timezone((int) $interval[0], $timezone_key, 'c'),
+                'start_at' => eventon_apify_format_wall_timestamp((int) $interval[0], $timezone_key, 'c'),
                 'end_timestamp' => (int) $interval[1],
-                'end_at' => eventon_apify_format_timestamp_for_timezone((int) $interval[1], $timezone_key, 'c'),
+                'end_at' => eventon_apify_format_wall_timestamp((int) $interval[1], $timezone_key, 'c'),
             );
         }
     }
