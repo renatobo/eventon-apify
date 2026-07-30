@@ -143,8 +143,8 @@ function eventon_apify_get_mcp_content_type_manifest() {
                 ),
                 'status' => array(
                     'format' => 'status_or_status_list',
-                    'enum' => array('publish', 'draft', 'private', 'pending', 'future'),
-                    'default' => 'publish,draft,private',
+                    'enum' => eventon_apify_get_allowed_post_statuses(),
+                    'default' => implode(',', eventon_apify_get_default_list_post_statuses()),
                     'description' => 'Comma-separated WordPress post statuses to include.',
                 ),
                 'slug' => array(

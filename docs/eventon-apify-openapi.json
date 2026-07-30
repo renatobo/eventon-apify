@@ -1513,7 +1513,8 @@
         "properties": {
           "all_day": {
             "type": "boolean",
-            "description": "EventON all-day event flag (evcal_allday)."
+            "description": "Whether the event runs all day, derived from EventON's time_extend_type of \"dl\". Read-only; set time_extend_type to change it.",
+            "readOnly": true
           },
           "featured": {
             "type": "boolean"

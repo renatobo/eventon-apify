@@ -4,22 +4,6 @@
  * arguments actually registered on the eventonapify/v1 REST routes.
  */
 
-if (!class_exists('WP_REST_Server')) {
-    class WP_REST_Server {
-        const READABLE = 'GET';
-        const CREATABLE = 'POST';
-        const EDITABLE = 'POST, PUT, PATCH';
-        const DELETABLE = 'DELETE';
-    }
-}
-
-if (!function_exists('register_rest_route')) {
-    function register_rest_route($route_namespace, $route, $args = array(), $override = false) {
-        $GLOBALS['__eventon_test_routes'][$route_namespace . '/' . ltrim($route, '/')][] = $args;
-        return true;
-    }
-}
-
 /**
  * Return the registered arg names for one method of a captured route.
  *

@@ -222,11 +222,7 @@ function eventon_apify_sync_location_term($post_id, array $params) {
     }
 
     if (array_key_exists('location_email', $params)) {
-        // Validation rejects malformed addresses, so an empty result here can
-        // only come from an intentionally blank value (which clears it).
-        $term_meta['loc_email'] = trim((string) $params['location_email']) === ''
-            ? ''
-            : sanitize_email((string) $params['location_email']);
+        $term_meta['loc_email'] = eventon_apify_sanitize_optional_email($params['location_email']);
     }
 
     if (array_key_exists('location_link', $params)) {
@@ -309,9 +305,7 @@ function eventon_apify_sync_organizer_terms($post_id, array $params) {
         }
 
         if (array_key_exists('email', $organizer)) {
-            $term_meta['evcal_org_contact_e'] = trim((string) $organizer['email']) === ''
-                ? ''
-                : sanitize_email((string) $organizer['email']);
+            $term_meta['evcal_org_contact_e'] = eventon_apify_sanitize_optional_email($organizer['email']);
         }
 
         if (array_key_exists('link', $organizer)) {

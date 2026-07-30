@@ -5,38 +5,6 @@
  * exclusions, the event-time object cache, and orphaned RSVP cleanup.
  */
 
-if (!function_exists('maybe_unserialize')) {
-    function maybe_unserialize($value) {
-        return $value;
-    }
-}
-
-if (!function_exists('wp_json_encode')) {
-    function wp_json_encode($value) {
-        return json_encode($value);
-    }
-}
-
-if (!function_exists('get_post_type')) {
-    function get_post_type($post_id) {
-        return $GLOBALS['__eventon_test_post_type_by_id'][$post_id] ?? false;
-    }
-}
-
-if (!function_exists('get_posts')) {
-    function get_posts($args = array()) {
-        $GLOBALS['__eventon_test_get_posts_args'][] = $args;
-        return $GLOBALS['__eventon_test_get_posts_result'] ?? array();
-    }
-}
-
-if (!function_exists('wp_delete_post')) {
-    function wp_delete_post($post_id, $force_delete = false) {
-        $GLOBALS['__eventon_test_deleted_posts'][] = array($post_id, $force_delete);
-        return true;
-    }
-}
-
 if (!class_exists('EVORS_Event')) {
     class EVORS_Event {
         public static $constructions = 0;
@@ -51,13 +19,6 @@ if (!class_exists('EVORS_Event')) {
             };
         }
     }
-}
-
-function eventon_test_reset_rsvp_cleanup_state() {
-    $GLOBALS['__eventon_test_post_type_by_id'] = array();
-    $GLOBALS['__eventon_test_get_posts_args'] = array();
-    $GLOBALS['__eventon_test_get_posts_result'] = array();
-    $GLOBALS['__eventon_test_deleted_posts'] = array();
 }
 
 function eventon_test_waitlist_attendees() {
@@ -139,7 +100,6 @@ test('event time builds one EVORS_Event per event and interval pair', function (
 });
 
 test('event delete cleanup force-deletes matching rsvp posts', function () {
-    eventon_test_reset_rsvp_cleanup_state();
     $GLOBALS['__eventon_test_post_types']['evo-rsvp'] = true;
     $GLOBALS['__eventon_test_post_type_by_id'][42] = 'ajde_events';
     $GLOBALS['__eventon_test_get_posts_result'] = array(7, 8);
@@ -155,7 +115,6 @@ test('event delete cleanup force-deletes matching rsvp posts', function () {
 });
 
 test('event delete cleanup ignores other post types', function () {
-    eventon_test_reset_rsvp_cleanup_state();
     $GLOBALS['__eventon_test_post_types']['evo-rsvp'] = true;
     $GLOBALS['__eventon_test_post_type_by_id'][43] = 'post';
 
@@ -166,7 +125,6 @@ test('event delete cleanup ignores other post types', function () {
 });
 
 test('event delete cleanup requires the evo-rsvp post type', function () {
-    eventon_test_reset_rsvp_cleanup_state();
     $GLOBALS['__eventon_test_post_type_by_id'][44] = 'ajde_events';
 
     eventon_apify_delete_event_rsvps_on_event_delete(44);

@@ -389,14 +389,14 @@ curl -u your_username:your_app_password \
 | `event_color` / `event_color_secondary` | string | No | Hex colors, with or without `#` |
 | `event_type` | array or string | No | Event type terms as array or comma-separated string |
 | `tags` | array or string | No | Post tags as array or comma-separated string |
-| `flags` | object | No | EventON yes/no flags such as `all_day`, `featured`, `generate_gmap`, `hide_end_time` |
+| `flags` | object | No | EventON yes/no flags such as `featured`, `generate_gmap`, `hide_end_time` |
 | `virtual` | object | No | Virtual event metadata such as URL, password, embed, and visible end |
 | `repeat` | object | No | Repeat settings, including `frequency`, `count`, and custom `intervals` |
 | `rsvp` | object | No | RSVP addon metadata such as capacity and repeat capacities |
 
 Preferred payloads use nested `location`, `organizers`, `virtual`, `repeat`, `rsvp`, and `flags` objects. Legacy flat aliases like `location_name`, `location_address`, `map_url`, and `organizer` are still accepted for backward compatibility.
 
-Read responses also expose `featured_media` (the featured image attachment ID, so a read-modify-write clone keeps its image) and a read-only `access_control` object reporting ARMember membership gating: `restricted` (boolean), `provider` (`armember` or empty), `membership_plan_ids` (integer array), and `restricted_by` (`post` and/or `term`). It reflects configuration, not per-user authorization, returns the empty state when ARMember is inactive, and is rejected on write.
+Read responses also expose `flags.all_day` (read-only, derived from `time_extend_type` of `dl`), `featured_media` (the featured image attachment ID, so a read-modify-write clone keeps its image), and a read-only `access_control` object reporting ARMember membership gating: `restricted` (boolean), `provider` (`armember` or empty), `membership_plan_ids` (integer array), and `restricted_by` (`post` and/or `term`). It reflects configuration, not per-user authorization, returns the empty state when ARMember is inactive, and is rejected on write.
 
 ### Example create request
 

@@ -20,7 +20,7 @@ function eventon_apify_get_event_write_args($is_create = false) {
         $args[$field_name] = $schema;
     }
 
-    foreach (array('fields', 'custom_fields') as $wrapper_name) {
+    foreach (eventon_apify_get_wp_v2_wrapper_field_names() as $wrapper_name) {
         $args[$wrapper_name] = array(
             'type' => 'object',
             'description' => 'Wrapper object whose contents are normalized into the canonical event fields before validation.',

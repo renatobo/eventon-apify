@@ -273,21 +273,6 @@ function eventon_apify_sanitize_rest_boolean($value) {
 }
 
 /**
- * Sanitize RSVP list filter values.
- *
- * @param mixed $value Request parameter.
- */
-function eventon_apify_sanitize_rsvp_filter($value) {
-    $value = strtolower(trim(sanitize_text_field((string) $value)));
-
-    if (!in_array($value, array('all', 'yes', 'no', 'maybe'), true)) {
-        return 'all';
-    }
-
-    return $value;
-}
-
-/**
  * Sanitize a page number.
  *
  * @param mixed $value Request parameter.
@@ -331,15 +316,32 @@ function eventon_apify_sanitize_slug_filter($value) {
 }
 
 /**
+ * Post statuses this API accepts for events.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_allowed_post_statuses() {
+    return array('publish', 'draft', 'private', 'pending', 'future');
+}
+
+/**
+ * Post statuses returned by the events list when no status filter is given.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_default_list_post_statuses() {
+    return array('publish', 'draft', 'private');
+}
+
+/**
  * Sanitize allowed post statuses.
  *
  * @param mixed $status Submitted post status.
  */
 function eventon_apify_get_sanitized_status($status) {
-    $allowed = array('publish', 'draft', 'private', 'pending', 'future');
     $status = sanitize_key((string) $status);
 
-    return in_array($status, $allowed, true) ? $status : '';
+    return in_array($status, eventon_apify_get_allowed_post_statuses(), true) ? $status : '';
 }
 
 /**

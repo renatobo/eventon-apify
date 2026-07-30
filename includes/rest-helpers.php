@@ -12,12 +12,13 @@ function eventon_apify_normalize_interaction_mode($value) {
 }
 
 /**
- * Map EventON's stored interaction codes to normalized API values.
+ * Return every accepted interaction mode input, keyed by EventON's stored
+ * codes and the normalized API names, mapped to the normalized name.
+ *
+ * @return array<string, string>
  */
-function eventon_apify_map_interaction_code_to_mode($value) {
-    $value = trim((string) $value);
-
-    $map = array(
+function eventon_apify_get_interaction_mode_map() {
+    return array(
         'X' => 'do_nothing',
         '1' => 'slide_down_eventcard',
         '2' => 'external_link',
@@ -29,8 +30,15 @@ function eventon_apify_map_interaction_code_to_mode($value) {
         'popup_window' => 'popup_window',
         'open_event_page' => 'open_event_page',
     );
+}
 
-    return $map[$value] ?? 'slide_down_eventcard';
+/**
+ * Map EventON's stored interaction codes to normalized API values.
+ */
+function eventon_apify_map_interaction_code_to_mode($value) {
+    $map = eventon_apify_get_interaction_mode_map();
+
+    return $map[trim((string) $value)] ?? 'slide_down_eventcard';
 }
 
 /**
@@ -110,6 +118,18 @@ function eventon_apify_to_yes_no($value) {
 }
 
 /**
+ * Sanitize an optional email address, preserving a deliberately blank value.
+ *
+ * Malformed addresses are rejected by validation before this runs, so an
+ * empty result here can only mean the caller intends to clear the value.
+ *
+ * @param mixed $value Email input.
+ */
+function eventon_apify_sanitize_optional_email($value) {
+    return trim((string) $value) === '' ? '' : sanitize_email((string) $value);
+}
+
+/**
  * Validate timezone identifiers.
  */
 function eventon_apify_is_valid_timezone($timezone_key) {
@@ -123,15 +143,8 @@ function eventon_apify_is_valid_timezone($timezone_key) {
  * @param mixed $value Raw interaction mode input.
  */
 function eventon_apify_is_known_interaction_mode($value) {
-    if (!is_scalar($value)) {
-        return false;
-    }
-
-    return in_array(
-        trim((string) $value),
-        array('X', '1', '2', '3', '4', 'do_nothing', 'slide_down_eventcard', 'external_link', 'popup_window', 'open_event_page'),
-        true
-    );
+    return is_scalar($value)
+        && array_key_exists(trim((string) $value), eventon_apify_get_interaction_mode_map());
 }
 
 /**
@@ -216,6 +229,43 @@ function eventon_apify_build_timestamp($date, $time = '', $timezone_key = '') {
  */
 function eventon_apify_build_wall_utc_timestamp($date, $time = '') {
     return eventon_apify_build_timestamp($date, $time, 'UTC');
+}
+
+/**
+ * Convert an absolute instant into its wall-clock parts in a target timezone.
+ *
+ * Shared by every path that has to turn an offset-bearing input (an ISO string
+ * with Z or +05:00, a parsed filter datetime) into the wall clock EventON
+ * stores. Returns null when the value cannot be parsed.
+ *
+ * @param mixed  $value        Datetime input parseable by DateTimeImmutable.
+ * @param string $timezone_key Target timezone identifier or offset.
+ * @return array<string, string>|null Keys: date (Y-m-d), time (H:i).
+ */
+function eventon_apify_convert_instant_to_wall_parts($value, $timezone_key) {
+    if (!is_scalar($value)) {
+        return null;
+    }
+
+    try {
+        $timezone = trim((string) $timezone_key) !== '' ? new DateTimeZone((string) $timezone_key) : wp_timezone();
+        $converted = (new DateTimeImmutable((string) $value))->setTimezone($timezone);
+    } catch (Exception $exception) {
+        return null;
+    }
+
+    return array(
+        'date' => $converted->format('Y-m-d'),
+        'time' => $converted->format('H:i'),
+    );
+}
+
+/**
+ * Whether a post meta key has no stored value yet, i.e. this event has never
+ * had the field written (which the write paths treat as "create").
+ */
+function eventon_apify_meta_is_unset($post_id, $meta_key) {
+    return (string) get_post_meta($post_id, $meta_key, true) === '';
 }
 
 /**

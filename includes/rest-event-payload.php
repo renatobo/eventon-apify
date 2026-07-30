@@ -133,7 +133,6 @@ function eventon_apify_normalize_request_payload(array $params) {
 
     if (isset($params['flags']) && is_array($params['flags'])) {
         $flags_map = array(
-            'all_day' => array('all_day'),
             'featured' => array('featured'),
             'completed' => array('completed'),
             'exclude_from_calendar' => array('exclude_from_calendar'),
@@ -386,15 +385,13 @@ function eventon_apify_apply_datetime_parts_to_payload(array $payload, $prefix, 
             $target_key = eventon_apify_is_valid_timezone($site_key) ? $site_key : 'UTC';
         }
 
-        try {
-            $converted = (new DateTimeImmutable((string) $value))->setTimezone(new DateTimeZone($target_key));
-            $parts['date'] = $converted->format('Y-m-d');
-            $parts['time'] = $converted->format('H:i');
+        $converted = eventon_apify_convert_instant_to_wall_parts($value, $target_key);
+        if ($converted) {
+            $parts['date'] = $converted['date'];
+            $parts['time'] = $converted['time'];
             // Pin the zone the wall clock was converted into, so the save
             // path interprets it in the same zone and the instant survives.
             $parts['timezone'] = $target_key;
-        } catch (Exception $exception) {
-            unset($exception);
         }
     }
 

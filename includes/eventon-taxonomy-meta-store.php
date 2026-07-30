@@ -15,26 +15,13 @@ final class EventON_APIfy_Taxonomy_Meta_Store {
      * @return true|WP_Error
      */
     public static function save($taxonomy, $term_id, array $payload) {
-        $has_falsy_value = false;
-        foreach ($payload as $value) {
-            if ($value !== '' && empty($value)) {
-                $has_falsy_value = true;
-                break;
-            }
-        }
-
-        // EventON's evo_save_term_metas() runs a bare array_filter() over the
-        // merged values, which silently deletes legitimate falsy entries such
-        // as a latitude of '0'. Merge into the same option ourselves whenever
-        // the payload carries one; otherwise defer to EventON.
-        if (function_exists('evo_save_term_metas') && !$has_falsy_value) {
-            evo_save_term_metas($taxonomy, $term_id, $payload);
-            return true;
-        }
-
-        // Writes the same 'evo_tax_meta' option EventON reads through
-        // get_tax_meta(), keeping the private option shape out of the
-        // REST/domain layers.
+        // Always merged here rather than through EventON's
+        // evo_save_term_metas(), which runs a bare array_filter() over the
+        // merged result and so deletes legitimate falsy values such as a
+        // latitude of '0' — including values already stored, which a payload
+        // check cannot protect. EventON's helper is a plain update_option()
+        // on this same key with no hooks or cache invalidation, so writing it
+        // directly loses nothing. Only '' clears a value.
         $all_term_meta = get_option('evo_tax_meta', array());
         if (!is_array($all_term_meta)) {
             $all_term_meta = array();

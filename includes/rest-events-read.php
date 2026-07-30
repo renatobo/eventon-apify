@@ -52,14 +52,14 @@ function eventon_apify_format_event(WP_Post $post) {
         'event_excerpt' => eventon_apify_get_meta_text($meta, 'evo_excerpt'),
         'link' => get_permalink($post->ID),
         'start_timestamp' => $start_timestamp,
-        'start_at' => $event_start_timestamp ? eventon_apify_format_timestamp_for_timezone($event_start_timestamp, $timezone_key, 'c') : '',
-        'start_date' => $event_start_timestamp ? eventon_apify_format_timestamp_for_timezone($event_start_timestamp, $timezone_key, 'Y-m-d') : '',
-        'start_time' => $event_start_timestamp ? eventon_apify_format_timestamp_for_timezone($event_start_timestamp, $timezone_key, 'H:i') : '',
+        'start_at' => eventon_apify_format_event_base_datetime($start_timestamp, $event_start_timestamp, $timezone_key, 'c'),
+        'start_date' => eventon_apify_format_event_base_datetime($start_timestamp, $event_start_timestamp, $timezone_key, 'Y-m-d'),
+        'start_time' => eventon_apify_format_event_base_datetime($start_timestamp, $event_start_timestamp, $timezone_key, 'H:i'),
         'event_start_timestamp' => $event_start_timestamp,
         'end_timestamp' => $end_timestamp,
-        'end_at' => $event_end_timestamp ? eventon_apify_format_timestamp_for_timezone($event_end_timestamp, $timezone_key, 'c') : '',
-        'end_date' => $event_end_timestamp ? eventon_apify_format_timestamp_for_timezone($event_end_timestamp, $timezone_key, 'Y-m-d') : '',
-        'end_time' => $event_end_timestamp ? eventon_apify_format_timestamp_for_timezone($event_end_timestamp, $timezone_key, 'H:i') : '',
+        'end_at' => eventon_apify_format_event_base_datetime($end_timestamp, $event_end_timestamp, $timezone_key, 'c'),
+        'end_date' => eventon_apify_format_event_base_datetime($end_timestamp, $event_end_timestamp, $timezone_key, 'Y-m-d'),
+        'end_time' => eventon_apify_format_event_base_datetime($end_timestamp, $event_end_timestamp, $timezone_key, 'H:i'),
         'event_end_timestamp' => $event_end_timestamp,
         'location' => $location,
         'organizer' => !empty($organizers) ? $organizers[0]['name'] : eventon_apify_get_meta_text($meta, 'evcal_organizer_name'),
@@ -80,7 +80,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'learn_more_link_target' => eventon_apify_get_yes_no_flag($meta, 'evcal_lmlink_target'),
         'interaction' => eventon_apify_get_interaction_payload($post->ID, $meta),
         'flags' => array(
-            'all_day' => eventon_apify_get_yes_no_flag($meta, 'evcal_allday'),
+            'all_day' => eventon_apify_event_flag_is_all_day($meta),
             'featured' => eventon_apify_get_yes_no_flag($meta, '_featured'),
             'completed' => eventon_apify_get_yes_no_flag($meta, '_completed'),
             'exclude_from_calendar' => eventon_apify_get_yes_no_flag($meta, 'evo_exclude_ev'),
@@ -103,7 +103,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'repeat' => eventon_apify_get_repeat_payload($meta, $timezone_key),
         'related_events' => eventon_apify_get_related_events_payload($post->ID, $meta),
         'seo' => eventon_apify_get_seo_payload($meta),
-        'faqs' => eventon_apify_get_faq_payload($post->ID),
+        'faqs' => eventon_apify_get_faq_payload($post->ID, $meta),
         'rsvp' => eventon_apify_get_rsvp_payload($meta),
         'featured_media' => (int) get_post_thumbnail_id($post->ID),
         'featured_image' => get_the_post_thumbnail_url($post->ID, 'full') ?: '',
@@ -306,15 +306,15 @@ function eventon_apify_get_seo_payload(array $meta) {
 /**
  * Return a normalized FAQ payload.
  *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
  * @return array<string, mixed>
  */
-function eventon_apify_get_faq_payload($post_id) {
+function eventon_apify_get_faq_payload($post_id, array $meta) {
     $items = array();
     $terms = taxonomy_exists('evo_faq') ? wp_get_post_terms($post_id, 'evo_faq') : array();
 
     if ($terms && !is_wp_error($terms)) {
-        $order_raw = (string) get_post_meta($post_id, '_evotax_order_evo_faq', true);
-        $terms = eventon_apify_sort_terms_by_saved_order($terms, array('_evotax_order_evo_faq' => array($order_raw)), '_evotax_order_evo_faq');
+        $terms = eventon_apify_sort_terms_by_saved_order($terms, eventon_apify_get_meta_text($meta, '_evotax_order_evo_faq'));
         foreach ($terms as $term) {
             $items[] = array(
                 'term_id' => (int) $term->term_id,
@@ -326,21 +326,63 @@ function eventon_apify_get_faq_payload($post_id) {
     }
 
     return array(
-        'subheader' => (string) get_post_meta($post_id, '_evo_faq_subheader', true),
+        'subheader' => eventon_apify_get_meta_text($meta, '_evo_faq_subheader'),
         'items' => $items,
     );
 }
 
 /**
- * Sort taxonomy terms by EventON's saved comma-separated order meta
- * (_evotax_order_<taxonomy>), falling back to the given order when absent.
+ * Whether the event is all-day.
  *
- * @param array<int, WP_Term>              $terms Terms to sort.
- * @param array<string, array<int, mixed>> $meta  Post meta array.
+ * Read-only and derived: EventON expresses all-day as `_time_ext_type = 'dl'`,
+ * the branch that snaps the extended timestamps to 00:00/23:59. The legacy
+ * `evcal_allday` meta is display-only — EventON core reads it but never writes
+ * it — so it serves only as a fallback for imported events.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ */
+function eventon_apify_event_flag_is_all_day(array $meta) {
+    return eventon_apify_get_meta_text($meta, '_time_ext_type') === 'dl'
+        || eventon_apify_get_yes_no_flag($meta, 'evcal_allday');
+}
+
+/**
+ * Format the writable date/time fields from the event's base wall clock.
+ *
+ * The writable `start_date`/`start_time`/`start_at` trio must reflect the
+ * times the user entered, which live in `evcal_srow`/`evcal_erow` (wall-as-UTC
+ * and never boundary-extended). Reporting the extended `_unix_*_ev` values
+ * here would make a read-modify-write client PUT back 00:00/23:59 for a
+ * dl/ml/yl event and overwrite the real times. The extended real epochs stay
+ * available through the read-only `event_start_timestamp`/`event_end_timestamp`.
+ *
+ * @param int    $wall_timestamp  Base wall-as-UTC timestamp.
+ * @param int    $epoch_timestamp Boundary-extended real epoch fallback.
+ * @param string $timezone_key    Event timezone.
+ * @param string $format          Date format.
+ */
+function eventon_apify_format_event_base_datetime($wall_timestamp, $epoch_timestamp, $timezone_key, $format) {
+    if ($wall_timestamp) {
+        return eventon_apify_format_wall_timestamp($wall_timestamp, $timezone_key, $format);
+    }
+
+    // No base wall clock stored (imports, pre-migration events): fall back to
+    // the real epoch, formatted with the epoch formatter for its space.
+    return $epoch_timestamp
+        ? eventon_apify_format_timestamp_for_timezone($epoch_timestamp, $timezone_key, $format)
+        : '';
+}
+
+/**
+ * Sort taxonomy terms by EventON's saved comma-separated term order
+ * (_evotax_order_<taxonomy>), keeping the given order when it is absent.
+ *
+ * @param array<int, WP_Term> $terms     Terms to sort.
+ * @param mixed               $order_raw Comma-separated term IDs.
  * @return array<int, WP_Term>
  */
-function eventon_apify_sort_terms_by_saved_order(array $terms, array $meta, $order_meta_key) {
-    $order_raw = trim((string) ($meta[$order_meta_key][0] ?? ''));
+function eventon_apify_sort_terms_by_saved_order(array $terms, $order_raw) {
+    $order_raw = trim((string) $order_raw);
     if ($order_raw === '') {
         return $terms;
     }
@@ -518,7 +560,7 @@ function eventon_apify_get_organizer_payload($post_id, array $meta) {
     $organizers = array();
 
     if ($terms && !is_wp_error($terms)) {
-        $terms = eventon_apify_sort_terms_by_saved_order($terms, $meta, '_evotax_order_event_organizer');
+        $terms = eventon_apify_sort_terms_by_saved_order($terms, eventon_apify_get_meta_text($meta, '_evotax_order_event_organizer'));
         foreach ($terms as $term) {
             $term_meta = eventon_apify_get_term_meta_payload('event_organizer', $term->term_id);
             $archive_url = get_term_link($term, 'event_organizer');

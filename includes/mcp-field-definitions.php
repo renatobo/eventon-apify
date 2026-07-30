@@ -62,7 +62,7 @@ function eventon_apify_get_contract_field_definitions() {
             'type' => 'string',
             'group' => 'core',
             'description' => 'WordPress post status for the EventON event.',
-            'allowed_values' => array('publish', 'draft', 'private', 'pending', 'future'),
+            'allowed_values' => eventon_apify_get_allowed_post_statuses(),
             'transport' => array(
                 'custom_namespace' => 'status',
                 'wp_v2' => 'status',
@@ -574,6 +574,11 @@ function eventon_apify_get_organizer_contract_shape() {
  */
 function eventon_apify_get_flags_contract_shape() {
     return array(
+        'all_day' => array(
+            'type' => 'boolean',
+            'read_only' => true,
+            'description' => 'Whether the event runs all day, derived from EventON\'s time_extend_type of "dl". Read-only; set time_extend_type to change it.',
+        ),
         'featured' => array('type' => 'boolean', 'description' => 'Feature the event in EventON.'),
         'completed' => array('type' => 'boolean', 'description' => 'Mark the event as completed.'),
         'exclude_from_calendar' => array('type' => 'boolean', 'description' => 'Exclude the event from calendar listings.'),

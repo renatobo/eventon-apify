@@ -5,28 +5,6 @@
  * shipped, so a future refactor cannot silently reintroduce it.
  */
 
-if (!function_exists('is_email')) {
-    function is_email($email) {
-        return (bool) filter_var((string) $email, FILTER_VALIDATE_EMAIL);
-    }
-}
-
-if (!function_exists('get_object_taxonomies')) {
-    function get_object_taxonomies($object_type, $output = 'names') {
-        return $GLOBALS['__eventon_test_object_taxonomies'] ?? array();
-    }
-}
-
-if (!function_exists('wp_date')) {
-    function wp_date($format, $timestamp = null, $timezone = null) {
-        $datetime = new DateTimeImmutable('@' . (int) $timestamp);
-        if ($timezone instanceof DateTimeZone) {
-            $datetime = $datetime->setTimezone($timezone);
-        }
-        return $datetime->format($format);
-    }
-}
-
 // --- Impossible calendar dates -------------------------------------------
 
 test('build_timestamp rejects rolled-over calendar dates', function () {
@@ -165,11 +143,20 @@ test('extend_type is accepted as a top-level alias of time_extend_type', functio
     eq($normalized['time_extend_type'], 'dl');
 });
 
-// --- all_day round trip -------------------------------------------------
+// --- all_day derivation -------------------------------------------------
 
-test('all_day flag normalizes from the flags object', function () {
+test('all_day is derived from the EventON extend type, not a parallel flag', function () {
+    // EventON expresses all-day as _time_ext_type 'dl'; evcal_allday is a
+    // legacy display-only flag it never writes.
+    ok(eventon_apify_event_flag_is_all_day(array('_time_ext_type' => array('dl'))));
+    ok(eventon_apify_event_flag_is_all_day(array('evcal_allday' => array('yes'))));
+    ok(!eventon_apify_event_flag_is_all_day(array('_time_ext_type' => array('n'))));
+    ok(!eventon_apify_event_flag_is_all_day(array()));
+});
+
+test('all_day is read-only and not writable through the flags map', function () {
     $normalized = eventon_apify_normalize_request_payload(array('flags' => array('all_day' => true)));
-    eq($normalized['all_day'], true);
+    ok(!array_key_exists('all_day', $normalized));
 });
 
 // --- datetime input detection (the corruption guard) --------------------
@@ -252,49 +239,63 @@ test('unknown list status values error instead of falling back silently', functi
 test('a repeating event matches on a later occurrence, not just the base start', function () {
     $june = eventon_apify_build_wall_utc_timestamp('2026-06-01', '10:00');
     $august = eventon_apify_build_wall_utc_timestamp('2026-08-10', '10:00');
-    $after = eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00');
-    $before = eventon_apify_build_wall_utc_timestamp('2026-09-01', '00:00');
 
-    $GLOBALS['__eventon_test_post_meta'][501] = array(
-        'evcal_srow' => (string) $june,
-        'evcal_repeat' => 'yes',
-        'repeat_intervals' => array(array($june, $june + 3600), array($august, $august + 3600)),
+    $matches = eventon_apify_occurrence_meta_matches_range(
+        array(
+            'evcal_srow' => (string) $june,
+            'evcal_repeat' => 'yes',
+            'repeat_intervals' => serialize(array(array($june, $june + 3600), array($august, $august + 3600))),
+        ),
+        eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00'),
+        eventon_apify_build_wall_utc_timestamp('2026-09-01', '00:00')
     );
 
-    ok(eventon_apify_event_matches_date_range(501, $after, $before));
+    ok($matches);
 });
 
 test('a non-repeating event outside the range does not match', function () {
     $june = eventon_apify_build_wall_utc_timestamp('2026-06-01', '10:00');
-    $after = eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00');
 
-    $GLOBALS['__eventon_test_post_meta'][502] = array(
-        'evcal_srow' => (string) $june,
-    );
+    ok(!eventon_apify_occurrence_meta_matches_range(
+        array('evcal_srow' => (string) $june),
+        eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00'),
+        null
+    ));
+});
 
-    ok(!eventon_apify_event_matches_date_range(502, $after, null));
+test('repeat intervals are ignored when repeat is disabled', function () {
+    $august = eventon_apify_build_wall_utc_timestamp('2026-08-10', '10:00');
+    $june = eventon_apify_build_wall_utc_timestamp('2026-06-01', '10:00');
+
+    ok(!eventon_apify_occurrence_meta_matches_range(
+        array(
+            'evcal_srow' => (string) $june,
+            'evcal_repeat' => 'no',
+            'repeat_intervals' => serialize(array(array($august, $august + 3600))),
+        ),
+        eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00'),
+        eventon_apify_build_wall_utc_timestamp('2026-09-01', '00:00')
+    ));
 });
 
 test('a base start inside the range matches without repeats', function () {
     $august = eventon_apify_build_wall_utc_timestamp('2026-08-10', '10:00');
-    $after = eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00');
-    $before = eventon_apify_build_wall_utc_timestamp('2026-09-01', '00:00');
 
-    $GLOBALS['__eventon_test_post_meta'][503] = array(
-        'evcal_srow' => (string) $august,
-    );
-
-    ok(eventon_apify_event_matches_date_range(503, $after, $before));
+    ok(eventon_apify_occurrence_meta_matches_range(
+        array('evcal_srow' => (string) $august),
+        eventon_apify_build_wall_utc_timestamp('2026-08-01', '00:00'),
+        eventon_apify_build_wall_utc_timestamp('2026-09-01', '00:00')
+    ));
 });
 
 test('the upper date bound is exclusive', function () {
     $boundary = eventon_apify_build_wall_utc_timestamp('2026-09-01', '00:00');
 
-    $GLOBALS['__eventon_test_post_meta'][504] = array(
-        'evcal_srow' => (string) $boundary,
-    );
-
-    ok(!eventon_apify_event_matches_date_range(504, null, $boundary));
+    ok(!eventon_apify_occurrence_meta_matches_range(
+        array('evcal_srow' => (string) $boundary),
+        null,
+        $boundary
+    ));
 });
 
 // --- timezone resolution -------------------------------------------------
@@ -319,11 +320,7 @@ test('terms are returned in EventON saved order, not alphabetical', function () 
         (object) array('term_id' => 22, 'name' => 'Zed Productions'),
     );
 
-    $sorted = eventon_apify_sort_terms_by_saved_order(
-        $terms,
-        array('_evotax_order_event_organizer' => array('22,11')),
-        '_evotax_order_event_organizer'
-    );
+    $sorted = eventon_apify_sort_terms_by_saved_order($terms, '22,11');
 
     eq($sorted[0]->name, 'Zed Productions');
     eq($sorted[1]->name, 'Amy Co');
@@ -335,7 +332,7 @@ test('terms keep their given order when no saved order exists', function () {
         (object) array('term_id' => 22, 'name' => 'Zed Productions'),
     );
 
-    $sorted = eventon_apify_sort_terms_by_saved_order($terms, array(), '_evotax_order_event_organizer');
+    $sorted = eventon_apify_sort_terms_by_saved_order($terms, '');
     eq($sorted[0]->name, 'Amy Co');
 });
 
