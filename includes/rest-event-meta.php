@@ -88,9 +88,14 @@ function eventon_apify_save_event_flag_meta($post_id, array $params) {
  * @return true|WP_Error
  */
 function eventon_apify_save_event_meta($post_id, array $params) {
-    $datetime_result = eventon_apify_save_datetime_meta($post_id, $params);
-    if (is_wp_error($datetime_result)) {
-        return $datetime_result;
+    // Datetime meta is rewritten only when the request actually carries
+    // datetime input: an unconditional rewrite rederives inputs from the
+    // boundary-extended _unix_*_ev values and corrupts dl/ml/yl events.
+    if (eventon_apify_has_datetime_input($params)) {
+        $datetime_result = eventon_apify_save_datetime_meta($post_id, $params);
+        if (is_wp_error($datetime_result)) {
+            return $datetime_result;
+        }
     }
 
     if (array_key_exists('featured_media', $params)) {
@@ -115,8 +120,12 @@ function eventon_apify_save_event_meta($post_id, array $params) {
         foreach (eventon_apify_get_allowed_event_statuses() as $status_key) {
             $reason_meta_key = '_' . $status_key . '_reason';
 
-            if ($status_key === $current_event_status && array_key_exists('status_reason', $params) && $current_event_status !== 'scheduled') {
-                eventon_apify_update_or_delete_meta($post_id, $reason_meta_key, sanitize_textarea_field((string) $params['status_reason']));
+            if ($status_key === $current_event_status && $current_event_status !== 'scheduled') {
+                // Re-asserting the current status without a reason must keep
+                // the stored reason; only an explicit status_reason replaces it.
+                if (array_key_exists('status_reason', $params)) {
+                    eventon_apify_update_or_delete_meta($post_id, $reason_meta_key, sanitize_textarea_field((string) $params['status_reason']));
+                }
                 continue;
             }
 
@@ -335,10 +344,27 @@ function eventon_apify_save_datetime_meta($post_id, array $params) {
         return $calculated;
     }
 
-    update_post_meta($post_id, 'evcal_srow', absint($calculated['unix_start']));
-    update_post_meta($post_id, 'evcal_erow', absint($calculated['unix_end']));
-    update_post_meta($post_id, '_unix_start_ev', absint($calculated['unix_start_ev']));
-    update_post_meta($post_id, '_unix_end_ev', absint($calculated['unix_end_ev']));
+    // The virtual-end keys are intentionally excluded: they go through
+    // absint() below.
+    $lowest = min(
+        (int) $calculated['unix_start'],
+        (int) $calculated['unix_end'],
+        (int) $calculated['unix_start_ev'],
+        (int) $calculated['unix_end_ev']
+    );
+
+    if ($lowest < 0) {
+        return new WP_Error(
+            'eventon_apify_invalid_datetime',
+            'Event dates must be on or after 1970-01-01.',
+            array('status' => 400)
+        );
+    }
+
+    update_post_meta($post_id, 'evcal_srow', (int) $calculated['unix_start']);
+    update_post_meta($post_id, 'evcal_erow', (int) $calculated['unix_end']);
+    update_post_meta($post_id, '_unix_start_ev', (int) $calculated['unix_start_ev']);
+    update_post_meta($post_id, '_unix_end_ev', (int) $calculated['unix_end_ev']);
     update_post_meta($post_id, '_evo_tz', sanitize_text_field((string) $state['timezone_key']));
     update_post_meta($post_id, '_time_ext_type', sanitize_key((string) $state['time_extend_type']));
 
@@ -387,10 +413,15 @@ function eventon_apify_calculate_datetime_meta(array $state) {
         }
     }
 
+    // Fallback when EventON's helper is unavailable. evcal_srow/evcal_erow
+    // must be wall-as-UTC (EventON's renderers assume it), while the
+    // _unix_*_ev keys are real epochs in the event timezone.
+    $start_wall = eventon_apify_build_wall_utc_timestamp($state['start_date'], $state['start_time']);
+    $end_wall = eventon_apify_build_wall_utc_timestamp($state['end_date'], $state['end_time']);
     $start_timestamp = eventon_apify_build_timestamp($state['start_date'], $state['start_time'], $state['timezone_key']);
     $end_timestamp = eventon_apify_build_timestamp($state['end_date'], $state['end_time'], $state['timezone_key']);
 
-    if ($start_timestamp === null || $end_timestamp === null) {
+    if ($start_wall === null || $end_wall === null || $start_timestamp === null || $end_timestamp === null) {
         return new WP_Error(
             'eventon_apify_invalid_datetime',
             'Event dates could not be converted into timestamps.',
@@ -398,15 +429,17 @@ function eventon_apify_calculate_datetime_meta(array $state) {
         );
     }
 
+    $virtual_end_wall = 0;
     $virtual_end_timestamp = 0;
     if ($state['virtual_end_enabled']) {
+        $virtual_end_wall = eventon_apify_build_wall_utc_timestamp($state['virtual_end_date'], $state['virtual_end_time']) ?: 0;
         $virtual_end_timestamp = eventon_apify_build_timestamp($state['virtual_end_date'], $state['virtual_end_time'], $state['timezone_key']) ?: 0;
     }
 
     return array(
-        'unix_start' => $start_timestamp,
-        'unix_end' => $end_timestamp,
-        'unix_vir_end' => $virtual_end_timestamp,
+        'unix_start' => $start_wall,
+        'unix_end' => $end_wall,
+        'unix_vir_end' => $virtual_end_wall,
         'unix_start_ev' => $start_timestamp,
         'unix_end_ev' => $end_timestamp,
         'unix_vend_ev' => $virtual_end_timestamp,
@@ -471,22 +504,23 @@ function eventon_apify_save_repeat_meta($post_id, array $params) {
         return true;
     }
 
+    // Presence of repeat sub-fields implies enabling only when the event has
+    // no stored repeat flag yet (create). On update, a stored "no" stays in
+    // force unless repeat_enabled is sent explicitly.
+    $stored_enabled = (string) get_post_meta($post_id, 'evcal_repeat', true);
     $enabled = array_key_exists('repeat_enabled', $params)
         ? eventon_apify_is_yes($params['repeat_enabled'])
         : (
-            eventon_apify_array_has_any($params, array('repeat_frequency', 'repeat_gap', 'repeat_count', 'repeat_intervals'))
-                ? true
-                : eventon_apify_is_yes(get_post_meta($post_id, 'evcal_repeat', true))
+            $stored_enabled === ''
+                ? eventon_apify_array_has_any($params, array('repeat_frequency', 'repeat_gap', 'repeat_count', 'repeat_intervals'))
+                : eventon_apify_is_yes($stored_enabled)
         );
 
     eventon_apify_update_yes_no_meta($post_id, 'evcal_repeat', $enabled);
 
     if (!$enabled) {
-        delete_post_meta($post_id, 'repeat_intervals');
-        delete_post_meta($post_id, 'evcal_rep_freq');
-        delete_post_meta($post_id, 'evcal_rep_gap');
-        delete_post_meta($post_id, 'evcal_rep_num');
-        delete_post_meta($post_id, '_evcal_rep_series');
+        // Keep the stored frequency/gap/count/intervals so re-enabling
+        // restores the prior configuration, matching EventON's own toggle.
         return true;
     }
 
@@ -556,6 +590,10 @@ function eventon_apify_generate_repeat_intervals($post_id, array $params, $repea
         return array();
     }
 
+    if ($repeat_frequency === 'custom' && !empty($custom_intervals)) {
+        $custom_intervals = eventon_apify_prepend_base_repeat_interval($custom_intervals, $base_start, $base_end);
+    }
+
     if (function_exists('eventon_get_repeat_intervals')) {
         $repeat_payload = array(
             'evcal_rep_freq' => $repeat_frequency,
@@ -585,6 +623,30 @@ function eventon_apify_generate_repeat_intervals($post_id, array $params, $repea
     }
 
     return array(array($base_start, $base_end));
+}
+
+/**
+ * Ensure interval index 0 is the base event occurrence. EventON drops the
+ * first custom interval unless it equals the base start/end, so client
+ * intervals must always be stored after the base pair.
+ *
+ * @param array<int, array<int, int>> $intervals Normalized custom intervals.
+ * @return array<int, array<int, int>>
+ */
+function eventon_apify_prepend_base_repeat_interval(array $intervals, $base_start, $base_end) {
+    $base = array((int) $base_start, (int) $base_end);
+    $intervals = array_values(
+        array_filter(
+            $intervals,
+            static function ($interval) use ($base) {
+                return array((int) ($interval[0] ?? 0), (int) ($interval[1] ?? 0)) !== $base;
+            }
+        )
+    );
+
+    array_unshift($intervals, $base);
+
+    return $intervals;
 }
 
 /**
@@ -681,20 +743,20 @@ function eventon_apify_normalize_repeat_interval_item($interval, $timezone_key) 
     $start_at = eventon_apify_array_get($interval, array('start_at'), '');
     $end_at = eventon_apify_array_get($interval, array('end_at'), '');
 
+    // Stored intervals live in EventON's wall-as-UTC space (the same space as
+    // evcal_srow/evcal_erow and the raw timestamps returned by reads), so
+    // date/time inputs are interpreted as the event's wall clock in UTC.
     if ($start_at !== '' && $end_at !== '') {
-        $start_parts = eventon_apify_extract_datetime_parts($start_at);
-        $end_parts = eventon_apify_extract_datetime_parts($end_at);
+        $start_timestamp = eventon_apify_build_wall_utc_timestamp_from_iso($start_at, $timezone_key);
+        $end_timestamp = eventon_apify_build_wall_utc_timestamp_from_iso($end_at, $timezone_key);
 
-        if (!$start_parts || !$end_parts) {
+        if ($start_timestamp === null || $end_timestamp === null) {
             return new WP_Error(
                 'eventon_apify_invalid_repeat_interval',
                 'repeat.intervals start_at/end_at could not be parsed.',
                 array('status' => 400)
             );
         }
-
-        $start_timestamp = eventon_apify_build_timestamp($start_parts['date'], $start_parts['time'], $start_parts['timezone'] ?: $timezone_key);
-        $end_timestamp = eventon_apify_build_timestamp($end_parts['date'], $end_parts['time'], $end_parts['timezone'] ?: $timezone_key);
     } else {
         $start_date = sanitize_text_field((string) eventon_apify_array_get($interval, array('start_date'), ''));
         $start_time = sanitize_text_field((string) eventon_apify_array_get($interval, array('start_time'), '00:00'));
@@ -705,8 +767,8 @@ function eventon_apify_normalize_repeat_interval_item($interval, $timezone_key) 
             return false;
         }
 
-        $start_timestamp = eventon_apify_build_timestamp($start_date, $start_time, $timezone_key);
-        $end_timestamp = eventon_apify_build_timestamp($end_date, $end_time, $timezone_key);
+        $start_timestamp = eventon_apify_build_wall_utc_timestamp($start_date, $start_time);
+        $end_timestamp = eventon_apify_build_wall_utc_timestamp($end_date, $end_time);
     }
 
     if ($start_timestamp === null || $end_timestamp === null) {
@@ -726,6 +788,40 @@ function eventon_apify_normalize_repeat_interval_item($interval, $timezone_key) 
     }
 
     return array($start_timestamp, $end_timestamp);
+}
+
+/**
+ * Convert an ISO-like datetime string into a wall-as-UTC interval timestamp.
+ *
+ * A string carrying an explicit UTC/offset designator is a real instant: it
+ * is converted into the event timezone first, and that wall clock is then
+ * interpreted as UTC. Naive strings are taken as the event wall clock as-is.
+ *
+ * @param mixed  $value        ISO-like datetime input.
+ * @param string $timezone_key Event timezone identifier.
+ * @return int|null
+ */
+function eventon_apify_build_wall_utc_timestamp_from_iso($value, $timezone_key) {
+    if (!is_scalar($value)) {
+        return null;
+    }
+
+    $raw = trim((string) $value);
+    $parts = eventon_apify_extract_datetime_parts($raw);
+    if (!$parts) {
+        return null;
+    }
+
+    // Only a designator on the raw string marks an absolute instant; a naive
+    // string is already the event's wall clock and must not be shifted.
+    if (preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $raw)) {
+        $parts = eventon_apify_convert_instant_to_wall_parts($raw, $timezone_key);
+        if (!$parts) {
+            return null;
+        }
+    }
+
+    return eventon_apify_build_wall_utc_timestamp($parts['date'], $parts['time']);
 }
 
 /**
@@ -762,7 +858,10 @@ function eventon_apify_save_rsvp_meta($post_id, array $params) {
         return true;
     }
 
-    if (!array_key_exists('rsvp_enabled', $params)) {
+    // Sending RSVP sub-fields implies enabling only when the event has no
+    // stored RSVP flag yet (create). A stored "no" must never be flipped by
+    // a partial settings PATCH; only an explicit rsvp_enabled changes it.
+    if (!array_key_exists('rsvp_enabled', $params) && eventon_apify_meta_is_unset($post_id, 'evors_rsvp')) {
         eventon_apify_update_yes_no_meta($post_id, 'evors_rsvp', true);
     }
 
@@ -785,7 +884,12 @@ function eventon_apify_save_rsvp_meta($post_id, array $params) {
         }
     }
 
-    if (array_key_exists('rsvp_capacity_count', $params) && !array_key_exists('rsvp_capacity_enabled', $params) && absint($params['rsvp_capacity_count']) > 0) {
+    if (
+        array_key_exists('rsvp_capacity_count', $params)
+        && !array_key_exists('rsvp_capacity_enabled', $params)
+        && absint($params['rsvp_capacity_count']) > 0
+        && eventon_apify_meta_is_unset($post_id, 'evors_capacity')
+    ) {
         eventon_apify_update_yes_no_meta($post_id, 'evors_capacity', true);
     }
 
@@ -797,9 +901,18 @@ function eventon_apify_save_rsvp_meta($post_id, array $params) {
     );
 
     foreach ($integer_map as $request_key => $meta_key) {
-        if (array_key_exists($request_key, $params)) {
-            eventon_apify_update_or_delete_meta($post_id, $meta_key, (string) absint($params[$request_key]));
+        if (!array_key_exists($request_key, $params)) {
+            continue;
         }
+
+        // Explicit null/empty clears the stored value; absint() alone could
+        // never produce the empty string update_or_delete_meta deletes on.
+        $value = $params[$request_key];
+        eventon_apify_update_or_delete_meta(
+            $post_id,
+            $meta_key,
+            ($value === null || $value === '') ? '' : (string) absint($value)
+        );
     }
 
     if (array_key_exists('rsvp_additional_emails', $params)) {
@@ -815,10 +928,20 @@ function eventon_apify_save_rsvp_meta($post_id, array $params) {
             );
         }
 
-        $capacities = array_map('absint', $params['rsvp_repeat_capacities']);
-        $capacities = array_values($capacities);
+        // EventON reads ri_capacity_rs by repeat-interval index and treats a
+        // missing/zero entry as sold out, so client keys must be preserved:
+        // reindexing a sparse map silently shifts capacities between
+        // occurrences and blocks RSVPs.
+        $capacities = array();
+        foreach ($params['rsvp_repeat_capacities'] as $interval_index => $capacity) {
+            $capacities[absint($interval_index)] = absint($capacity);
+        }
 
-        if (!array_key_exists('rsvp_manage_repeat_capacity', $params) && !empty($capacities)) {
+        if (
+            !array_key_exists('rsvp_manage_repeat_capacity', $params)
+            && !empty($capacities)
+            && eventon_apify_meta_is_unset($post_id, '_manage_repeat_cap_rs')
+        ) {
             eventon_apify_update_yes_no_meta($post_id, '_manage_repeat_cap_rs', true);
         }
 
@@ -827,9 +950,10 @@ function eventon_apify_save_rsvp_meta($post_id, array $params) {
         } else {
             delete_post_meta($post_id, 'ri_capacity_rs');
         }
-    } elseif (array_key_exists('rsvp_manage_repeat_capacity', $params) && !eventon_apify_is_yes($params['rsvp_manage_repeat_capacity'])) {
-        delete_post_meta($post_id, 'ri_capacity_rs');
     }
+    // Toggling rsvp_manage_repeat_capacity off intentionally keeps
+    // ri_capacity_rs stored, matching EventON's own admin toggle, so
+    // re-enabling restores the per-interval capacities.
 
     return true;
 }
@@ -874,13 +998,4 @@ function eventon_apify_save_featured_media($post_id, $value) {
     set_post_thumbnail($post_id, absint($value));
 
     return true;
-}
-
-/**
- * Get an existing EventON timestamp meta field as Y-m-d.
- */
-function eventon_apify_get_existing_meta_date($post_id, $meta_key) {
-    $timestamp = absint(get_post_meta($post_id, $meta_key, true));
-
-    return $timestamp ? wp_date('Y-m-d', $timestamp) : '';
 }

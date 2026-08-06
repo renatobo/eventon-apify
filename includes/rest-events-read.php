@@ -37,6 +37,7 @@ function eventon_apify_format_event(WP_Post $post) {
     $status_reason = eventon_apify_get_event_status_reason_from_meta($meta, $event_status);
     $gradient_angle = eventon_apify_get_meta_text($meta, '_evo_event_grad_ang');
     $health = eventon_apify_get_health_payload($post->ID);
+    $access_control = eventon_apify_get_access_control_payload($post->ID, $meta);
 
     return array(
         'id' => $post->ID,
@@ -51,14 +52,14 @@ function eventon_apify_format_event(WP_Post $post) {
         'event_excerpt' => eventon_apify_get_meta_text($meta, 'evo_excerpt'),
         'link' => get_permalink($post->ID),
         'start_timestamp' => $start_timestamp,
-        'start_at' => $event_start_timestamp ? eventon_apify_format_timestamp_for_timezone($event_start_timestamp, $timezone_key, 'c') : '',
-        'start_date' => $event_start_timestamp ? eventon_apify_format_timestamp_for_timezone($event_start_timestamp, $timezone_key, 'Y-m-d') : '',
-        'start_time' => $event_start_timestamp ? eventon_apify_format_timestamp_for_timezone($event_start_timestamp, $timezone_key, 'H:i') : '',
+        'start_at' => eventon_apify_format_event_base_datetime($start_timestamp, $event_start_timestamp, $timezone_key, 'c'),
+        'start_date' => eventon_apify_format_event_base_datetime($start_timestamp, $event_start_timestamp, $timezone_key, 'Y-m-d'),
+        'start_time' => eventon_apify_format_event_base_datetime($start_timestamp, $event_start_timestamp, $timezone_key, 'H:i'),
         'event_start_timestamp' => $event_start_timestamp,
         'end_timestamp' => $end_timestamp,
-        'end_at' => $event_end_timestamp ? eventon_apify_format_timestamp_for_timezone($event_end_timestamp, $timezone_key, 'c') : '',
-        'end_date' => $event_end_timestamp ? eventon_apify_format_timestamp_for_timezone($event_end_timestamp, $timezone_key, 'Y-m-d') : '',
-        'end_time' => $event_end_timestamp ? eventon_apify_format_timestamp_for_timezone($event_end_timestamp, $timezone_key, 'H:i') : '',
+        'end_at' => eventon_apify_format_event_base_datetime($end_timestamp, $event_end_timestamp, $timezone_key, 'c'),
+        'end_date' => eventon_apify_format_event_base_datetime($end_timestamp, $event_end_timestamp, $timezone_key, 'Y-m-d'),
+        'end_time' => eventon_apify_format_event_base_datetime($end_timestamp, $event_end_timestamp, $timezone_key, 'H:i'),
         'event_end_timestamp' => $event_end_timestamp,
         'location' => $location,
         'organizer' => !empty($organizers) ? $organizers[0]['name'] : eventon_apify_get_meta_text($meta, 'evcal_organizer_name'),
@@ -79,6 +80,7 @@ function eventon_apify_format_event(WP_Post $post) {
         'learn_more_link_target' => eventon_apify_get_yes_no_flag($meta, 'evcal_lmlink_target'),
         'interaction' => eventon_apify_get_interaction_payload($post->ID, $meta),
         'flags' => array(
+            'all_day' => eventon_apify_event_flag_is_all_day($meta),
             'featured' => eventon_apify_get_yes_no_flag($meta, '_featured'),
             'completed' => eventon_apify_get_yes_no_flag($meta, '_completed'),
             'exclude_from_calendar' => eventon_apify_get_yes_no_flag($meta, 'evo_exclude_ev'),
@@ -95,13 +97,15 @@ function eventon_apify_format_event(WP_Post $post) {
             'gradient_enabled' => eventon_apify_get_yes_no_flag($meta, '_evo_event_grad_colors'),
         ),
         'health' => $health,
+        'access_control' => $access_control,
         'gradient_angle' => is_numeric($gradient_angle) ? (0 + $gradient_angle) : null,
         'virtual' => eventon_apify_get_virtual_payload($meta, $timezone_key, $virtual_end_timestamp),
         'repeat' => eventon_apify_get_repeat_payload($meta, $timezone_key),
         'related_events' => eventon_apify_get_related_events_payload($post->ID, $meta),
         'seo' => eventon_apify_get_seo_payload($meta),
-        'faqs' => eventon_apify_get_faq_payload($post->ID),
+        'faqs' => eventon_apify_get_faq_payload($post->ID, $meta),
         'rsvp' => eventon_apify_get_rsvp_payload($meta),
+        'featured_media' => (int) get_post_thumbnail_id($post->ID),
         'featured_image' => get_the_post_thumbnail_url($post->ID, 'full') ?: '',
         'created' => $post->post_date_gmt ? get_date_from_gmt($post->post_date_gmt, 'c') : '',
         'modified' => $post->post_modified_gmt ? get_date_from_gmt($post->post_modified_gmt, 'c') : '',
@@ -184,8 +188,15 @@ function eventon_apify_get_event_effective_start_timestamp(array $meta) {
 function eventon_apify_get_timezone_key_from_meta(array $meta) {
     $timezone_key = eventon_apify_get_meta_text($meta, '_evo_tz');
 
-    if ($timezone_key !== '' && eventon_apify_is_valid_timezone($timezone_key)) {
-        return $timezone_key;
+    if ($timezone_key !== '') {
+        // Accept anything DateTimeZone can construct, including UTC-offset
+        // keys, not just named identifiers.
+        try {
+            new DateTimeZone($timezone_key);
+            return $timezone_key;
+        } catch (Exception $exception) {
+            unset($exception);
+        }
     }
 
     $wp_timezone = wp_timezone_string();
@@ -295,13 +306,15 @@ function eventon_apify_get_seo_payload(array $meta) {
 /**
  * Return a normalized FAQ payload.
  *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
  * @return array<string, mixed>
  */
-function eventon_apify_get_faq_payload($post_id) {
+function eventon_apify_get_faq_payload($post_id, array $meta) {
     $items = array();
     $terms = taxonomy_exists('evo_faq') ? wp_get_post_terms($post_id, 'evo_faq') : array();
 
     if ($terms && !is_wp_error($terms)) {
+        $terms = eventon_apify_sort_terms_by_saved_order($terms, eventon_apify_get_meta_text($meta, '_evotax_order_evo_faq'));
         foreach ($terms as $term) {
             $items[] = array(
                 'term_id' => (int) $term->term_id,
@@ -313,9 +326,79 @@ function eventon_apify_get_faq_payload($post_id) {
     }
 
     return array(
-        'subheader' => (string) get_post_meta($post_id, '_evo_faq_subheader', true),
+        'subheader' => eventon_apify_get_meta_text($meta, '_evo_faq_subheader'),
         'items' => $items,
     );
+}
+
+/**
+ * Whether the event is all-day.
+ *
+ * Read-only and derived: EventON expresses all-day as `_time_ext_type = 'dl'`,
+ * the branch that snaps the extended timestamps to 00:00/23:59. The legacy
+ * `evcal_allday` meta is display-only — EventON core reads it but never writes
+ * it — so it serves only as a fallback for imported events.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ */
+function eventon_apify_event_flag_is_all_day(array $meta) {
+    return eventon_apify_get_meta_text($meta, '_time_ext_type') === 'dl'
+        || eventon_apify_get_yes_no_flag($meta, 'evcal_allday');
+}
+
+/**
+ * Format the writable date/time fields from the event's base wall clock.
+ *
+ * The writable `start_date`/`start_time`/`start_at` trio must reflect the
+ * times the user entered, which live in `evcal_srow`/`evcal_erow` (wall-as-UTC
+ * and never boundary-extended). Reporting the extended `_unix_*_ev` values
+ * here would make a read-modify-write client PUT back 00:00/23:59 for a
+ * dl/ml/yl event and overwrite the real times. The extended real epochs stay
+ * available through the read-only `event_start_timestamp`/`event_end_timestamp`.
+ *
+ * @param int    $wall_timestamp  Base wall-as-UTC timestamp.
+ * @param int    $epoch_timestamp Boundary-extended real epoch fallback.
+ * @param string $timezone_key    Event timezone.
+ * @param string $format          Date format.
+ */
+function eventon_apify_format_event_base_datetime($wall_timestamp, $epoch_timestamp, $timezone_key, $format) {
+    if ($wall_timestamp) {
+        return eventon_apify_format_wall_timestamp($wall_timestamp, $timezone_key, $format);
+    }
+
+    // No base wall clock stored (imports, pre-migration events): fall back to
+    // the real epoch, formatted with the epoch formatter for its space.
+    return $epoch_timestamp
+        ? eventon_apify_format_timestamp_for_timezone($epoch_timestamp, $timezone_key, $format)
+        : '';
+}
+
+/**
+ * Sort taxonomy terms by EventON's saved comma-separated term order
+ * (_evotax_order_<taxonomy>), keeping the given order when it is absent.
+ *
+ * @param array<int, WP_Term> $terms     Terms to sort.
+ * @param mixed               $order_raw Comma-separated term IDs.
+ * @return array<int, WP_Term>
+ */
+function eventon_apify_sort_terms_by_saved_order(array $terms, $order_raw) {
+    $order_raw = trim((string) $order_raw);
+    if ($order_raw === '') {
+        return $terms;
+    }
+
+    $order = array_flip(array_map('absint', explode(',', $order_raw)));
+
+    usort(
+        $terms,
+        static function ($left, $right) use ($order) {
+            $left_pos = $order[(int) $left->term_id] ?? PHP_INT_MAX;
+            $right_pos = $order[(int) $right->term_id] ?? PHP_INT_MAX;
+            return $left_pos <=> $right_pos;
+        }
+    );
+
+    return $terms;
 }
 
 /**
@@ -326,8 +409,11 @@ function eventon_apify_format_timestamp_for_timezone($timestamp, $timezone_key, 
         return '';
     }
 
+    // Offset keys like "-07:00" (sites configured via gmt_offset) are valid
+    // DateTimeZone input even though they are not named identifiers; falling
+    // back to UTC for them silently shifts every formatted time.
     try {
-        $timezone = new DateTimeZone(eventon_apify_is_valid_timezone($timezone_key) ? $timezone_key : 'UTC');
+        $timezone = new DateTimeZone((string) $timezone_key);
     } catch (Exception $exception) {
         $timezone = new DateTimeZone('UTC');
     }
@@ -446,6 +532,8 @@ function eventon_apify_get_location_payload($post_id, array $meta) {
         $location['city'] = eventon_apify_get_meta_text($meta, 'evcal_location_city');
         $location['state'] = eventon_apify_get_meta_text($meta, 'evcal_location_state');
         $location['country'] = eventon_apify_get_meta_text($meta, 'evcal_location_country');
+        $location['lat'] = eventon_apify_get_meta_text($meta, 'evcal_lat');
+        $location['lon'] = eventon_apify_get_meta_text($meta, 'evcal_lon');
     }
 
     if ($location['lat'] !== '' && $location['lon'] !== '') {
@@ -472,6 +560,7 @@ function eventon_apify_get_organizer_payload($post_id, array $meta) {
     $organizers = array();
 
     if ($terms && !is_wp_error($terms)) {
+        $terms = eventon_apify_sort_terms_by_saved_order($terms, eventon_apify_get_meta_text($meta, '_evotax_order_event_organizer'));
         foreach ($terms as $term) {
             $term_meta = eventon_apify_get_term_meta_payload('event_organizer', $term->term_id);
             $archive_url = get_term_link($term, 'event_organizer');
@@ -509,6 +598,88 @@ function eventon_apify_get_organizer_payload($post_id, array $meta) {
     }
 
     return $organizers;
+}
+
+/**
+ * Build the read-only ARMember access-control payload.
+ *
+ * Reports gating configuration, not per-user authorization. Post-level rules
+ * come from the multi-row `arm_access_plan` post meta (a `0` row marks the
+ * post as protected; other rows are permitted plan IDs). Term-level rules
+ * live in ARMember's own term meta table, reachable only through
+ * get_arm_term_meta(), which exists only when ARMember Pro is active.
+ *
+ * @param array<string, array<int, mixed>> $meta Post meta array.
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_access_control_payload($post_id, array $meta) {
+    $payload = array(
+        'restricted' => false,
+        'provider' => '',
+        'membership_plan_ids' => array(),
+        'restricted_by' => array(),
+    );
+
+    $plan_ids = array();
+
+    if (isset($meta['arm_access_plan']) && is_array($meta['arm_access_plan']) && !empty($meta['arm_access_plan'])) {
+        $payload['restricted'] = true;
+        $payload['restricted_by'][] = 'post';
+
+        foreach ($meta['arm_access_plan'] as $plan_id) {
+            $plan_ids[] = (int) $plan_id;
+        }
+    }
+
+    if (function_exists('get_arm_term_meta')) {
+        $taxonomies = array(
+            'event_type',
+            'event_type_2',
+            'event_type_3',
+            'event_type_4',
+            'event_location',
+            'event_organizer',
+            'post_tag',
+        );
+
+        foreach ($taxonomies as $taxonomy) {
+            $terms = wp_get_post_terms($post_id, $taxonomy);
+            if (!$terms || is_wp_error($terms)) {
+                continue;
+            }
+
+            foreach ($terms as $term) {
+                // Same predicate ARMember's own frontend gate uses
+                // (class.arm_restriction.php): protection is the single
+                // '1' marker, plans are multi-row term meta.
+                $protection = get_arm_term_meta($term->term_id, 'arm_protection', true);
+                if (empty($protection) || '1' != $protection) {
+                    continue;
+                }
+
+                $payload['restricted'] = true;
+                if (!in_array('term', $payload['restricted_by'], true)) {
+                    $payload['restricted_by'][] = 'term';
+                }
+
+                $term_plans = get_arm_term_meta($term->term_id, 'arm_access_plan');
+                if (is_array($term_plans)) {
+                    foreach ($term_plans as $plan_id) {
+                        $plan_ids[] = (int) $plan_id;
+                    }
+                }
+            }
+        }
+    }
+
+    if ($payload['restricted']) {
+        $payload['provider'] = 'armember';
+        $plan_ids = array_values(array_unique(array_filter($plan_ids)));
+        sort($plan_ids);
+        $payload['membership_plan_ids'] = $plan_ids;
+    }
+
+    return $payload;
 }
 
 /**
@@ -555,12 +726,15 @@ function eventon_apify_get_repeat_payload(array $meta, $timezone_key) {
                 continue;
             }
 
+            // Interval values are stored in EventON's wall-as-UTC space, not
+            // as real epochs; format them by re-interpreting the wall clock
+            // in the event timezone so the ISO offset comes out right.
             $items[] = array(
                 'index' => (int) $index,
                 'start_timestamp' => (int) $interval[0],
-                'start_at' => eventon_apify_format_timestamp_for_timezone((int) $interval[0], $timezone_key, 'c'),
+                'start_at' => eventon_apify_format_wall_timestamp((int) $interval[0], $timezone_key, 'c'),
                 'end_timestamp' => (int) $interval[1],
-                'end_at' => eventon_apify_format_timestamp_for_timezone((int) $interval[1], $timezone_key, 'c'),
+                'end_at' => eventon_apify_format_wall_timestamp((int) $interval[1], $timezone_key, 'c'),
             );
         }
     }
@@ -619,8 +793,12 @@ function eventon_apify_get_term_meta_payload($taxonomy, $term_id) {
     }
 
     if (function_exists('evo_get_term_meta')) {
-        $meta = evo_get_term_meta($taxonomy, $term_id, true);
-        return is_array($meta) ? $meta : array();
+        // Third arg is a pre-fetched options array, not a $single flag; '' lets
+        // EventON read its own store, true enables the legacy taxonomy_<id> fallback.
+        $meta = evo_get_term_meta($taxonomy, $term_id, '', true);
+        if (is_array($meta) && !empty($meta)) {
+            return $meta;
+        }
     }
 
     $all_term_meta = get_option('evo_tax_meta', array());

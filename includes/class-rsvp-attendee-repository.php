@@ -37,7 +37,8 @@ final class RSVP_Attendee_Repository {
         $query = new \WP_Query(
             array(
                 'post_type' => 'evo-rsvp',
-                'post_status' => array('publish', 'private', 'draft'),
+                // EventON's own count sync only considers published RSVP posts.
+                'post_status' => 'publish',
                 'posts_per_page' => -1,
                 'orderby' => 'ID',
                 'order' => 'DESC',

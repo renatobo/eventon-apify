@@ -55,7 +55,9 @@ function eventon_apify_restrict_wp_v2_compatibility_routes($result, $server, WP_
  * Return true when the request route is part of the EventON wp/v2 compatibility surface.
  */
 function eventon_apify_is_wp_v2_compatibility_route($route) {
-    $route = (string) $route;
+    // Case-folded: core matches routes case-insensitively, so the raw client
+    // path must not be compared verbatim against the canonical prefixes.
+    $route = strtolower((string) $route);
 
     $prefixes = array(
         '/wp/v2/ajde_events',
@@ -87,7 +89,10 @@ function eventon_apify_get_wp_v2_compatibility_taxonomies() {
         return $cache;
     }
 
-    $fallback = array('event_type', 'event_type_2', 'event_location', 'event_organizer');
+    // Must cover everything the registration allow-list in
+    // rest-wp-v2-compat.php can expose, or those taxonomies end up
+    // registered but unguarded when this fallback is cached early.
+    $fallback = array('event_type', 'event_type_2', 'event_type_3', 'event_type_4', 'event_location', 'event_organizer');
 
     if (!post_type_exists('ajde_events')) {
         return $cache = $fallback;
@@ -147,7 +152,10 @@ function eventon_apify_filter_wp_v2_compatibility_responses($response, $_server,
         return $response;
     }
 
-    $route = (string) $request->get_route();
+    // Core dispatches routes case-insensitively but get_route() returns the
+    // raw client path, so the comparison must be case-folded or a request
+    // for /wp/v2/Types bypasses the redaction.
+    $route = strtolower((string) $request->get_route());
     $data = $response->get_data();
 
     if ($route === '/wp/v2/types' && is_array($data)) {

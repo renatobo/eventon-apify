@@ -94,7 +94,9 @@ final class EventON_APIfy_Event_Write_Coordinator {
         }
 
         if (!empty($snapshot['post']) && is_array($snapshot['post'])) {
-            wp_update_post($snapshot['post']);
+            // wp_update_post() unslashes its input, so re-slash the snapshot
+            // to keep backslashes in post content intact on rollback.
+            wp_update_post(wp_slash($snapshot['post']));
         }
 
         self::restore_post_meta($post_id, $snapshot['meta'] ?? array());

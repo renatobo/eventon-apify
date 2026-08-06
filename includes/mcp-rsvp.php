@@ -38,7 +38,7 @@ function eventon_apify_get_mcp_rsvp_content_type_manifest() {
             array(
                 'name' => 'summary',
                 'endpoint' => 'eventonapify/v1/events/{event_id}/rsvps/summary',
-                'description' => 'Yes-only RSVP attendance summary for the same event.',
+                'description' => 'RSVP attendance summary for the same event: yes totals plus explicit waitlist buckets, aligned with EventON count sync.',
             ),
         ),
     );
@@ -128,9 +128,9 @@ function eventon_apify_get_mcp_rsvp_contract_fields() {
         array(
             'name' => 'rsvp',
             'label' => 'RSVP',
-            'description' => 'Normalized RSVP response.',
+            'description' => 'Normalized RSVP response. Also available as a list filter query parameter (all/yes/no/maybe/waitlist); the waitlist value matches waitlist-only submissions and records whose check-in status is waitlist.',
             'type' => 'string',
-            'enum' => array('yes', 'no', 'maybe'),
+            'enum' => array('yes', 'no', 'maybe', 'waitlist'),
             'operations' => array('list'),
             'read_only' => true,
         ),
@@ -153,7 +153,23 @@ function eventon_apify_get_mcp_rsvp_contract_fields() {
         array(
             'name' => 'count',
             'label' => 'Count',
-            'description' => 'Total party size for the RSVP, including the submitter.',
+            'description' => 'Displayed party size for the RSVP, including the submitter. Always at least 1.',
+            'type' => 'integer',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'headcount',
+            'label' => 'Headcount',
+            'description' => 'Stored headcount used in summary math. Records with a headcount of 0 are excluded from summary totals, matching EventON count sync.',
+            'type' => 'integer',
+            'operations' => array('list'),
+            'read_only' => true,
+        ),
+        array(
+            'name' => 'repeat_interval',
+            'label' => 'Repeat Interval',
+            'description' => 'Repeat instance index of the event this RSVP belongs to. Also available as an integer filter query parameter on the list and summary routes.',
             'type' => 'integer',
             'operations' => array('list'),
             'read_only' => true,
@@ -202,6 +218,7 @@ function eventon_apify_get_mcp_rsvp_contract_examples() {
                 'per_page' => 50,
                 'page' => 1,
                 'rsvp' => 'yes',
+                'repeat_interval' => 0,
                 'updated_after' => '2026-04-08T18:00:00Z',
                 'updated_after_id' => 980,
             ),
@@ -209,12 +226,17 @@ function eventon_apify_get_mcp_rsvp_contract_examples() {
         'summary' => array(
             'event_id' => 123,
             'endpoint' => 'eventonapify/v1/events/{event_id}/rsvps/summary',
+            'query' => array(
+                'repeat_interval' => 0,
+            ),
             'response_fields' => array(
                 'event_id',
                 'event_title',
                 'yes_submissions',
                 'yes_attendees_total',
                 'yes_additional_attendees',
+                'waitlist_records',
+                'waitlist_attendees_total',
             ),
         ),
     );

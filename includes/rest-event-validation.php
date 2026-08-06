@@ -36,6 +36,39 @@ function eventon_apify_validate_enum_field(array $params, $key, array $allowed, 
 }
 
 /**
+ * Request keys that participate in datetime resolution. When none are present
+ * on an update, the stored datetime meta must be left completely untouched:
+ * rewriting it rederives inputs from boundary-extended timestamps and
+ * permanently corrupts dl/ml/yl events.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_datetime_input_keys() {
+    return array(
+        'start_date',
+        'start_time',
+        'end_date',
+        'end_time',
+        'timezone_key',
+        'time_extend_type',
+        'hide_end_time',
+        'span_hidden_end',
+        'virtual_end_enabled',
+        'virtual_end_date',
+        'virtual_end_time',
+    );
+}
+
+/**
+ * Whether the request carries any datetime-affecting input.
+ *
+ * @param array<string, mixed> $params Normalized request parameters.
+ */
+function eventon_apify_has_datetime_input(array $params) {
+    return eventon_apify_array_has_any($params, eventon_apify_get_datetime_input_keys());
+}
+
+/**
  * Validate request payload fields before create/update.
  *
  * @param array<string, mixed> $params    Request body parameters.
@@ -142,14 +175,37 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         );
     }
 
-    foreach (array('location_lat', 'location_lon') as $coord_key) {
-        if (array_key_exists($coord_key, $params) && trim((string) $params[$coord_key]) !== '' && !is_numeric($params[$coord_key])) {
+    $coordinate_ranges = array('location_lat' => 90.0, 'location_lon' => 180.0);
+    foreach ($coordinate_ranges as $coord_key => $range) {
+        if (!array_key_exists($coord_key, $params) || trim((string) $params[$coord_key]) === '') {
+            continue;
+        }
+
+        if (!is_numeric($params[$coord_key]) || abs((float) $params[$coord_key]) > $range) {
             return new WP_Error(
                 'eventon_apify_invalid_location_coordinate',
-                $coord_key . ' must be numeric.',
+                $coord_key . ' must be numeric, between -' . $range . ' and ' . $range . '.',
                 array('status' => 400)
             );
         }
+    }
+
+    if (array_key_exists('virtual_moderator_id', $params) && trim((string) $params['virtual_moderator_id']) !== '') {
+        if (!is_numeric($params['virtual_moderator_id']) || (int) $params['virtual_moderator_id'] < 0) {
+            return new WP_Error(
+                'eventon_apify_invalid_moderator_id',
+                'virtual.moderator_id must be a non-negative user ID.',
+                array('status' => 400)
+            );
+        }
+    }
+
+    if (array_key_exists('location_email', $params) && trim((string) $params['location_email']) !== '' && !is_email((string) $params['location_email'])) {
+        return new WP_Error(
+            'eventon_apify_invalid_email',
+            'location.email must be a valid email address.',
+            array('status' => 400)
+        );
     }
 
     foreach (array('learn_more_link', 'location_link', 'virtual_url') as $url_key) {
@@ -170,7 +226,7 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         );
     }
 
-    if (array_key_exists('interaction_mode', $params) && !in_array(eventon_apify_normalize_interaction_mode($params['interaction_mode']), eventon_apify_get_allowed_interaction_modes(), true)) {
+    if (array_key_exists('interaction_mode', $params) && !eventon_apify_is_known_interaction_mode($params['interaction_mode'])) {
         return new WP_Error(
             'eventon_apify_invalid_interaction_mode',
             'interaction.mode must be one of: ' . implode(', ', eventon_apify_get_allowed_interaction_modes()) . '.',
@@ -188,6 +244,14 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
                 return new WP_Error(
                     'eventon_apify_invalid_organizer_url',
                     'organizer.link must be a valid absolute URL.',
+                    array('status' => 400)
+                );
+            }
+
+            if (isset($organizer['email']) && trim((string) $organizer['email']) !== '' && !is_email((string) $organizer['email'])) {
+                return new WP_Error(
+                    'eventon_apify_invalid_email',
+                    'organizer.email must be a valid email address.',
                     array('status' => 400)
                 );
             }
@@ -234,6 +298,10 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
  * @return true|WP_Error
  */
 function eventon_apify_validate_datetime_fields(array $params, $post_id = 0) {
+    if ($post_id && !eventon_apify_has_datetime_input($params)) {
+        return true;
+    }
+
     $state = eventon_apify_resolve_datetime_inputs($params, $post_id);
     $timezone_key = $state['timezone_key'];
 
@@ -309,6 +377,14 @@ function eventon_apify_validate_datetime_fields(array $params, $post_id = 0) {
             return new WP_Error(
                 'eventon_apify_invalid_virtual_end_datetime',
                 'The virtual end date/time could not be parsed.',
+                array('status' => 400)
+            );
+        }
+
+        if ($virtual_end_timestamp < $start_timestamp) {
+            return new WP_Error(
+                'eventon_apify_invalid_virtual_end_datetime',
+                'The virtual end date/time must be on or after the event start.',
                 array('status' => 400)
             );
         }
@@ -391,17 +467,44 @@ function eventon_apify_resolve_datetime_inputs(array $params, $post_id = 0) {
 function eventon_apify_get_existing_datetime_state($post_id) {
     $meta = get_post_meta($post_id);
     $timezone_key = eventon_apify_get_timezone_key_from_meta($meta);
-    $start_timestamp = eventon_apify_get_meta_int($meta, '_unix_start_ev') ?: eventon_apify_get_meta_int($meta, 'evcal_srow');
-    $end_timestamp = eventon_apify_get_meta_int($meta, '_unix_end_ev') ?: eventon_apify_get_meta_int($meta, 'evcal_erow');
-    $virtual_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_vend_ev') ?: eventon_apify_get_meta_int($meta, '_evo_virtual_erow');
+
+    // evcal_srow/evcal_erow hold the user's base wall clock in EventON's
+    // wall-as-UTC space, unaffected by dl/ml/yl boundary extension; reading
+    // the extended _unix_*_ev values here would rederive 00:00/23:59 and
+    // permanently overwrite the real times on save. gmdate() reads the wall
+    // clock back verbatim.
+    $start_wall = eventon_apify_get_meta_int($meta, 'evcal_srow');
+    $end_wall = eventon_apify_get_meta_int($meta, 'evcal_erow');
+    $virtual_end_wall = eventon_apify_get_meta_int($meta, '_evo_virtual_erow');
+
+    $start_timestamp = eventon_apify_get_meta_int($meta, '_unix_start_ev');
+    $end_timestamp = eventon_apify_get_meta_int($meta, '_unix_end_ev');
+    $virtual_end_timestamp = eventon_apify_get_meta_int($meta, '_unix_vend_ev');
+
+    $resolve = static function ($wall, $real) use ($timezone_key) {
+        if ($wall) {
+            return array(gmdate('Y-m-d', $wall), gmdate('H:i', $wall));
+        }
+        if ($real) {
+            return array(
+                eventon_apify_format_timestamp_for_timezone($real, $timezone_key, 'Y-m-d'),
+                eventon_apify_format_timestamp_for_timezone($real, $timezone_key, 'H:i'),
+            );
+        }
+        return array('', '');
+    };
+
+    list($start_date, $start_time) = $resolve($start_wall, $start_timestamp);
+    list($end_date, $end_time) = $resolve($end_wall, $end_timestamp);
+    list($virtual_end_date, $virtual_end_time) = $resolve($virtual_end_wall, $virtual_end_timestamp);
 
     return array(
-        'start_date' => $start_timestamp ? eventon_apify_format_timestamp_for_timezone($start_timestamp, $timezone_key, 'Y-m-d') : '',
-        'start_time' => $start_timestamp ? eventon_apify_format_timestamp_for_timezone($start_timestamp, $timezone_key, 'H:i') : '',
-        'end_date' => $end_timestamp ? eventon_apify_format_timestamp_for_timezone($end_timestamp, $timezone_key, 'Y-m-d') : '',
-        'end_time' => $end_timestamp ? eventon_apify_format_timestamp_for_timezone($end_timestamp, $timezone_key, 'H:i') : '',
-        'virtual_end_date' => $virtual_end_timestamp ? eventon_apify_format_timestamp_for_timezone($virtual_end_timestamp, $timezone_key, 'Y-m-d') : '',
-        'virtual_end_time' => $virtual_end_timestamp ? eventon_apify_format_timestamp_for_timezone($virtual_end_timestamp, $timezone_key, 'H:i') : '',
+        'start_date' => $start_date,
+        'start_time' => $start_time,
+        'end_date' => $end_date,
+        'end_time' => $end_time,
+        'virtual_end_date' => $virtual_end_date,
+        'virtual_end_time' => $virtual_end_time,
         'timezone_key' => $timezone_key,
         'time_extend_type' => eventon_apify_get_meta_text($meta, '_time_ext_type') ?: 'n',
         'hide_end_time' => eventon_apify_get_yes_no_flag($meta, 'evo_hide_endtime'),
