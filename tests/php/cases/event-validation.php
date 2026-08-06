@@ -77,10 +77,12 @@ test('interaction_url must be a valid URL', function () {
     ok(eventon_test_validate_code(array('interaction_url' => 'https://ex.com')) !== 'eventon_apify_invalid_interaction_url');
 });
 
-test('interaction_mode normalizes unknown values, so it never errors', function () {
-    // normalize_interaction_mode() maps any unknown value to slide_down_eventcard,
-    // which is always in the allowed set, so this branch is effectively unreachable.
-    ok(eventon_test_validate_code(array('interaction_mode' => 'bogus_mode_xyz')) !== 'eventon_apify_invalid_interaction_mode');
+test('interaction_mode rejects unknown values instead of silently normalizing', function () {
+    // A typo must not be coerced to slide_down_eventcard: that rewrite also
+    // deletes the stored interaction URL as a side effect.
+    eq(eventon_test_validate_code(array('interaction_mode' => 'bogus_mode_xyz')), 'eventon_apify_invalid_interaction_mode');
+    ok(eventon_test_validate_code(array('interaction_mode' => 'external_link')) !== 'eventon_apify_invalid_interaction_mode');
+    ok(eventon_test_validate_code(array('interaction_mode' => '2')) !== 'eventon_apify_invalid_interaction_mode');
 });
 
 test('organizer link must be a valid URL', function () {

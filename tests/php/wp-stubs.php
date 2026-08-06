@@ -14,6 +14,12 @@ $GLOBALS['__eventon_test_post_types'] = array();
 $GLOBALS['__eventon_test_can'] = false;
 $GLOBALS['__eventon_test_actions'] = array();
 $GLOBALS['__eventon_test_filters'] = array();
+$GLOBALS['__eventon_test_object_taxonomies'] = array();
+$GLOBALS['__eventon_test_post_type_by_id'] = array();
+$GLOBALS['__eventon_test_get_posts_args'] = array();
+$GLOBALS['__eventon_test_get_posts_result'] = array();
+$GLOBALS['__eventon_test_deleted_posts'] = array();
+$GLOBALS['__eventon_test_routes'] = array();
 
 /**
  * Reset all in-memory WordPress state between tests.
@@ -25,6 +31,12 @@ function eventon_test_reset_wp_state() {
     $GLOBALS['__eventon_test_can'] = false;
     $GLOBALS['__eventon_test_actions'] = array();
     $GLOBALS['__eventon_test_filters'] = array();
+    $GLOBALS['__eventon_test_object_taxonomies'] = array();
+    $GLOBALS['__eventon_test_post_type_by_id'] = array();
+    $GLOBALS['__eventon_test_get_posts_args'] = array();
+    $GLOBALS['__eventon_test_get_posts_result'] = array();
+    $GLOBALS['__eventon_test_deleted_posts'] = array();
+    $GLOBALS['__eventon_test_routes'] = array();
 }
 
 /**
@@ -58,6 +70,59 @@ if (!class_exists('WP_Error')) {
 if (!function_exists('is_wp_error')) {
     function is_wp_error($thing) {
         return $thing instanceof WP_Error;
+    }
+}
+
+if (!class_exists('WP_REST_Request')) {
+    class WP_REST_Request {
+        /** @var array<string, mixed> */
+        private $params;
+
+        /** @var string */
+        private $route;
+
+        /**
+         * @param array<string, mixed> $params Request parameters.
+         * @param string               $route  Raw client route, as core reports it.
+         */
+        public function __construct(array $params = array(), $route = '') {
+            $this->params = $params;
+            $this->route = (string) $route;
+        }
+
+        public function get_param($key) {
+            return $this->params[$key] ?? null;
+        }
+
+        public function has_param($key) {
+            return array_key_exists($key, $this->params);
+        }
+
+        public function get_route() {
+            return $this->route;
+        }
+    }
+}
+
+if (!class_exists('WP_HTTP_Response')) {
+    class WP_HTTP_Response {
+        /** @var mixed */
+        private $data;
+
+        /**
+         * @param mixed $data Response payload.
+         */
+        public function __construct($data = null) {
+            $this->data = $data;
+        }
+
+        public function get_data() {
+            return $this->data;
+        }
+
+        public function set_data($data) {
+            $this->data = $data;
+        }
     }
 }
 
@@ -249,5 +314,86 @@ if (!function_exists('wp_timezone_string')) {
 if (!function_exists('sanitize_key')) {
     function sanitize_key($key) {
         return preg_replace('/[^a-z0-9_\-]/', '', strtolower((string) $key));
+    }
+}
+
+if (!function_exists('maybe_unserialize')) {
+    function maybe_unserialize($value) {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            // Mirrors WordPress: only serialized strings are unserialized.
+            if (preg_match('/^[aOsbdi]:|^N;$/', $trimmed)) {
+                $result = @unserialize($trimmed);
+                return $result === false && $trimmed !== 'b:0;' ? $value : $result;
+            }
+        }
+
+        return $value;
+    }
+}
+
+if (!function_exists('wp_json_encode')) {
+    function wp_json_encode($value) {
+        return json_encode($value);
+    }
+}
+
+if (!function_exists('is_email')) {
+    function is_email($email) {
+        return filter_var((string) $email, FILTER_VALIDATE_EMAIL) ? $email : false;
+    }
+}
+
+if (!function_exists('wp_date')) {
+    function wp_date($format, $timestamp = null, $timezone = null) {
+        $datetime = new DateTimeImmutable('@' . (int) $timestamp);
+
+        if ($timezone instanceof DateTimeZone) {
+            $datetime = $datetime->setTimezone($timezone);
+        }
+
+        return $datetime->format($format);
+    }
+}
+
+if (!function_exists('get_object_taxonomies')) {
+    function get_object_taxonomies($object_type, $output = 'names') {
+        return $GLOBALS['__eventon_test_object_taxonomies'];
+    }
+}
+
+if (!function_exists('get_post_type')) {
+    function get_post_type($post_id) {
+        return $GLOBALS['__eventon_test_post_type_by_id'][$post_id] ?? false;
+    }
+}
+
+if (!function_exists('get_posts')) {
+    function get_posts($args = array()) {
+        $GLOBALS['__eventon_test_get_posts_args'][] = $args;
+        return $GLOBALS['__eventon_test_get_posts_result'];
+    }
+}
+
+if (!function_exists('wp_delete_post')) {
+    function wp_delete_post($post_id, $force_delete = false) {
+        $GLOBALS['__eventon_test_deleted_posts'][] = array($post_id, $force_delete);
+        return true;
+    }
+}
+
+if (!class_exists('WP_REST_Server')) {
+    class WP_REST_Server {
+        const READABLE = 'GET';
+        const CREATABLE = 'POST';
+        const EDITABLE = 'POST, PUT, PATCH';
+        const DELETABLE = 'DELETE';
+    }
+}
+
+if (!function_exists('register_rest_route')) {
+    function register_rest_route($route_namespace, $route, $args = array(), $override = false) {
+        $GLOBALS['__eventon_test_routes'][$route_namespace . '/' . ltrim($route, '/')][] = $args;
+        return true;
     }
 }

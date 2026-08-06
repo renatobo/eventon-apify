@@ -62,7 +62,7 @@ function eventon_apify_get_contract_field_definitions() {
             'type' => 'string',
             'group' => 'core',
             'description' => 'WordPress post status for the EventON event.',
-            'allowed_values' => array('publish', 'draft', 'private', 'pending', 'future'),
+            'allowed_values' => eventon_apify_get_allowed_post_statuses(),
             'transport' => array(
                 'custom_namespace' => 'status',
                 'wp_v2' => 'status',
@@ -448,6 +448,14 @@ function eventon_apify_get_contract_field_definitions() {
             ),
             'wp_v2_field_mode' => 'additional',
         ),
+        'access_control' => array(
+            'type' => 'object',
+            'group' => 'access',
+            'read_only' => true,
+            'description' => 'Membership gating configuration for the event, as configured in ARMember. Reports configuration, not per-user authorization.',
+            'shape' => eventon_apify_get_access_control_contract_shape(),
+            'wp_v2_field_mode' => 'read_only',
+        ),
         'start_timestamp' => array(
             'type' => 'integer',
             'group' => 'timing',
@@ -528,8 +536,8 @@ function eventon_apify_get_location_contract_shape() {
         'state' => array('type' => 'string', 'description' => 'State or region.'),
         'country' => array('type' => 'string', 'description' => 'Country code or text.'),
         'zip' => array('type' => 'string', 'description' => 'Postal code.'),
-        'lat' => array('type' => 'number', 'description' => 'Latitude.'),
-        'lon' => array('type' => 'number', 'description' => 'Longitude.'),
+        'lat' => array('type' => 'string', 'description' => 'Latitude as a decimal-degree string, e.g. "34.2439". Numeric input is accepted on write and stored as a string.'),
+        'lon' => array('type' => 'string', 'description' => 'Longitude as a decimal-degree string, e.g. "-116.9114". Numeric input is accepted on write and stored as a string.'),
         'link' => array('type' => 'string', 'format' => 'url', 'description' => 'External map or venue URL.'),
         'link_target' => array('type' => 'boolean', 'description' => 'Open the location link in a new tab.'),
         'phone' => array('type' => 'string', 'description' => 'Venue phone number.'),
@@ -566,6 +574,11 @@ function eventon_apify_get_organizer_contract_shape() {
  */
 function eventon_apify_get_flags_contract_shape() {
     return array(
+        'all_day' => array(
+            'type' => 'boolean',
+            'read_only' => true,
+            'description' => 'Whether the event runs all day, derived from EventON\'s time_extend_type of "dl". Read-only; set time_extend_type to change it.',
+        ),
         'featured' => array('type' => 'boolean', 'description' => 'Feature the event in EventON.'),
         'completed' => array('type' => 'boolean', 'description' => 'Mark the event as completed.'),
         'exclude_from_calendar' => array('type' => 'boolean', 'description' => 'Exclude the event from calendar listings.'),
@@ -724,6 +737,28 @@ function eventon_apify_get_faq_contract_shape() {
                 'slug' => array('type' => 'string', 'description' => 'Optional FAQ slug for lookup or creation.'),
                 'answer' => array('type' => 'string', 'description' => 'FAQ answer stored as the term description.'),
             ),
+        ),
+    );
+}
+
+/**
+ * Return the nested access-control shape published in the MCP manifest.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function eventon_apify_get_access_control_contract_shape() {
+    return array(
+        'restricted' => array('type' => 'boolean', 'description' => 'Whether any ARMember gate applies to this event.'),
+        'provider' => array('type' => 'string', 'description' => 'Access-control provider: "armember" when a rule was found, empty otherwise.'),
+        'membership_plan_ids' => array(
+            'type' => 'array',
+            'item_type' => 'integer',
+            'description' => 'ARMember membership plan IDs permitted to view the event.',
+        ),
+        'restricted_by' => array(
+            'type' => 'array',
+            'item_type' => 'string',
+            'description' => 'Rule sources that apply: "post" and/or "term".',
         ),
     );
 }

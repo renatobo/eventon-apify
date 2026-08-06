@@ -109,7 +109,9 @@ function eventon_apify_register_routes() {
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => 'eventon_apify_create_event',
                 'permission_callback' => 'eventon_apify_admin_only',
-                'args' => eventon_apify_get_event_write_args(true),
+                // Required create fields are checked after compatibility payloads
+                // have been normalized into their canonical form.
+                'args' => eventon_apify_get_event_write_args(false),
             ),
         )
     );
@@ -174,6 +176,12 @@ function eventon_apify_register_routes() {
                         'type' => 'integer',
                         'validate_callback' => 'eventon_apify_validate_numeric_identifier',
                     ),
+                    'repeat_interval' => array(
+                        'type' => 'integer',
+                        'minimum' => 0,
+                        'sanitize_callback' => 'absint',
+                        'description' => 'Limit summary math to RSVPs for one repeat instance of the event.',
+                    ),
                 ),
             ),
         )
@@ -212,14 +220,20 @@ function eventon_apify_register_routes() {
                     ),
                     'rsvp' => array(
                         'type' => 'string',
-                        'enum' => array('all', 'yes', 'no', 'maybe'),
+                        'enum' => array('all', 'yes', 'no', 'maybe', 'waitlist'),
                         'default' => 'all',
-                        'sanitize_callback' => 'eventon_apify_sanitize_rsvp_filter',
+                        'sanitize_callback' => 'eventon_apify_sanitize_rsvp_response_filter',
                     ),
                     'status' => array(
                         'type' => 'string',
                         'default' => 'all',
                         'sanitize_callback' => 'sanitize_text_field',
+                    ),
+                    'repeat_interval' => array(
+                        'type' => 'integer',
+                        'minimum' => 0,
+                        'sanitize_callback' => 'absint',
+                        'description' => 'Limit results to RSVPs for one repeat instance of the event.',
                     ),
                     'updated_after' => array(
                         'type' => 'string',

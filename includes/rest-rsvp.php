@@ -59,7 +59,43 @@ function eventon_apify_touch_rsvp_post($post_id) {
 }
 
 /**
- * Return the yes-only RSVP summary for an EventON event.
+ * Permanently delete RSVP records tied to an EventON event being deleted.
+ *
+ * Runs on before_delete_post so evo-rsvp posts are not orphaned when an
+ * ajde_events post is erased permanently.
+ *
+ * @param int $post_id Post ID being deleted.
+ */
+function eventon_apify_delete_event_rsvps_on_event_delete($post_id) {
+    $post_id = absint($post_id);
+
+    if ($post_id < 1 || get_post_type($post_id) !== 'ajde_events' || !post_type_exists('evo-rsvp')) {
+        return;
+    }
+
+    $rsvp_ids = get_posts(
+        array(
+            'post_type' => 'evo-rsvp',
+            'post_status' => 'any',
+            'numberposts' => -1,
+            'fields' => 'ids',
+            'meta_key' => 'e_id',
+            'meta_value' => (string) $post_id,
+        )
+    );
+
+    foreach ($rsvp_ids as $rsvp_id) {
+        wp_delete_post((int) $rsvp_id, true);
+    }
+}
+
+// Registered at module load rather than in the composition root so the RSVP
+// module owns its cleanup integration; the callback self-guards on both the
+// deleted post type and the availability of the evo-rsvp post type.
+add_action('before_delete_post', 'eventon_apify_delete_event_rsvps_on_event_delete');
+
+/**
+ * Return the RSVP summary (yes and waitlist buckets) for an EventON event.
  */
 function eventon_apify_get_event_rsvp_summary(WP_REST_Request $request) {
     $ready = eventon_apify_assert_rsvp_api_capability_is_ready('rsvp_counts');
@@ -77,40 +113,101 @@ function eventon_apify_get_event_rsvp_summary(WP_REST_Request $request) {
         return $attendees;
     }
 
-    $yes_submissions = 0;
-    $yes_attendees_total = 0;
-
-    foreach ($attendees as $attendee) {
-        if (($attendee['rsvp'] ?? '') !== 'yes') {
-            continue;
-        }
-
-        $yes_submissions++;
-        $yes_attendees_total += max(1, absint($attendee['count'] ?? 1));
-    }
+    $repeat_interval = eventon_apify_parse_rsvp_repeat_interval_filter($request->get_param('repeat_interval'));
+    $attendees = eventon_apify_filter_rsvp_attendees($attendees, 'all', '', '', $repeat_interval);
 
     return rest_ensure_response(
-        array(
-            'event_id' => $event->ID,
-            'event_title' => $event->post_title,
-            'yes_submissions' => $yes_submissions,
-            'yes_attendees_total' => $yes_attendees_total,
-            'yes_additional_attendees' => max(0, $yes_attendees_total - $yes_submissions),
+        array_merge(
+            array(
+                'event_id' => $event->ID,
+                'event_title' => $event->post_title,
+            ),
+            eventon_apify_summarize_rsvp_attendees($attendees)
         )
     );
 }
 
 /**
+ * Compute EventON-aligned RSVP summary totals.
+ *
+ * Mirrors the RSVP addon's count sync: only rows with a positive stored
+ * headcount are counted, and waitlisted rows are bucketed separately from the
+ * yes totals instead of inflating them.
+ *
+ * @param array<int, array<string, mixed>> $attendees Attendee records.
+ * @return array<string, int>
+ */
+function eventon_apify_summarize_rsvp_attendees(array $attendees) {
+    $yes_submissions = 0;
+    $yes_attendees_total = 0;
+    $waitlist_records = 0;
+    $waitlist_attendees_total = 0;
+
+    foreach ($attendees as $attendee) {
+        $headcount = absint($attendee['headcount'] ?? 0);
+        if ($headcount < 1) {
+            continue;
+        }
+
+        if (eventon_apify_rsvp_attendee_is_waitlisted($attendee)) {
+            $waitlist_records++;
+            $waitlist_attendees_total += $headcount;
+            continue;
+        }
+
+        if (($attendee['rsvp'] ?? '') !== 'yes') {
+            continue;
+        }
+
+        $yes_submissions++;
+        $yes_attendees_total += $headcount;
+    }
+
+    return array(
+        'yes_submissions' => $yes_submissions,
+        'yes_attendees_total' => $yes_attendees_total,
+        'yes_additional_attendees' => max(0, $yes_attendees_total - $yes_submissions),
+        'waitlist_records' => $waitlist_records,
+        'waitlist_attendees_total' => $waitlist_attendees_total,
+    );
+}
+
+/**
+ * Return true when an RSVP attendee row belongs in the waitlist bucket.
+ *
+ * EventON prioritizes checkin_status='waitlist' over the rsvp value when
+ * bucketing counts, and waitlist-only submissions store rsvp='w'.
+ */
+function eventon_apify_rsvp_attendee_is_waitlisted(array $attendee) {
+    return ($attendee['rsvp'] ?? '') === 'waitlist'
+        || strtolower((string) ($attendee['status'] ?? '')) === 'waitlist';
+}
+
+/**
  * Apply the rsvp / status / search list filters to RSVP attendees.
  *
- * @param array<int, array<string, mixed>> $attendees     Attendee records.
- * @param string                           $rsvp_filter   'all' or an exact rsvp value.
- * @param string                           $status_filter '', 'all', or a lowercased status.
- * @param string                           $search        Lowercased search term, or ''.
+ * @param array<int, array<string, mixed>> $attendees       Attendee records.
+ * @param string                           $rsvp_filter     'all', 'waitlist', or an exact rsvp value.
+ * @param string                           $status_filter   '', 'all', or a lowercased status.
+ * @param string                           $search          Lowercased search term, or ''.
+ * @param int|null                         $repeat_interval Repeat instance to match, or null for all.
  * @return array<int, array<string, mixed>>
  */
-function eventon_apify_filter_rsvp_attendees(array $attendees, $rsvp_filter, $status_filter, $search) {
-    if ($rsvp_filter !== 'all') {
+function eventon_apify_filter_rsvp_attendees(array $attendees, $rsvp_filter, $status_filter, $search, $repeat_interval = null) {
+    if ($repeat_interval !== null) {
+        $attendees = array_values(
+            array_filter(
+                $attendees,
+                static function (array $attendee) use ($repeat_interval) {
+                    return absint($attendee['repeat_interval'] ?? 0) === $repeat_interval;
+                }
+            )
+        );
+    }
+
+    if ($rsvp_filter === 'waitlist') {
+        $attendees = array_values(array_filter($attendees, 'eventon_apify_rsvp_attendee_is_waitlisted'));
+    } elseif ($rsvp_filter !== 'all') {
         $attendees = array_values(
             array_filter(
                 $attendees,
@@ -187,9 +284,10 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         return $attendees;
     }
 
-    $rsvp_filter = eventon_apify_sanitize_rsvp_filter($request->get_param('rsvp'));
+    $rsvp_filter = eventon_apify_sanitize_rsvp_response_filter($request->get_param('rsvp'));
     $status_filter = strtolower(trim((string) $request->get_param('status')));
     $search = strtolower(trim((string) $request->get_param('search')));
+    $repeat_interval = eventon_apify_parse_rsvp_repeat_interval_filter($request->get_param('repeat_interval'));
     $updated_after = eventon_apify_parse_rsvp_checkpoint_datetime($request->get_param('updated_after'));
     $updated_after_id = absint($request->get_param('updated_after_id'));
 
@@ -209,7 +307,7 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         );
     }
 
-    $attendees = eventon_apify_filter_rsvp_attendees($attendees, $rsvp_filter, $status_filter, $search);
+    $attendees = eventon_apify_filter_rsvp_attendees($attendees, $rsvp_filter, $status_filter, $search, $repeat_interval);
 
     if ($updated_after instanceof DateTimeImmutable) {
         $checkpoint_timestamp = eventon_apify_get_rsvp_datetime_sort_key($updated_after);
@@ -524,21 +622,33 @@ function eventon_apify_get_rsvp_datetime_sort_key($value) {
  * Return the formatted event time string shown by the RSVP CSV export.
  */
 function eventon_apify_get_rsvp_event_time($event_id, $repeat_interval) {
+    // Per-request cache: attendee lists build one EVORS_Event per
+    // (event, repeat interval) pair instead of one per attendee row.
+    static $cache = array();
+
     if (!$event_id || !class_exists('EVORS_Event')) {
         return '';
+    }
+
+    $cache_key = $event_id . ':' . $repeat_interval;
+    if (array_key_exists($cache_key, $cache)) {
+        return $cache[$cache_key];
     }
 
     $event = new EVORS_Event($event_id, $repeat_interval);
 
     if (!isset($event->event) || !is_object($event->event) || !method_exists($event->event, 'get_formatted_smart_time')) {
+        $cache[$cache_key] = '';
         return '';
     }
 
-    return (string) $event->event->get_formatted_smart_time($repeat_interval);
+    $cache[$cache_key] = (string) $event->event->get_formatted_smart_time($repeat_interval);
+
+    return $cache[$cache_key];
 }
 
 /**
- * Normalize EventON RSVP values to yes/no/maybe.
+ * Normalize EventON RSVP values to yes/no/maybe/waitlist.
  */
 function eventon_apify_normalize_rsvp_response($value) {
     $value = strtolower(trim((string) $value));
@@ -555,7 +665,40 @@ function eventon_apify_normalize_rsvp_response($value) {
         return 'maybe';
     }
 
+    if (in_array($value, array('w', 'waitlist'), true)) {
+        return 'waitlist';
+    }
+
     return $value;
+}
+
+/**
+ * Sanitize the RSVP list filter parameter, including the waitlist bucket.
+ *
+ * @param mixed $value Request parameter.
+ */
+function eventon_apify_sanitize_rsvp_response_filter($value) {
+    $value = eventon_apify_normalize_rsvp_response(sanitize_text_field((string) $value));
+
+    if (!in_array($value, array('all', 'yes', 'no', 'maybe', 'waitlist'), true)) {
+        return 'all';
+    }
+
+    return $value;
+}
+
+/**
+ * Parse the optional repeat_interval filter parameter.
+ *
+ * @param mixed $value Raw request value.
+ * @return int|null Null when the parameter was not provided.
+ */
+function eventon_apify_parse_rsvp_repeat_interval_filter($value) {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    return absint($value);
 }
 
 /**
@@ -606,6 +749,9 @@ function eventon_apify_get_rsvp_custom_fields(array $meta) {
         'evors_status',
         'type',
         'rsvp_type',
+        'repeat_interval',
+        'uid',
+        'lang',
         'names',
         'other_attendees',
         'attendees',

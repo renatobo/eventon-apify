@@ -14,12 +14,44 @@ function eventon_apify_get_event_write_args($is_create = false) {
 
     foreach (eventon_apify_get_contract_field_definitions() as $field_name => $definition) {
         $schema = eventon_apify_get_rest_schema_for_contract_field($definition);
+        $schema = eventon_apify_apply_contract_coercion_to_schema($field_name, $schema);
         $schema['required'] = (bool) ($is_create && !empty($definition['required_on_create']));
         $schema['sanitize_callback'] = 'eventon_apify_sanitize_rest_contract_value';
         $args[$field_name] = $schema;
     }
 
+    foreach (eventon_apify_get_wp_v2_wrapper_field_names() as $wrapper_name) {
+        $args[$wrapper_name] = array(
+            'type' => 'object',
+            'description' => 'Wrapper object whose contents are normalized into the canonical event fields before validation.',
+            'required' => false,
+            'sanitize_callback' => 'eventon_apify_sanitize_rest_contract_value',
+        );
+    }
+
     return $args;
+}
+
+/**
+ * Widen an arg schema so fields with a string coercion rule accept the string shorthand.
+ *
+ * @param string               $field_name Canonical contract field name.
+ * @param array<string, mixed> $schema     REST arg schema built from the contract definition.
+ * @return array<string, mixed>
+ */
+function eventon_apify_apply_contract_coercion_to_schema($field_name, array $schema) {
+    $coerce = eventon_apify_get_mcp_contract_field_coerce($field_name);
+    if (empty($coerce['type'])) {
+        return $schema;
+    }
+
+    if ($coerce['type'] === 'string_to_object' && ($schema['type'] ?? '') === 'object') {
+        $schema['type'] = array('object', 'string');
+    } elseif ($coerce['type'] === 'array_string_to_object_array' && (($schema['items']['type'] ?? '') === 'object')) {
+        $schema['items']['type'] = array('object', 'string');
+    }
+
+    return $schema;
 }
 
 /**
@@ -107,6 +139,7 @@ function eventon_apify_get_wp_v2_field_schema($field_name) {
     }
 
     $schema = eventon_apify_get_rest_schema_for_contract_field($definitions[$field_name]);
+    $schema = eventon_apify_apply_contract_coercion_to_schema($field_name, $schema);
     $schema['context'] = array('view', 'edit');
     return $schema;
 }

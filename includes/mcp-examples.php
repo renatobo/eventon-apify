@@ -12,9 +12,10 @@ if (!defined('ABSPATH')) {
 function eventon_apify_get_mcp_contract_examples() {
     return array(
         'list' => array(
+            'endpoint' => 'eventonapify/v1/events',
             'query' => array(
-                'after' => '2025-12-31',
-                'before' => '2027-01-01',
+                'starts_on_or_after' => '2025-12-31',
+                'starts_before' => '2027-01-01',
                 'per_page' => 100,
                 'order' => 'asc',
                 'orderby' => 'start_at',
@@ -41,7 +42,6 @@ function eventon_apify_get_mcp_contract_examples() {
  */
 function eventon_apify_get_mcp_example_create_payload() {
     return array(
-        'featured_media' => 456,
         'tags' => array('bike night', 'ducati'),
         'event_type' => array('Rides', 'Featured'),
         'start_date' => '2026-04-01',
