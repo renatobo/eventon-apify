@@ -191,6 +191,14 @@ function eventon_apify_get_mcp_content_type_manifest() {
  * @return WP_REST_Response|WP_Error
  */
 function eventon_apify_get_mcp_schema(WP_REST_Request $request) {
+    // Discovery is part of the API surface, so the master enable switch has to
+    // cover it too. No per-route capability applies: the manifest describes the
+    // contract rather than reading or writing event data.
+    $ready = eventon_apify_assert_api_is_ready();
+    if (is_wp_error($ready)) {
+        return $ready;
+    }
+
     $content_type = sanitize_key((string) $request->get_param('content_type'));
     $manifest = eventon_apify_get_mcp_manifest($content_type);
 

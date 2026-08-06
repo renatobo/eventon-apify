@@ -50,6 +50,28 @@
   - hide inactive panels with the `hidden` attribute
   - update the URL hash
   - restore the active tab from the URL hash on load
+  - keep the active tab after saving
+- Tab state survives a save because `admin-settings.js` writes the active panel
+  into the `_wp_http_referer` hidden field. `options.php` redirects to
+  `add_query_arg('settings-updated', 'true', wp_get_referer())`, and
+  `add_query_arg()` preserves a fragment, so the hash comes back with the
+  redirect. A fragment never reaches the server on its own, so removing that
+  sync silently drops the user back on `Event API` after every save.
+
+## Notices and Feedback
+
+- Do not call `settings_errors()` in the page callback. `add_options_page()`
+  puts this screen under `options-general.php`, so core's `admin-header.php`
+  loads `options-head.php`, which already renders them. A second call prints
+  "Settings saved." twice.
+- Panels are hand-rolled rather than registered via `add_settings_section()` /
+  `add_settings_field()`. Do not add `do_settings_sections()`: it takes a page
+  slug, not a settings group, so it renders nothing here.
+- Copy buttons use `data-eventon-apify-copy="<element id>"` with a single
+  delegated listener; no inline `onclick`. They confirm by swapping the button
+  label for two seconds, and fall back to `document.execCommand('copy')` because
+  `navigator.clipboard` is undefined on insecure origins. Feedback strings are
+  localized through `wp_localize_script()` as `eventonApifySettings`.
 
 ## Panel Layout
 

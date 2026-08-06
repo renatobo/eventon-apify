@@ -1,5 +1,17 @@
 # Repository Instructions
 
+## Architecture
+
+- Read `docs/architecture.md` before structural changes. It defines the five boundaries (transport, contract/validation, use-case coordination, EventON persistence, presentation) and the snapshot-plus-rollback write model.
+- `includes/class-plugin.php` is the composition root: it owns module load order and every hook registration. Add hooks there, not at module scope.
+- Design specs live in `docs/specs/`.
+
+## REST Authorization
+
+- Every route in `includes/rest-routes.php` uses `'permission_callback' => 'eventon_apify_admin_only'` (`manage_options`). There is no anonymous surface.
+- Every handler must open with the matching `eventon_apify_assert_*_capability_is_ready('<capability>')` call. The permission callback covers who may call the route; the assert covers the `enable_api` master switch, EventON availability, and the per-route capability toggle. Neither substitutes for the other.
+- Nothing enforces this automatically. `phpcs` does not check it, so a new handler that omits the assert needs a case in `tests/php/cases/`.
+
 ## Distribution Channels
 
 - Treat GitHub Releases as the active primary distribution channel.
@@ -22,6 +34,7 @@
 
 - Use `./build.sh` from the repo root to create the installable versioned plugin zip for local packaging checks.
 - `./build.sh` expects the bootstrap file to match the repo slug (`eventon-apify.php`) and writes `eventon-apify-<version>.zip` in the project root.
+- Those zips accumulate in the root and are gitignored via `*.zip`; they are local build output, not tracked artifacts.
 - `./release.sh <version>` requires a clean working tree, a matching `release-notes/<version>.md` file, updates the synced version fields, creates the release commit, tags `v<version>`, and pushes both `main` and the tag.
 - `./release.sh <version>` expects semantic version format (`X.Y.Z`) and aborts if the target tag already exists.
 - Release notes files must include these top-level sections:
@@ -39,8 +52,14 @@
 - Use `npm run test:dev` when you need the same production test path against `.env.development`.
 - `scripts/test-production.sh` expects an env file at `.env.production.local` by default, or a custom file via `EVENTON_APIFY_ENV_FILE`.
 - Use `composer quality` for the full gate (`phpcs` lint, `phpstan` analyse, unit tests, performance gate).
+- `phpcs.xml.dist` loads only `WordPress.Security`, deprecation sniffs, and `PrefixAllGlobals`. A clean run covers escaping, sanitization, nonces, and prepared SQL. It does not check capability gating or general code style.
+- Unit-test cases are `tests/php/cases/*.php`, loaded in glob order by `tests/php/run.php`. Register with `test('name', fn)`; assert with `eq()` / `ok()` / `throws()`. The harness calls `eventon_test_reset_wp_state()` before each case.
+- `tests/php/wp-stubs.php` holds hand-written WordPress doubles, not core. A function or class the plugin calls but the stubs lack must be added there before it can be tested.
 - If `composer` is not on PATH, run the gate directly: `vendor/bin/phpcs`, `vendor/bin/phpstan analyse --no-progress --memory-limit=1G`, `php tests/php/run.php`, `php scripts/performance-gate.php`.
-- The gate is unit-level only. It cannot verify REST route registration; that needs a post-deploy check against the live site.
+- `composer quality` is unit-level only and cannot verify REST route registration. The `wordpress-7-integration` CI job covers that: it installs WordPress 7.0.2 against MySQL and runs `tests/integration/wp-rest-smoke.php`, which dispatches real requests through the REST server and asserts compensating rollback. Live-site checks remain necessary only for the proprietary EventON runtime.
+- Watch that job specifically. It is the only one that exercises WordPress, so a failure there does not turn the unit or quality jobs red.
+- Reproduce it locally with a MySQL container plus `wp-cli`, pointing `wp core install` at WordPress 7.0.2 and symlinking the repo into `wp-content/plugins/`, then `wp eval-file tests/integration/wp-rest-smoke.php`.
+- WordPress does not apply `rest_validate_request_arg` to hand-registered route args. An arg declaring only `type` / `minimum` / `enum` is documentation; it rejects nothing without an explicit `validate_callback`. `per_page` and `page` clamp in their sanitizers instead of returning 400.
 
 ## wp/v2 Compatibility Layer
 
