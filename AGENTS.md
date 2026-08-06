@@ -55,10 +55,17 @@
 - `phpcs.xml.dist` loads only `WordPress.Security`, deprecation sniffs, and `PrefixAllGlobals`. A clean run covers escaping, sanitization, nonces, and prepared SQL. It does not check capability gating or general code style.
 - Unit-test cases are `tests/php/cases/*.php`, loaded in glob order by `tests/php/run.php`. Register with `test('name', fn)`; assert with `eq()` / `ok()` / `throws()`. The harness calls `eventon_test_reset_wp_state()` before each case.
 - `tests/php/wp-stubs.php` holds hand-written WordPress doubles, not core. A function or class the plugin calls but the stubs lack must be added there before it can be tested.
+- `eq()` compares with `!==`. Two structurally equal objects are not identical, so assert on `get_object_vars()` or `json_encode()` rather than comparing object instances.
+- Neither `phpcs` nor `phpstan` scans `tests/`. Test and fixture code is covered by `php -l` only, so verify it by running it.
+- A new test is not done until it has been seen to fail. Break the code it covers, confirm the failure, restore. A test that passes both ways is asserting nothing, and a mutation that unexpectedly survives usually means a second layer is doing the work, which is worth knowing either way.
 - If `composer` is not on PATH, run the gate directly: `vendor/bin/phpcs`, `vendor/bin/phpstan analyse --no-progress --memory-limit=1G`, `php tests/php/run.php`, `php scripts/performance-gate.php`.
 - `composer quality` is unit-level only and cannot verify REST route registration. The `wordpress-7-integration` CI job covers that: it installs WordPress 7.0.2 against MySQL and runs `tests/integration/wp-rest-smoke.php`, which dispatches real requests through the REST server and asserts compensating rollback. Live-site checks remain necessary only for the proprietary EventON runtime.
 - Watch that job specifically. It is the only one that exercises WordPress, so a failure there does not turn the unit or quality jobs red.
-- Reproduce it locally with a MySQL container plus `wp-cli`, pointing `wp core install` at WordPress 7.0.2 and symlinking the repo into `wp-content/plugins/`, then `wp eval-file tests/integration/wp-rest-smoke.php`.
+- Reproduce that job locally: MySQL container, WordPress 7.0.2 extracted from the tarball, repo symlinked into `wp-content/plugins/`, then `wp eval-file tests/integration/wp-rest-smoke.php`. Four things bite:
+  - Run every `wp-cli` command as `php -d memory_limit=1G wp-cli.phar …`; `wp core download` exhausts the default limit mid-extract.
+  - Wait for MySQL with a real query (`mysql -uwordpress -pwordpress -e "SELECT 1" wordpress`), not `mysqladmin ping`, which reports ready before connections are accepted.
+  - `wp core install` after a `db reset` clears `active_plugins`; reactivate before running anything, or the smoke dies with undefined functions.
+  - `includes/admin.php` loads only under `is_admin()`, so `wp eval-file` must `require_once` it explicitly to reach any admin function.
 - WordPress does not apply `rest_validate_request_arg` to hand-registered route args. An arg declaring only `type` / `minimum` / `enum` is documentation; it rejects nothing without an explicit `validate_callback`. `per_page` and `page` clamp in their sanitizers instead of returning 400.
 
 ## wp/v2 Compatibility Layer
