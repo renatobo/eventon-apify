@@ -73,6 +73,59 @@ if (!function_exists('is_wp_error')) {
     }
 }
 
+if (!class_exists('WP_REST_Request')) {
+    class WP_REST_Request {
+        /** @var array<string, mixed> */
+        private $params;
+
+        /** @var string */
+        private $route;
+
+        /**
+         * @param array<string, mixed> $params Request parameters.
+         * @param string               $route  Raw client route, as core reports it.
+         */
+        public function __construct(array $params = array(), $route = '') {
+            $this->params = $params;
+            $this->route = (string) $route;
+        }
+
+        public function get_param($key) {
+            return $this->params[$key] ?? null;
+        }
+
+        public function has_param($key) {
+            return array_key_exists($key, $this->params);
+        }
+
+        public function get_route() {
+            return $this->route;
+        }
+    }
+}
+
+if (!class_exists('WP_HTTP_Response')) {
+    class WP_HTTP_Response {
+        /** @var mixed */
+        private $data;
+
+        /**
+         * @param mixed $data Response payload.
+         */
+        public function __construct($data = null) {
+            $this->data = $data;
+        }
+
+        public function get_data() {
+            return $this->data;
+        }
+
+        public function set_data($data) {
+            $this->data = $data;
+        }
+    }
+}
+
 if (!function_exists('__')) {
     function __($text, $domain = 'default') {
         return $text;

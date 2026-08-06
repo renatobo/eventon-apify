@@ -67,7 +67,14 @@ function eventon_apify_render_settings_page() {
                 </p>
             </div>
 
-            <?php settings_errors(); ?>
+            <?php
+            /*
+             * No settings_errors() call here. add_options_page() puts this screen
+             * under options-general.php, so core's admin-header.php loads
+             * options-head.php, which already renders them. Calling it again
+             * printed the "Settings saved." notice twice.
+             */
+            ?>
 
             <?php if (!eventon_apify_is_eventon_available()) : ?>
                 <div class="notice notice-warning inline">
@@ -101,7 +108,14 @@ function eventon_apify_render_settings_page() {
 
             <form method="post" action="options.php" class="eventon-apify-shell">
                 <?php settings_fields('eventon_apify_settings_group'); ?>
-                <?php do_settings_sections('eventon_apify_settings_group'); ?>
+                <?php
+                /*
+                 * The panels below are hand-rolled rather than registered through
+                 * add_settings_section()/add_settings_field(); see ui.md. There is
+                 * therefore no do_settings_sections() call: it takes a page slug,
+                 * not a settings group, so passing the group here rendered nothing.
+                 */
+                ?>
 
                 <section class="eventon-apify-panel is-active" id="api" data-panel="api" role="tabpanel">
                     <div class="eventon-apify-panel-header">
@@ -161,12 +175,12 @@ function eventon_apify_render_settings_page() {
                             <div class="eventon-apify-example">
                                 <strong><?php esc_html_e('Collection example', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-example-get"><?php echo esc_html($site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/events?per_page=10&page=1'); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-get'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
+                                <button class="button button-secondary button-small" type="button" data-eventon-apify-copy="eventon-apify-example-get"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                             <div class="eventon-apify-example">
                                 <strong><?php esc_html_e('Authenticated curl example', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-example-curl">curl -u your_username:your_app_password "<?php echo esc_html($site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/events?search=ride'); ?>"</code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-example-curl'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
+                                <button class="button button-secondary button-small" type="button" data-eventon-apify-copy="eventon-apify-example-curl"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                         </div>
                     </div>
@@ -284,7 +298,7 @@ function eventon_apify_render_settings_page() {
                                 <code id="eventon-apify-openapi-spec"><?php echo esc_html($openapi_spec_url); ?></code>
                                 <div class="eventon-apify-example-actions">
                                     <a class="button button-primary" href="<?php echo esc_url($openapi_spec_url); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Open spec', 'eventon-apify'); ?></a>
-                                    <button class="button button-secondary" onclick="eventonApifyCopy('eventon-apify-openapi-spec'); return false;"><?php esc_html_e('Copy link', 'eventon-apify'); ?></button>
+                                    <button class="button button-secondary" type="button" data-eventon-apify-copy="eventon-apify-openapi-spec"><?php esc_html_e('Copy link', 'eventon-apify'); ?></button>
                                 </div>
                             </div>
                             <div class="eventon-apify-example">
@@ -293,7 +307,7 @@ function eventon_apify_render_settings_page() {
                                 <code id="eventon-apify-postman-collection"><?php echo esc_html($postman_collection_url); ?></code>
                                 <div class="eventon-apify-example-actions">
                                     <a class="button button-primary" href="<?php echo esc_url($postman_collection_url); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Open collection', 'eventon-apify'); ?></a>
-                                    <button class="button button-secondary" onclick="eventonApifyCopy('eventon-apify-postman-collection'); return false;"><?php esc_html_e('Copy link', 'eventon-apify'); ?></button>
+                                    <button class="button button-secondary" type="button" data-eventon-apify-copy="eventon-apify-postman-collection"><?php esc_html_e('Copy link', 'eventon-apify'); ?></button>
                                 </div>
                             </div>
                         </div>
@@ -304,7 +318,7 @@ function eventon_apify_render_settings_page() {
                             <div class="eventon-apify-code-card">
                                 <strong><?php esc_html_e('REST root / Postman baseUrl', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-rest-root"><?php echo esc_html($rest_root_url); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-rest-root'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
+                                <button class="button button-secondary button-small" type="button" data-eventon-apify-copy="eventon-apify-rest-root"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                             <div class="eventon-apify-code-card">
                                 <strong><?php esc_html_e('Authentication', 'eventon-apify'); ?></strong>
@@ -336,12 +350,12 @@ function eventon_apify_render_settings_page() {
                             <div class="eventon-apify-example">
                                 <strong><?php esc_html_e('Manifest collection', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-manifest-collection"><?php echo esc_html($manifest_collection_url); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-collection'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
+                                <button class="button button-secondary button-small" type="button" data-eventon-apify-copy="eventon-apify-manifest-collection"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                             <div class="eventon-apify-example">
                                 <strong><?php esc_html_e('Content type detail', 'eventon-apify'); ?></strong>
                                 <code id="eventon-apify-manifest-type"><?php echo esc_html($manifest_type_url); ?></code>
-                                <button class="button button-secondary button-small" onclick="eventonApifyCopy('eventon-apify-manifest-type'); return false;"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
+                                <button class="button button-secondary button-small" type="button" data-eventon-apify-copy="eventon-apify-manifest-type"><?php esc_html_e('Copy', 'eventon-apify'); ?></button>
                             </div>
                         </div>
 
@@ -469,5 +483,15 @@ function eventon_apify_enqueue_settings_assets($hook_suffix) {
         array(),
         EVENTON_APIFY_VERSION,
         true
+    );
+
+    // Copy-button feedback text lives here so it stays translatable.
+    wp_localize_script(
+        'eventon-apify-settings',
+        'eventonApifySettings',
+        array(
+            'copiedLabel' => __('Copied', 'eventon-apify'),
+            'copyFailedLabel' => __('Press Ctrl+C', 'eventon-apify'),
+        )
     );
 }
