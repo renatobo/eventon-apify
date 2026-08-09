@@ -101,6 +101,94 @@ test('every handler refuses to run while the API master switch is off', function
     }
 });
 
+/**
+ * The capability each endpoint must gate on, keyed by "METHODS route".
+ *
+ * The master-switch and EventON cases below pass for any handler that calls
+ * an assert at all, including one that passes the wrong capability name or the
+ * no-capability eventon_apify_assert_api_is_ready(). This table is what pins a
+ * handler to its own toggle, so a copy-pasted assert cannot leave a route
+ * responding while its switch reads off in Settings.
+ *
+ * mcp-schema is absent deliberately: discovery describes the contract rather
+ * than reading event data, so it gates on the master switch only.
+ *
+ * Only the refusal direction is asserted. The mirror case, that a handler runs
+ * when its own capability is the only one on, cannot be tested here: past the
+ * assert the handlers reach rest_ensure_response() and other core functions the
+ * stubs do not implement. Every case in this file works by short-circuiting
+ * before that point.
+ *
+ * @return array<string, string>
+ */
+function eventon_test_endpoint_capability_map() {
+    $events = EVENTON_APIFY_NAMESPACE . '/events';
+    $event = EVENTON_APIFY_NAMESPACE . '/events/(?P<id>\d+)';
+
+    return array(
+        'GET ' . $events => 'list',
+        'POST ' . $events => 'create',
+        'GET ' . $event => 'read',
+        // WP_REST_Server::EDITABLE is 'POST, PUT, PATCH', not 'PUT, PATCH'.
+        'POST, PUT, PATCH ' . $event => 'update',
+        'DELETE ' . $event => 'delete',
+        'GET ' . $event . '/rsvps/summary' => 'rsvp_counts',
+        'GET ' . $event . '/rsvps' => 'rsvp_attendees',
+    );
+}
+
+test('the capability map names every capability-gated endpoint', function () {
+    $map = eventon_test_endpoint_capability_map();
+
+    // A new capability-gated route must be added to the map rather than
+    // silently skipping the per-capability assertions below.
+    eq(count($map), count(eventon_apify_get_api_capability_definitions()));
+
+    foreach ($map as $label => $capability) {
+        ok(
+            array_key_exists($capability, eventon_apify_get_api_capability_definitions()),
+            $label . ' must name a defined capability'
+        );
+    }
+
+    $labels = array_map(
+        static function (array $entry) {
+            return $entry['methods'] . ' ' . $entry['route'];
+        },
+        eventon_test_collect_registered_endpoints()
+    );
+
+    foreach (array_keys($map) as $label) {
+        ok(in_array($label, $labels, true), $label . ' must match a registered endpoint');
+    }
+});
+
+test('every handler refuses to run while its own capability is off', function () {
+    $endpoints = eventon_test_collect_registered_endpoints();
+    $map = eventon_test_endpoint_capability_map();
+
+    eventon_test_set_current_user_can(true);
+    update_option(EVENTON_APIFY_OPTION_ENABLE_API, true);
+
+    foreach ($endpoints as $entry) {
+        $label = $entry['methods'] . ' ' . $entry['route'];
+        if (!isset($map[$label])) {
+            continue;
+        }
+
+        // Every capability on, then exactly one off: the handler that responds
+        // anyway is reading someone else's toggle, or none.
+        $capabilities = array_fill_keys(array_keys(eventon_apify_get_api_capability_definitions()), true);
+        $capabilities[$map[$label]] = false;
+        update_option(EVENTON_APIFY_OPTION_API_CAPABILITIES, $capabilities);
+
+        $result = call_user_func($entry['endpoint']['callback'], new WP_REST_Request());
+
+        ok(is_wp_error($result), $label . ' must not run while ' . $map[$label] . ' is off');
+        eq($result->get_error_code(), 'eventon_apify_capability_disabled', $label . ' error code');
+    }
+});
+
 test('every handler refuses to run when EventON is unavailable', function () {
     $endpoints = eventon_test_collect_registered_endpoints();
 

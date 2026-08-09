@@ -25,7 +25,11 @@ function eventon_apify_get_events(WP_REST_Request $request) {
 /**
  * Build the database-backed paginated events response.
  *
- * @return array<string, mixed>
+ * Returns a WP_Error for a rejected status filter. The caller passes the
+ * result to rest_ensure_response(), which hands a WP_Error straight back to
+ * the client, so the error still surfaces as its declared status code.
+ *
+ * @return array<string, mixed>|WP_Error
  */
 function eventon_apify_get_events_database_response(WP_REST_Request $request, $page, $per_page, array $context) {
     $statuses = eventon_apify_get_requested_statuses($request->get_param('status'));
