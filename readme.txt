@@ -209,6 +209,10 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 3.3.1 =
+* Extended the REST readiness test so every endpoint is pinned to its own capability toggle, not just the API master switch.
+* Corrected the documented return type of the events list response builder. No behavior change.
+
 = 3.3.0 =
 * Raised the minimum supported WordPress version to 7.0 across the plugin header, readme, PHPCS deprecation baseline, and README.
 * Removed the PHP 7 fallback path and its admin notice; `Requires PHP: 8.0` in the plugin header is the enforcement point.
