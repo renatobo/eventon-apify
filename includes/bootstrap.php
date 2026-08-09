@@ -13,19 +13,6 @@ function eventon_apify_load_textdomain() {
 }
 
 /**
- * Show an admin notice when PHP is too old for this plugin.
- */
-function eventon_apify_php_version_notice() {
-    echo '<div class="notice notice-error"><p>';
-    echo '<strong>' . esc_html__('EventON APIfy:', 'eventon-apify') . '</strong> ';
-    echo esc_html__('This plugin requires PHP 8.0 or higher.', 'eventon-apify') . ' ';
-    /* translators: %s: Current PHP version. */
-    echo sprintf(esc_html__('You are running PHP %s.', 'eventon-apify'), esc_html(PHP_VERSION)) . ' ';
-    echo esc_html__('Please upgrade PHP before activating this plugin.', 'eventon-apify');
-    echo '</p></div>';
-}
-
-/**
  * Add the plugin settings page.
  */
 function eventon_apify_add_settings_page() {

@@ -1,7 +1,7 @@
 === EventON APIfy ===
 Contributors: renatobo
 Tags: eventon, api, rest-api, events
-Requires at least: 6.0
+Requires at least: 7.0
 Tested up to: 7.0.2
 Requires PHP: 8.0
 Stable tag: 3.2.3
@@ -209,6 +209,11 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 3.3.0 =
+* Raised the minimum supported WordPress version to 7.0 across the plugin header, readme, PHPCS deprecation baseline, and README.
+* Removed the PHP 7 fallback path and its admin notice; `Requires PHP: 8.0` in the plugin header is the enforcement point.
+* Tightened the `php-stubs/wordpress-stubs` development requirement to `^7.0`.
+
 = 3.0.0 =
 * Refactored plugin startup and event persistence into documented architectural boundaries with compensating rollback for partial writes.
 * Extracted RSVP attendee access and formatting behind compatibility-preserving repository and formatter classes.
@@ -278,6 +283,9 @@ The API responds with a `400` error explaining which date/time combination could
 * Git Updater compatibility metadata and packaging docs for GitHub release assets.
 
 == Upgrade Notice ==
+
+= 3.3.0 =
+Requires WordPress 7.0 or higher. Sites on an earlier version should stay on 3.2.3 until they upgrade WordPress.
 
 = 1.6.0 =
 Corrects the MCP manifest so contract-driven clients route `ajde_events` operations to the working EventON APIfy events endpoint.

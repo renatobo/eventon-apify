@@ -4,7 +4,7 @@
  * Plugin URI:        https://github.com/renatobo/eventon-apify
  * Description:       Protected REST API endpoints for EventON events with pagination, CRUD operations, and administrator-only access.
  * Version:           3.2.3
- * Requires at least: 6.0
+ * Requires at least: 7.0
  * Requires PHP:      8.0
  * Author:            Renato Bonomini
  * Author URI:        https://github.com/renatobo

@@ -1,6 +1,6 @@
 # EventON APIfy
 
-[![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![WordPress](https://img.shields.io/badge/WordPress-7.0%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
 [![Tested up to](https://img.shields.io/badge/Tested%20up%20to-7.0.2-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Release](https://img.shields.io/github/v/release/renatobo/eventon-apify?label=release)](https://github.com/renatobo/eventon-apify/releases)
@@ -61,7 +61,7 @@ See [GitHub Releases](https://github.com/renatobo/eventon-apify/releases) for th
 
 ## Requirements
 
-- WordPress `6.0+`
+- WordPress `7.0+`
 - PHP `8.0+`
 - EventON installed and active
 - HTTPS-enabled site recommended for secure API authentication
