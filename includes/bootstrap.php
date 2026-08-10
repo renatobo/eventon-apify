@@ -4,14 +4,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-function eventon_apify_load_textdomain() {
-    load_plugin_textdomain(
-        'eventon-apify',
-        false,
-        dirname(plugin_basename(EVENTON_APIFY_PLUGIN_FILE)) . '/languages'
-    );
-}
-
 /**
  * Add the plugin settings page.
  */

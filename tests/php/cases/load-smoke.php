@@ -7,7 +7,7 @@
 
 test('a representative function from every module is defined', function () {
     $representatives = array(
-        'eventon_apify_load_textdomain',                 // bootstrap.php
+        'eventon_apify_add_settings_page',               // bootstrap.php
         'eventon_apify_get_api_capabilities',            // capabilities.php
         'eventon_apify_bootstrap_settings',              // settings-backup.php
         'eventon_apify_is_wp_v2_compatibility_enabled',  // wp-v2-compat.php

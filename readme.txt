@@ -209,6 +209,10 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 3.3.2 =
+* Removed the textdomain loader that triggered `_load_textdomain_just_in_time` notices on WordPress 6.7+; the plugin ships no translations.
+* `build.sh` now writes release zips into `dist/`.
+
 = 3.3.1 =
 * Extended the REST readiness test so every endpoint is pinned to its own capability toggle, not just the API master switch.
 * Corrected the documented return type of the events list response builder. No behavior change.

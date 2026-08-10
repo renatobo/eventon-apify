@@ -33,8 +33,8 @@
 ## Packaging and Release Flow
 
 - Use `./build.sh` from the repo root to create the installable versioned plugin zip for local packaging checks.
-- `./build.sh` expects the bootstrap file to match the repo slug (`eventon-apify.php`) and writes `eventon-apify-<version>.zip` in the project root.
-- Those zips accumulate in the root and are gitignored via `*.zip`; they are local build output, not tracked artifacts.
+- `./build.sh` expects the bootstrap file to match the repo slug (`eventon-apify.php`) and writes `dist/eventon-apify-<version>.zip`.
+- Those zips accumulate in `dist/` and are gitignored; they are local build output, not tracked artifacts.
 - `./release.sh <version>` requires a clean working tree, a matching `release-notes/<version>.md` file, updates the synced version fields, creates the release commit, tags `v<version>`, and pushes both `main` and the tag.
 - `./release.sh <version>` expects semantic version format (`X.Y.Z`) and aborts if the target tag already exists.
 - Release notes files must include these top-level sections:

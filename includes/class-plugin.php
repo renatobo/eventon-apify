@@ -88,7 +88,6 @@ final class Plugin {
 
         add_action('rest_api_init', 'eventon_apify_register_routes');
         add_action('rest_api_init', 'eventon_apify_register_wp_v2_compatibility_fields');
-        add_action('plugins_loaded', 'eventon_apify_load_textdomain');
         add_action('plugins_loaded', 'eventon_apify_bootstrap_settings');
         add_action('save_post_evo-rsvp', 'eventon_apify_touch_rsvp_post_on_save', 10, 2);
         add_action('added_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);

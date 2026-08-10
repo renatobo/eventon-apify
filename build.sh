@@ -20,7 +20,9 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 OUTPUT_NAME="${PLUGIN_SLUG}-${VERSION}.zip"
-OUTPUT_PATH="$PWD/$OUTPUT_NAME"
+DIST_DIR="$PWD/dist"
+mkdir -p "$DIST_DIR"
+OUTPUT_PATH="$DIST_DIR/$OUTPUT_NAME"
 STAGING_DIR="$(mktemp -d)"
 PACKAGE_DIR="$STAGING_DIR/$PLUGIN_SLUG"
 
@@ -39,6 +41,8 @@ rsync -a \
   --exclude '.env' \
   --exclude '.env.*' \
   --exclude 'vendor/' \
+  --exclude '/dist' \
+  --exclude '/dist/**' \
   --exclude '*.zip' \
   --exclude '*.md' \
   --exclude '.gitignore' \

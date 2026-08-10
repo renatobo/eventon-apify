@@ -12,3 +12,6 @@ tests/.env.*
 !tests/.env.example
 /coverage.json
 /vendor/
+
+# Release archives are built locally into dist/ and attached to GitHub releases.
+/dist/
