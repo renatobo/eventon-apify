@@ -22,6 +22,32 @@ function eventon_apify_should_filter_wp_v2_compatibility_for_request() {
 }
 
 /**
+ * Record that compatibility mode turned show_in_rest on for a post type or
+ * taxonomy. Called from the registration filters at init.
+ */
+function eventon_apify_mark_wp_v2_compat_exposed($object_name) {
+    $GLOBALS['eventon_apify_wp_v2_exposed'][(string) $object_name] = true;
+}
+
+/**
+ * Whether compatibility mode, rather than EventON itself, exposed this object
+ * on wp/v2. Only those objects are admin-only; EventON's own REST routes keep
+ * whatever access EventON and core give them.
+ */
+function eventon_apify_is_wp_v2_compat_exposed($object_name) {
+    return !empty($GLOBALS['eventon_apify_wp_v2_exposed'][(string) $object_name]);
+}
+
+/**
+ * Whether a route belongs to an object that compatibility mode exposed.
+ */
+function eventon_apify_is_guarded_wp_v2_compatibility_route($route) {
+    $object_name = eventon_apify_get_wp_v2_compatibility_route_object($route);
+
+    return $object_name !== '' && eventon_apify_is_wp_v2_compat_exposed($object_name);
+}
+
+/**
  * Restrict the standard wp/v2 compatibility surface to administrators.
  *
  * @param mixed           $result  Response to replace the requested version with.
@@ -36,7 +62,7 @@ function eventon_apify_restrict_wp_v2_compatibility_routes($result, $server, WP_
         return $result;
     }
 
-    if (!eventon_apify_is_wp_v2_compatibility_route($request->get_route())) {
+    if (!eventon_apify_is_guarded_wp_v2_compatibility_route($request->get_route())) {
         return $result;
     }
 
@@ -55,27 +81,34 @@ function eventon_apify_restrict_wp_v2_compatibility_routes($result, $server, WP_
  * Return true when the request route is part of the EventON wp/v2 compatibility surface.
  */
 function eventon_apify_is_wp_v2_compatibility_route($route) {
+    return eventon_apify_get_wp_v2_compatibility_route_object($route) !== '';
+}
+
+/**
+ * Return the post type or taxonomy an EventON wp/v2 route belongs to, or ''.
+ */
+function eventon_apify_get_wp_v2_compatibility_route_object($route) {
     // Case-folded: core matches routes case-insensitively, so the raw client
     // path must not be compared verbatim against the canonical prefixes.
     $route = strtolower((string) $route);
 
     $prefixes = array(
-        '/wp/v2/ajde_events',
-        '/wp/v2/types/ajde_events',
+        '/wp/v2/ajde_events' => 'ajde_events',
+        '/wp/v2/types/ajde_events' => 'ajde_events',
     );
 
     foreach (eventon_apify_get_wp_v2_compatibility_taxonomies() as $taxonomy) {
-        $prefixes[] = '/wp/v2/' . $taxonomy;
-        $prefixes[] = '/wp/v2/taxonomies/' . $taxonomy;
+        $prefixes['/wp/v2/' . $taxonomy] = $taxonomy;
+        $prefixes['/wp/v2/taxonomies/' . $taxonomy] = $taxonomy;
     }
 
-    foreach ($prefixes as $prefix) {
+    foreach ($prefixes as $prefix => $object_name) {
         if ($route === $prefix || str_starts_with($route, $prefix . '/')) {
-            return true;
+            return $object_name;
         }
     }
 
-    return false;
+    return '';
 }
 
 /**
@@ -127,7 +160,7 @@ function eventon_apify_filter_wp_v2_compatibility_endpoints($endpoints) {
     }
 
     foreach (array_keys($endpoints) as $route) {
-        if (eventon_apify_is_wp_v2_compatibility_route($route)) {
+        if (eventon_apify_is_guarded_wp_v2_compatibility_route($route)) {
             unset($endpoints[$route]);
         }
     }
@@ -159,13 +192,17 @@ function eventon_apify_filter_wp_v2_compatibility_responses($response, $_server,
     $data = $response->get_data();
 
     if ($route === '/wp/v2/types' && is_array($data)) {
+        if (!eventon_apify_is_wp_v2_compat_exposed('ajde_events')) {
+            return $response;
+        }
+
         unset($data['ajde_events']);
         $response->set_data(!empty($data) ? $data : (object) array());
         return $response;
     }
 
     if ($route === '/wp/v2/taxonomies' && is_array($data)) {
-        foreach (eventon_apify_get_wp_v2_compatibility_taxonomies() as $taxonomy) {
+        foreach (eventon_apify_get_wp_v2_compat_exposed_taxonomies() as $taxonomy) {
             unset($data[$taxonomy]);
         }
 
@@ -184,7 +221,7 @@ function eventon_apify_filter_wp_v2_compatibility_responses($response, $_server,
  */
 function eventon_apify_filter_wp_v2_compatibility_post_search_query(array $query_args) {
 
-    if (!eventon_apify_should_filter_wp_v2_compatibility_for_request()) {
+    if (!eventon_apify_should_filter_wp_v2_compatibility_for_request() || !eventon_apify_is_wp_v2_compat_exposed('ajde_events')) {
         return $query_args;
     }
 
@@ -216,8 +253,22 @@ function eventon_apify_filter_wp_v2_compatibility_term_search_query(array $query
     }
 
     $taxonomies = (array) $query_args['taxonomy'];
-    $taxonomies = array_values(array_diff($taxonomies, eventon_apify_get_wp_v2_compatibility_taxonomies()));
+    $taxonomies = array_values(array_diff($taxonomies, eventon_apify_get_wp_v2_compat_exposed_taxonomies()));
     $query_args['taxonomy'] = !empty($taxonomies) ? $taxonomies : array('__eventon_apify_no_results__');
 
     return $query_args;
+}
+
+/**
+ * Return the EventON taxonomies that compatibility mode itself exposed.
+ *
+ * @return array<int, string>
+ */
+function eventon_apify_get_wp_v2_compat_exposed_taxonomies() {
+    return array_values(
+        array_filter(
+            eventon_apify_get_wp_v2_compatibility_taxonomies(),
+            'eventon_apify_is_wp_v2_compat_exposed'
+        )
+    );
 }

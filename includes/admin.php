@@ -275,7 +275,7 @@ function eventon_apify_render_settings_page() {
                         <p class="eventon-apify-note">
                             <?php esc_html_e('Intended for generic WordPress clients such as', 'eventon-apify'); ?>
                             <a href="https://github.com/InstaWP/mcp-wp" target="_blank" rel="noopener noreferrer">InstaWP mcp-wp</a>.
-                            <?php esc_html_e('These routes remain administrator-only, and compatibility responses redact sensitive fields like virtual access secrets and notification email metadata.', 'eventon-apify'); ?>
+                            <?php esc_html_e('The EventON fields are administrator-only and redact sensitive values like virtual access secrets and notification email metadata. Routes this mode adds are administrator-only; routes EventON already registers on wp/v2 keep EventON\'s own access rules.', 'eventon-apify'); ?>
                         </p>
                     </div>
                 </section>

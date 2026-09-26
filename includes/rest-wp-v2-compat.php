@@ -16,6 +16,14 @@ function eventon_apify_filter_post_type_args_for_wp_v2_compat(array $args, $post
         return $args;
     }
 
+    // EventON 5 registers ajde_events with show_in_rest itself. That route is
+    // EventON's to govern (block editor, public reads), so it is left as
+    // registered and only a route this filter creates is put under guard.
+    if (!empty($args['show_in_rest'])) {
+        return $args;
+    }
+
+    eventon_apify_mark_wp_v2_compat_exposed($post_type);
     $args['show_in_rest'] = true;
     $args['rest_base'] = 'ajde_events';
 
@@ -47,10 +55,11 @@ function eventon_apify_filter_taxonomy_args_for_wp_v2_compat(array $args, $taxon
         'event_organizer',
     );
 
-    if (!in_array($taxonomy, $taxonomies, true)) {
+    if (!in_array($taxonomy, $taxonomies, true) || !empty($args['show_in_rest'])) {
         return $args;
     }
 
+    eventon_apify_mark_wp_v2_compat_exposed($taxonomy);
     $args['show_in_rest'] = true;
     $args['rest_base'] = $taxonomy;
 

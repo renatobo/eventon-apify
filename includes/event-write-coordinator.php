@@ -23,7 +23,7 @@ final class EventON_APIfy_Event_Write_Coordinator {
         if (!$created && count($post_updates) > 1) {
             $post_result = wp_update_post($post_updates, true);
             if (is_wp_error($post_result)) {
-                return $post_result;
+                return eventon_apify_redact_wp_write_error($post_result);
             }
         }
 

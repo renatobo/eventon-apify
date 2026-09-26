@@ -14,6 +14,12 @@
  */
 function eventon_test_enable_compat_as_anonymous() {
     update_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, true);
+    // EventON builds that do not expose REST themselves: compatibility mode
+    // turns show_in_rest on, which is what puts these objects under guard.
+    eventon_apify_filter_post_type_args_for_wp_v2_compat(array('show_in_rest' => false), 'ajde_events');
+    foreach (array('event_type', 'event_type_2', 'event_type_3', 'event_type_4', 'event_location', 'event_organizer') as $taxonomy) {
+        eventon_apify_filter_taxonomy_args_for_wp_v2_compat(array('show_in_rest' => false), $taxonomy);
+    }
     eventon_test_set_current_user_can(false);
 }
 

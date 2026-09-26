@@ -73,7 +73,7 @@ function eventon_apify_create_event(WP_REST_Request $request) {
     $post_id = wp_insert_post($postarr, true);
 
     if (is_wp_error($post_id)) {
-        return $post_id;
+        return eventon_apify_redact_wp_write_error($post_id);
     }
 
     $write_result = EventON_APIfy_Event_Write_Coordinator::persist($post_id, $params, true);
@@ -184,4 +184,33 @@ function eventon_apify_get_event_post($post_id) {
     }
 
     return $post;
+}
+
+/**
+ * Strip error data from a core post-write WP_Error before it reaches a client.
+ *
+ * wp_insert_post() and wp_update_post() put $wpdb->last_error in the error
+ * data on a database failure, and the REST server serializes error data into
+ * the response body. Code and message are core's generic text and stay; the
+ * detail goes to the error log instead.
+ */
+function eventon_apify_redact_wp_write_error(WP_Error $error) {
+    $data = $error->get_error_data();
+    $status = is_array($data) && isset($data['status']) ? (int) $data['status'] : 500;
+
+    if (!empty($data)) {
+        error_log(
+            sprintf(
+                '[eventon-apify] %s: %s',
+                $error->get_error_code(),
+                is_scalar($data) ? (string) $data : wp_json_encode($data)
+            )
+        );
+    }
+
+    return new WP_Error(
+        $error->get_error_code(),
+        $error->get_error_message(),
+        array('status' => $status)
+    );
 }

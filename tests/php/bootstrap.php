@@ -10,6 +10,7 @@ define('EVENTON_APIFY_NAMESPACE', 'eventonapify/v1');
 define('EVENTON_APIFY_OPTION_ENABLE_API', 'eventon_apify_enable_api');
 define('EVENTON_APIFY_OPTION_API_CAPABILITIES', 'eventon_apify_api_capabilities');
 define('EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT', 'eventon_apify_enable_wp_v2_compat');
+define('EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS', 'eventon_apify_cascade_delete_rsvps');
 define('EVENTON_APIFY_OPTION_SETTINGS_BACKUP', 'eventon_apify_settings_backup');
 define('EVENTON_APIFY_OPTION_INSTALLED_VERSION', 'eventon_apify_installed_version');
 define('EVENTON_APIFY_RSVP_UPDATED_AT_META', '_eventon_apify_updated_at_gmt');
