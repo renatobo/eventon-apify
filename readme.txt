@@ -212,6 +212,9 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 3.5.1 =
+* `repeat.intervals` items with no readable start and end now return `400 eventon_apify_invalid_repeat_interval` naming the item's index, instead of being dropped silently.
+
 = 3.5.0 =
 * New read-only WordPress abilities: `eventon-apify/get-status`, `eventon-apify/search-events`, `eventon-apify/get-event`, administrator-only in execution and discovery.
 * Uses the WordPress 7.1 abilities `public` flag and `wp_get_abilities_item_include` filter.
