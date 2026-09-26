@@ -1,8 +1,8 @@
 # EventON APIfy
 
-[![WordPress](https://img.shields.io/badge/WordPress-7.0%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![WordPress](https://img.shields.io/badge/WordPress-7.1%2B-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4?logo=php&logoColor=white)](https://www.php.net/)
-[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-7.0.2-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
+[![Tested up to](https://img.shields.io/badge/Tested%20up%20to-7.1.2-21759B?logo=wordpress&logoColor=white)](https://wordpress.org/)
 [![Release](https://img.shields.io/github/v/release/renatobo/eventon-apify?label=release)](https://github.com/renatobo/eventon-apify/releases)
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 
@@ -21,6 +21,7 @@ WordPress plugin that exposes protected REST API endpoints for EventON `ajde_eve
 - [Privacy](#privacy)
 - [MCP compatibility](#mcp-compatibility)
 - [MCP schema manifest](#mcp-schema-manifest)
+- [WordPress abilities](#wordpress-abilities)
 - [API reference](#api-reference)
 - [Developer hooks](#developer-hooks)
 - [Automatic updates](#automatic-updates)
@@ -56,13 +57,14 @@ See [GitHub Releases](https://github.com/renatobo/eventon-apify/releases) for th
 - Administrator-only access
 - Global Event API switch plus per-capability toggles for event reads/writes and RSVP reads
 - Optional `wp/v2` compatibility mode for generic WordPress tools such as `mcp-wp`
+- Read-only [WordPress abilities](#wordpress-abilities) for abilities-aware clients such as MCP adapters
 - Read-only MCP schema manifest for clients that need an executable EventON content contract
 - Compatible with WordPress Application Passwords
 - Git Updater metadata included for dashboard-based GitHub updates
 
 ## Requirements
 
-- WordPress `7.0+`
+- WordPress `7.1+`
 - PHP `8.0+`
 - EventON installed and active
 - HTTPS-enabled site recommended for secure API authentication
@@ -208,6 +210,22 @@ Recommended `mcp-wp` usage:
 - Fetch the EventON APIfy MCP manifest first if your MCP server supports plugin-published content contracts
 
 Important: the EventON-specific compatibility fields are available to administrator-authenticated requests only, and their responses redact sensitive fields such as virtual access secrets and notification email metadata. Routes that compatibility mode itself adds to `wp/v2` are also administrator-only. EventON 5 already registers `ajde_events` and its `event_type` taxonomies on `wp/v2`; those routes keep the access EventON and WordPress core give them (block editor, public reads of published events), and compatibility mode only adds the admin-only fields on top.
+
+## WordPress abilities
+
+EventON APIfy registers three read-only [WordPress abilities](https://developer.wordpress.org/apis/abilities-api/) in the `eventon-apify` category, for clients that discover and run abilities, such as an MCP adapter or the WordPress AI client:
+
+| Ability | Input | Returns |
+| --- | --- | --- |
+| `eventon-apify/get-status` | none | Plugin version, whether EventON and EventON RSVP are active, whether the API and `wp/v2` compatibility are enabled, and each operation toggle. Works while the API is disabled; returns no event data. |
+| `eventon-apify/search-events` | `search`, `page`, `per_page` (1-100), `status` (list), `starts_on_or_after`, `starts_before`, `upcoming`, `order`, `orderby` | `total`, `pages`, `page`, `per_page`, and a summary per event: `id`, `title`, `slug`, `status`, `link`, `start_at`, `end_at`, `timezone`, `event_status`, `attendance_mode`, `location_name`, `event_type`. |
+| `eventon-apify/get-event` | `id` | One event in the `eventonapify/v1` shape, with contact details, virtual access secrets, and notification emails removed (the same redaction as the `wp/v2` fields). |
+
+- **Same rules as the REST API.** Each ability runs the matching `eventonapify/v1` route in-process, so the Event API switch, the `List events` / `Read single event` toggles, argument handling, and error codes are identical. A disabled toggle returns the same `eventon_apify_capability_disabled` error.
+- **Administrator-only, including discovery.** Execution requires `manage_options`. WordPress lets any logged-in user list REST-exposed abilities, so EventON APIfy hides its own from non-administrators in `wp_get_abilities()` and refuses its routes under `/wp-json/wp-abilities/v1/abilities/eventon-apify/` for them, matching the administrator-only MCP schema manifest.
+- **Exposed to clients.** The abilities set the WordPress 7.1 `public` flag, so core lists them at `/wp-json/wp-abilities/v1/abilities` and runs them at `.../abilities/<name>/run` (`GET`, with `input` as a query parameter, because they are read-only). Core prepares their schemas for clients with `wp_prepare_json_schema_for_client()`.
+- **Inputs are validated by WordPress.** Unknown keys, `per_page` above 100, and statuses outside `publish`, `draft`, `private`, `pending`, `future` are rejected with `ability_invalid_input` before anything runs.
+- There are no write abilities. Creating, updating, and deleting events stays on the REST API.
 
 ## MCP schema manifest
 

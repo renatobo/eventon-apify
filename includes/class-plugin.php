@@ -65,6 +65,7 @@ final class Plugin {
             'class-rsvp-attendee-repository.php',
             'rest-rsvp.php',
             'rest-routes.php',
+            'abilities.php',
         );
 
         if (is_admin()) {
@@ -95,6 +96,10 @@ final class Plugin {
         add_action('updated_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
         add_action('deleted_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
         add_action('shutdown', 'eventon_apify_flush_rsvp_touches');
+        add_action('wp_abilities_api_categories_init', 'eventon_apify_register_ability_category');
+        add_action('wp_abilities_api_init', 'eventon_apify_register_abilities');
+        add_filter('wp_get_abilities_item_include', 'eventon_apify_filter_ability_visibility', 10, 2);
+        add_filter('rest_pre_dispatch', 'eventon_apify_restrict_ability_routes', 10, 3);
         add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_wp_v2_compat', 10, 2);
         add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
         add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);

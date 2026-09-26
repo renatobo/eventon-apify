@@ -54,6 +54,10 @@ function eventon_test_reset_wp_state() {
     $GLOBALS['__eventon_test_wp_query_posts'] = array();
     $GLOBALS['__eventon_test_option_reads'] = array();
     $GLOBALS['__eventon_test_option_autoload'] = array();
+    $GLOBALS['__eventon_test_rest_requests'] = array();
+    $GLOBALS['__eventon_test_rest_responder'] = null;
+    $GLOBALS['__eventon_test_abilities'] = array();
+    $GLOBALS['__eventon_test_ability_categories'] = array();
     $GLOBALS['eventon_apify_pending_rsvp_touches'] = array();
 }
 
@@ -112,13 +116,35 @@ if (!class_exists('WP_REST_Request')) {
         /** @var string */
         private $route;
 
+        /** @var string */
+        private $method = 'GET';
+
         /**
-         * @param array<string, mixed> $params Request parameters.
-         * @param string               $route  Raw client route, as core reports it.
+         * Accepts the harness's (params, route) shorthand or core's (method, route).
+         *
+         * @param array<string, mixed>|string $params_or_method Request parameters, or the HTTP method.
+         * @param string                      $route            Raw client route, as core reports it.
          */
-        public function __construct(array $params = array(), $route = '') {
-            $this->params = $params;
+        public function __construct($params_or_method = array(), $route = '') {
+            if (is_array($params_or_method)) {
+                $this->params = $params_or_method;
+            } else {
+                $this->params = array();
+                $this->method = strtoupper((string) $params_or_method) ?: 'GET';
+            }
             $this->route = (string) $route;
+        }
+
+        public function set_query_params($params) {
+            $this->params = array_merge($this->params, (array) $params);
+        }
+
+        public function get_query_params() {
+            return $this->params;
+        }
+
+        public function get_method() {
+            return $this->method;
         }
 
         public function get_param($key) {
@@ -153,6 +179,27 @@ if (!class_exists('WP_HTTP_Response')) {
 
         public function set_data($data) {
             $this->data = $data;
+        }
+    }
+}
+
+if (!class_exists('WP_REST_Response')) {
+    class WP_REST_Response extends WP_HTTP_Response {
+        /** @var WP_Error|null */
+        private $error;
+
+        public static function from_error(WP_Error $error) {
+            $response = new self(array('code' => $error->get_error_code(), 'message' => $error->get_error_message(), 'data' => $error->get_error_data()));
+            $response->error = $error;
+            return $response;
+        }
+
+        public function is_error() {
+            return $this->error !== null;
+        }
+
+        public function as_error() {
+            return $this->error;
         }
     }
 }
@@ -586,5 +633,47 @@ if (!function_exists('get_post_modified_time')) {
 if (!function_exists('wp_is_post_revision')) {
     function wp_is_post_revision($post) {
         return false;
+    }
+}
+
+if (!function_exists('rest_do_request')) {
+    /**
+     * Records the request and answers from $GLOBALS['__eventon_test_rest_responder'],
+     * a callable taking the request and returning data or a WP_Error.
+     */
+    function rest_do_request($request) {
+        $GLOBALS['__eventon_test_rest_requests'][] = $request;
+        $responder = $GLOBALS['__eventon_test_rest_responder'];
+        $result = $responder ? $responder($request) : array();
+        return $result instanceof WP_Error ? WP_REST_Response::from_error($result) : new WP_REST_Response($result);
+    }
+}
+
+if (!class_exists('WP_Ability')) {
+    class WP_Ability {
+        /** @var string */
+        private $name;
+
+        public function __construct($name) {
+            $this->name = (string) $name;
+        }
+
+        public function get_name() {
+            return $this->name;
+        }
+    }
+}
+
+if (!function_exists('wp_register_ability')) {
+    function wp_register_ability($name, array $args) {
+        $GLOBALS['__eventon_test_abilities'][$name] = $args;
+        return new WP_Ability($name);
+    }
+}
+
+if (!function_exists('wp_register_ability_category')) {
+    function wp_register_ability_category($slug, array $args) {
+        $GLOBALS['__eventon_test_ability_categories'][$slug] = $args;
+        return true;
     }
 }

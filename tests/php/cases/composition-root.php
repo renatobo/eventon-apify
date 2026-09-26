@@ -8,5 +8,8 @@ test('composition root registers runtime integrations once', function () {
         'eventon_apify_register_routes',
         'eventon_apify_register_wp_v2_compatibility_fields',
     ));
-    eq(count($GLOBALS['__eventon_test_filters']['rest_pre_dispatch']), 1);
+    eq($GLOBALS['__eventon_test_filters']['rest_pre_dispatch'], array(
+        'eventon_apify_restrict_ability_routes',
+        'eventon_apify_restrict_wp_v2_compatibility_routes',
+    ));
 });

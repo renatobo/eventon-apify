@@ -12,6 +12,15 @@
 - Every handler must open with the matching `eventon_apify_assert_*_capability_is_ready('<capability>')` call. The permission callback covers who may call the route; the assert covers the `enable_api` master switch, EventON availability, and the per-route capability toggle. Neither substitutes for the other.
 - Nothing enforces this automatically. `phpcs` does not check it, so a new handler that omits the assert needs a case in `tests/php/cases/`.
 
+## WordPress Abilities
+
+- `includes/abilities.php` is a read-only adapter over `eventonapify/v1`: each event ability dispatches the existing route in-process with `rest_do_request()`. Do not reimplement queries, readiness checks, or toggles in an ability; add behavior to the route and let the ability inherit it.
+- Every ability's `permission_callback` is `eventon_apify_admin_only`, a plain boolean. Core turns a `WP_Error` from a permission callback into a generic error plus `_doing_it_wrong`, so readiness errors (API disabled, toggle off, EventON missing) come from the route handler through the execute callback, never from the permission callback.
+- Core only applies a whole-input `default`, never per-property defaults. Execute callbacks must supply their own defaults or leave them to the route args.
+- Non-administrators must not discover these abilities: `eventon_apify_filter_ability_visibility()` on `wp_get_abilities_item_include` covers listings, and `eventon_apify_restrict_ability_routes()` on `rest_pre_dispatch` covers the single-ability routes, which read the registry directly and bypass that filter. The integration smoke fails if either guard is removed.
+- Do not pass the custom MCP manifest through `wp_prepare_json_schema_for_client()`. Its field vocabulary (`write_key`, `aliases`, `required_on`, `shape`) is its own contract, not JSON Schema. Core already prepares ability schemas when it exposes them.
+- There are no write abilities by design. A future one must go through `EventON_APIfy_Event_Write_Coordinator` via the existing route, not a second write path.
+
 ## Distribution Channels
 
 - Treat GitHub Releases as the active primary distribution channel.
@@ -59,9 +68,9 @@
 - Neither `phpcs` nor `phpstan` scans `tests/`. Test and fixture code is covered by `php -l` only, so verify it by running it.
 - A new test is not done until it has been seen to fail. Break the code it covers, confirm the failure, restore. A test that passes both ways is asserting nothing, and a mutation that unexpectedly survives usually means a second layer is doing the work, which is worth knowing either way.
 - If `composer` is not on PATH, run the gate directly: `vendor/bin/phpcs`, `vendor/bin/phpstan analyse --no-progress --memory-limit=1G`, `php tests/php/run.php`, `php scripts/performance-gate.php`.
-- `composer quality` is unit-level only and cannot verify REST route registration. The `wordpress-7-integration` CI job covers that: it installs WordPress 7.0.2 against MySQL and runs `tests/integration/wp-rest-smoke.php`, which dispatches real requests through the REST server and asserts compensating rollback. Live-site checks remain necessary only for the proprietary EventON runtime.
+- `composer quality` is unit-level only and cannot verify REST route registration. The `wordpress-7-integration` CI job covers that: it installs WordPress 7.1.2 against MySQL and runs `tests/integration/wp-rest-smoke.php`, which dispatches real requests through the REST server and asserts compensating rollback. Live-site checks remain necessary only for the proprietary EventON runtime.
 - Watch that job specifically. It is the only one that exercises WordPress, so a failure there does not turn the unit or quality jobs red.
-- Reproduce that job locally: MySQL container, WordPress 7.0.2 extracted from the tarball, repo symlinked into `wp-content/plugins/`, then `wp eval-file tests/integration/wp-rest-smoke.php`. Four things bite:
+- Reproduce that job locally: MySQL container, WordPress 7.1.2 extracted from the tarball, repo symlinked into `wp-content/plugins/`, then `wp eval-file tests/integration/wp-rest-smoke.php`. Four things bite:
   - Run every `wp-cli` command as `php -d memory_limit=1G wp-cli.phar …`; `wp core download` exhausts the default limit mid-extract.
   - Wait for MySQL with a real query (`mysql -uwordpress -pwordpress -e "SELECT 1" wordpress`), not `mysqladmin ping`, which reports ready before connections are accepted.
   - `wp core install` after a `db reset` clears `active_plugins`; reactivate before running anything, or the smoke dies with undefined functions.

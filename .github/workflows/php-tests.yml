@@ -101,10 +101,10 @@ jobs:
           php-version: '8.3'
           tools: wp-cli
 
-      - name: Install WordPress 7.0.2
+      - name: Install WordPress 7.1.2
         run: |
           mkdir "$RUNNER_TEMP/wordpress"
-          wp core download --version=7.0.2 --path="$RUNNER_TEMP/wordpress"
+          wp core download --version=7.1.2 --path="$RUNNER_TEMP/wordpress"
           wp config create --path="$RUNNER_TEMP/wordpress" --dbname=wordpress --dbuser=wordpress --dbpass=wordpress --dbhost=127.0.0.1:3306
           wp core install --path="$RUNNER_TEMP/wordpress" --url=http://localhost --title="EventON APIfy CI" --admin_user=admin --admin_password=admin-password --admin_email=admin@example.com
           ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/wordpress/wp-content/plugins/eventon-apify"

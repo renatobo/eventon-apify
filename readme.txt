@@ -1,8 +1,8 @@
 === EventON APIfy ===
 Contributors: renatobo
 Tags: eventon, api, rest-api, events
-Requires at least: 7.0
-Tested up to: 7.0.2
+Requires at least: 7.1
+Tested up to: 7.1.2
 Requires PHP: 8.0
 Stable tag: 3.4.0
 License: GPLv2 or later
@@ -38,6 +38,7 @@ Features:
 - Event type taxonomy assignment
 - Global API switch plus per-capability route controls
 - Optional `wp/v2` compatibility mode for generic WordPress clients such as `mcp-wp`
+- Read-only WordPress abilities (`eventon-apify/get-status`, `eventon-apify/search-events`, `eventon-apify/get-event`) for abilities-aware clients such as MCP adapters, administrator-only like the rest of the API
 - Read-only MCP schema manifest for compatible MCP servers
 - Compatible with WordPress Application Password authentication
 
@@ -211,6 +212,11 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
+= 3.5.0 =
+* New read-only WordPress abilities: `eventon-apify/get-status`, `eventon-apify/search-events`, `eventon-apify/get-event`, administrator-only in execution and discovery.
+* Uses the WordPress 7.1 abilities `public` flag and `wp_get_abilities_item_include` filter.
+* Requires WordPress 7.1; tested up to 7.1.2. PHP 8.0+ unchanged.
+
 = 3.4.0 =
 * Database errors on event create/update no longer leak SQL error text in the response.
 * `wp/v2` compatibility mode leaves routes EventON registers itself (EventON 5) with EventON's own access rules; only routes it adds are administrator-only.
@@ -305,6 +311,9 @@ The API responds with a `400` error explaining which date/time combination could
 * Git Updater compatibility metadata and packaging docs for GitHub release assets.
 
 == Upgrade Notice ==
+
+= 3.5.0 =
+Requires WordPress 7.1 or higher. Sites on WordPress 7.0 should stay on 3.4.0 until they upgrade WordPress.
 
 = 3.3.0 =
 Requires WordPress 7.0 or higher. Sites on an earlier version should stay on 3.2.3 until they upgrade WordPress.

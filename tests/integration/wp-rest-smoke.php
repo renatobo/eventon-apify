@@ -7,8 +7,8 @@ if (!defined('ABSPATH')) {
     exit(1);
 }
 
-if (get_bloginfo('version') !== '7.0.2') {
-    throw new RuntimeException('Expected WordPress 7.0.2, got ' . get_bloginfo('version'));
+if (get_bloginfo('version') !== '7.1.2') {
+    throw new RuntimeException('Expected WordPress 7.1.2, got ' . get_bloginfo('version'));
 }
 
 register_post_type('ajde_events', array('public' => false));
@@ -328,6 +328,117 @@ if (empty($filtered_read->get_data()['smoke_marker'])) {
     throw new RuntimeException('eventon_apify_format_event must filter single-event responses.');
 }
 
+/*
+ * WordPress abilities. Core validates input against the schema, checks the
+ * permission callback, and validates output, so these run through the real
+ * WP_Ability::execute() and the real /wp-abilities/v1 controllers.
+ */
+$published_id = (int) $published_create_response->get_data()['id'];
+$search_ability = wp_get_ability('eventon-apify/search-events');
+$get_ability = wp_get_ability('eventon-apify/get-event');
+$status_ability = wp_get_ability('eventon-apify/get-status');
+if (!$search_ability || !$get_ability || !$status_ability) {
+    throw new RuntimeException('The three EventON APIfy abilities must be registered.');
+}
+
+wp_set_current_user($administrator->ID);
+$ability_search = $search_ability->execute(array('search' => 'Published Create', 'per_page' => 5));
+if (is_wp_error($ability_search)) {
+    throw new RuntimeException('search-events failed: ' . $ability_search->get_error_message());
+}
+$rest_search = $server->dispatch((static function () {
+    $request = new WP_REST_Request('GET', '/eventonapify/v1/events');
+    $request->set_query_params(array('search' => 'Published Create', 'per_page' => 5));
+    return $request;
+})())->get_data();
+if (wp_list_pluck($ability_search['events'], 'id') !== wp_list_pluck($rest_search['events'], 'id') || $ability_search['total'] !== $rest_search['total']) {
+    throw new RuntimeException('search-events must return the same events and total as GET /events.');
+}
+$rest_event = $rest_search['events'][0];
+$expected_summary = array(
+    'id' => $rest_event['id'],
+    'title' => $rest_event['title'],
+    'start_at' => $rest_event['start_at'],
+    'timezone' => $rest_event['timezone']['key'],
+    'event_status' => $rest_event['event_status'],
+);
+if (array_intersect_key($ability_search['events'][0], $expected_summary) != $expected_summary) {
+    throw new RuntimeException('search-events summary fields must match the REST event: ' . wp_json_encode($ability_search['events'][0]));
+}
+
+$ability_event = $get_ability->execute(array('id' => $published_id));
+if (is_wp_error($ability_event) || ($ability_event['title'] ?? '') !== 'Published Create') {
+    throw new RuntimeException('get-event must return the event GET /events/<id> returns.');
+}
+
+foreach (array(array('per_page' => 500), array('unexpected' => true), array('status' => array('trash'))) as $bad_input) {
+    $invalid = $search_ability->execute($bad_input);
+    if (!is_wp_error($invalid) || $invalid->get_error_code() !== 'ability_invalid_input') {
+        throw new RuntimeException('search-events must reject input outside its schema: ' . wp_json_encode($bad_input));
+    }
+}
+if (!is_wp_error($get_ability->execute(array()))) {
+    throw new RuntimeException('get-event must require an id.');
+}
+
+// The per-operation toggle and the master switch reach abilities through the route.
+update_option('eventon_apify_api_capabilities', array_merge(eventon_apify_get_api_capabilities(), array('list' => false)));
+$toggled = $search_ability->execute(array());
+if (!is_wp_error($toggled) || $toggled->get_error_code() !== 'eventon_apify_capability_disabled') {
+    throw new RuntimeException('search-events must honor the List events toggle.');
+}
+update_option('eventon_apify_api_capabilities', array_merge(eventon_apify_get_api_capabilities(), array('list' => true)));
+
+update_option('eventon_apify_enable_api', false);
+$disabled = $get_ability->execute(array('id' => $published_id));
+if (!is_wp_error($disabled) || $disabled->get_error_code() !== 'eventon_apify_disabled') {
+    throw new RuntimeException('get-event must honor the API master switch.');
+}
+$status_while_disabled = $status_ability->execute();
+if (is_wp_error($status_while_disabled) || $status_while_disabled['custom_event_api_enabled'] !== false) {
+    throw new RuntimeException('get-status must report a disabled API rather than fail.');
+}
+update_option('eventon_apify_enable_api', true);
+
+// Administrators discover and run the abilities over core's REST API.
+$ability_names = static function ($server) {
+    $response = $server->dispatch(new WP_REST_Request('GET', '/wp-abilities/v1/abilities'));
+    return array_values(array_filter(wp_list_pluck((array) $response->get_data(), 'name'), 'eventon_apify_is_own_ability_name'));
+};
+if ($ability_names($server) !== array('eventon-apify/get-status', 'eventon-apify/search-events', 'eventon-apify/get-event')) {
+    throw new RuntimeException('Administrators must discover the three abilities over REST.');
+}
+$run = new WP_REST_Request('GET', '/wp-abilities/v1/abilities/eventon-apify/get-event/run');
+$run->set_query_params(array('input' => array('id' => $published_id)));
+$run_response = $server->dispatch($run);
+if ($run_response->get_status() !== 200 || ($run_response->get_data()['id'] ?? 0) !== $published_id) {
+    throw new RuntimeException('get-event must run over REST for administrators, got ' . $run_response->get_status() . '.');
+}
+
+// Subscribers can list core's abilities but must not discover or run these.
+$subscriber_id = username_exists('smoke-subscriber') ?: wp_insert_user(array('user_login' => 'smoke-subscriber', 'user_pass' => wp_generate_password(), 'role' => 'subscriber'));
+if (is_wp_error($subscriber_id)) {
+    throw new RuntimeException('Could not create the subscriber fixture: ' . $subscriber_id->get_error_message());
+}
+wp_set_current_user($subscriber_id);
+if ($ability_names($server) !== array()) {
+    throw new RuntimeException('Subscribers must not discover EventON APIfy abilities.');
+}
+if (array_filter(array_keys(wp_get_abilities()), 'eventon_apify_is_own_ability_name')) {
+    throw new RuntimeException('wp_get_abilities() must hide EventON APIfy abilities from subscribers.');
+}
+foreach (array('/wp-abilities/v1/abilities/eventon-apify/get-event', '/wp-abilities/v1/abilities/eventon-apify/get-status/run') as $route) {
+    $status = $server->dispatch(new WP_REST_Request('GET', $route))->get_status();
+    if ($status !== 403) {
+        throw new RuntimeException($route . ' must be refused for subscribers, got ' . $status . '.');
+    }
+}
+$denied = $search_ability->execute(array());
+if (!is_wp_error($denied) || $denied->get_error_code() !== 'ability_invalid_permissions') {
+    throw new RuntimeException('search-events must refuse subscribers.');
+}
+wp_set_current_user($administrator->ID);
+
 // The master switch has to close the route for an otherwise authorized caller.
 update_option('eventon_apify_enable_api', false);
 $disabled_status = eventon_smoke_dispatch_status($server, 'GET', '/eventonapify/v1/events');
@@ -336,4 +447,4 @@ if ($disabled_status !== 403) {
 }
 update_option('eventon_apify_enable_api', true);
 
-echo "WordPress 7.0.2 REST integration smoke passed.\n";
+echo "WordPress 7.1.2 REST integration smoke passed.\n";

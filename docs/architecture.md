@@ -18,6 +18,9 @@ and owns hook registration. Admin UI code is loaded only in admin requests.
 
 1. **Transport:** `rest-routes.php`, `rest-schema.php`, and the `rest-wp-v2-*`
    modules define authorization, WordPress REST schemas, and callbacks.
+   `abilities.php` is a second, read-only transport: WordPress abilities that
+   dispatch the `eventonapify/v1` routes in-process, so they inherit the same
+   authorization, readiness checks, and errors without a parallel code path.
 2. **Contract and validation:** `mcp-field-*`, `rest-event-payload.php`, and
    `rest-event-validation.php` hold the canonical API vocabulary and validation.
 3. **Use-case coordination:** `rest-events-write.php` handles HTTP-level event
@@ -53,6 +56,6 @@ defense layers.
 ## Compatibility verification
 
 The dependency-free unit suite covers normalization and contract logic across
-PHP 8.0, 8.3, and 8.5. CI also installs WordPress 7.0.2 with MySQL, activates the
+PHP 8.0, 8.3, and 8.5. CI also installs WordPress 7.1.2 with MySQL, activates the
 plugin, and verifies route registration, administrator authorization, discovery
 protection, and required create schemas against WordPress core itself.

@@ -170,8 +170,19 @@ function eventon_apify_get_wp_v2_wrapper_field_names() {
  * @return array<string, mixed>
  */
 function eventon_apify_format_wp_v2_event(WP_Post $post) {
-    $event = eventon_apify_format_event($post);
+    return eventon_apify_redact_event_payload(eventon_apify_format_event($post));
+}
 
+/**
+ * Remove contact details and access secrets from a formatted event.
+ *
+ * Shared by every surface that returns event details outside the protected
+ * eventonapify/v1 routes (wp/v2 compatibility fields, WordPress abilities).
+ *
+ * @param array<string, mixed> $event Formatted event payload.
+ * @return array<string, mixed>
+ */
+function eventon_apify_redact_event_payload(array $event) {
     if (isset($event['location']) && is_array($event['location'])) {
         unset($event['location']['email'], $event['location']['phone']);
     }
