@@ -9,6 +9,30 @@ if (!defined('ABSPATH')) {
  */
 final class EventON_APIfy_Taxonomy_Meta_Store {
     /**
+     * Entries saved since the last reset_written(), as [taxonomy][term_id].
+     *
+     * @var array<string, array<int, bool>>
+     */
+    private static $written = array();
+
+    /**
+     * Start a fresh record of written entries. Called when a write snapshot
+     * is captured, so a rollback restores only what that write touched.
+     */
+    public static function reset_written() {
+        self::$written = array();
+    }
+
+    /**
+     * Return the entries saved since the last reset_written().
+     *
+     * @return array<string, array<int, bool>>
+     */
+    public static function written() {
+        return self::$written;
+    }
+
+    /**
      * Merge metadata into EventON's taxonomy store.
      *
      * @param array<string, string> $payload Sanitized EventON metadata.
@@ -44,6 +68,7 @@ final class EventON_APIfy_Taxonomy_Meta_Store {
         $updated = update_option('evo_tax_meta', $all_term_meta);
 
         if ($updated || get_option('evo_tax_meta', array()) === $all_term_meta) {
+            self::$written[$taxonomy][$term_id] = true;
             return true;
         }
 

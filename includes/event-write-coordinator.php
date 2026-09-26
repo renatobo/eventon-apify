@@ -52,6 +52,7 @@ final class EventON_APIfy_Event_Write_Coordinator {
             'created' => (bool) $created,
             'evo_tax_meta' => get_option('evo_tax_meta', null),
         );
+        EventON_APIfy_Taxonomy_Meta_Store::reset_written();
 
         if ($created) {
             return $snapshot;
@@ -89,7 +90,7 @@ final class EventON_APIfy_Event_Write_Coordinator {
     private static function rollback($post_id, array $snapshot) {
         if (!empty($snapshot['created'])) {
             wp_delete_post($post_id, true);
-            self::restore_eventon_term_meta($snapshot['evo_tax_meta']);
+            self::restore_eventon_term_meta($snapshot['evo_tax_meta'], EventON_APIfy_Taxonomy_Meta_Store::written());
             return;
         }
 
@@ -105,33 +106,103 @@ final class EventON_APIfy_Event_Write_Coordinator {
             wp_set_object_terms($post_id, $term_ids, $taxonomy, false);
         }
 
-        self::restore_eventon_term_meta($snapshot['evo_tax_meta']);
+        self::restore_eventon_term_meta($snapshot['evo_tax_meta'], EventON_APIfy_Taxonomy_Meta_Store::written());
     }
 
     /**
-     * Restore all post metadata values from a pre-write snapshot.
+     * Restore post metadata to a pre-write snapshot, touching only the keys
+     * the failed write changed so unrelated meta hooks do not fire.
      */
     private static function restore_post_meta($post_id, array $snapshot) {
-        foreach (array_keys(get_post_meta($post_id)) as $meta_key) {
+        $plan = self::meta_restore_plan(get_post_meta($post_id), $snapshot);
+
+        foreach ($plan['delete'] as $meta_key) {
             delete_post_meta($post_id, $meta_key);
         }
 
-        foreach ($snapshot as $meta_key => $values) {
-            foreach ((array) $values as $value) {
+        foreach ($plan['restore'] as $meta_key => $values) {
+            foreach ($values as $value) {
                 add_post_meta($post_id, $meta_key, maybe_unserialize($value));
             }
         }
     }
 
     /**
-     * Restore EventON's shared taxonomy metadata option.
+     * Diff current meta against the snapshot. Both sides are get_post_meta()
+     * raw value lists, so a strict comparison also catches reordered values.
+     *
+     * @param array<string, array<int, mixed>> $current  Meta as it is now.
+     * @param array<string, array<int, mixed>> $snapshot Meta before the write.
+     * @return array{delete: array<int, string>, restore: array<string, array<int, mixed>>}
      */
-    private static function restore_eventon_term_meta($snapshot) {
-        if ($snapshot === null) {
+    private static function meta_restore_plan(array $current, array $snapshot) {
+        $plan = array('delete' => array(), 'restore' => array());
+
+        foreach ($current as $meta_key => $values) {
+            if (!array_key_exists($meta_key, $snapshot) || (array) $snapshot[$meta_key] !== (array) $values) {
+                $plan['delete'][] = (string) $meta_key;
+            }
+        }
+
+        foreach ($snapshot as $meta_key => $values) {
+            if (!array_key_exists($meta_key, $current) || (array) $current[$meta_key] !== (array) $values) {
+                $plan['restore'][(string) $meta_key] = array_values((array) $values);
+            }
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Restore EventON's shared taxonomy metadata option.
+     *
+     * evo_tax_meta holds every term's metadata site-wide, so writing the whole
+     * snapshot back would discard changes other requests made since it was
+     * taken. Only the entries this write saved are put back.
+     *
+     * @param mixed                            $snapshot Option value before the write, or null.
+     * @param array<string, array<int, bool>> $written  Entries saved during the write.
+     */
+    private static function restore_eventon_term_meta($snapshot, array $written) {
+        if (empty($written)) {
+            return;
+        }
+
+        $current = get_option('evo_tax_meta', null);
+        if (!is_array($current) || ($snapshot !== null && !is_array($snapshot))) {
+            // Not the shape the store writes: fall back to the full snapshot.
+            if ($snapshot === null) {
+                delete_option('evo_tax_meta');
+            } else {
+                update_option('evo_tax_meta', $snapshot);
+            }
+            return;
+        }
+
+        $before = is_array($snapshot) ? $snapshot : array();
+
+        foreach ($written as $taxonomy => $term_ids) {
+            foreach (array_keys($term_ids) as $term_id) {
+                if (isset($before[$taxonomy]) && is_array($before[$taxonomy]) && array_key_exists($term_id, $before[$taxonomy])) {
+                    $current[$taxonomy][$term_id] = $before[$taxonomy][$term_id];
+                    continue;
+                }
+
+                if (isset($current[$taxonomy]) && is_array($current[$taxonomy])) {
+                    unset($current[$taxonomy][$term_id]);
+
+                    if (empty($current[$taxonomy]) && !array_key_exists($taxonomy, $before)) {
+                        unset($current[$taxonomy]);
+                    }
+                }
+            }
+        }
+
+        if ($snapshot === null && empty($current)) {
             delete_option('evo_tax_meta');
             return;
         }
 
-        update_option('evo_tax_meta', $snapshot);
+        update_option('evo_tax_meta', $current);
     }
 }

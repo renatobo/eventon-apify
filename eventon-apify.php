@@ -60,9 +60,7 @@ function eventon_apify_dependency_notice(): void
 
     // Deliberately the shared helper, which tests pin: a second definition of
     // "EventON is here" would drift from what the endpoints actually check.
-    // function_exists because boot() skips every module on PHP < 8.0 and shows
-    // its own notice instead; this one has nothing to report in that state.
-    if (!function_exists('eventon_apify_is_eventon_available') || eventon_apify_is_eventon_available()) {
+    if (eventon_apify_is_eventon_available()) {
         return;
     }
 
