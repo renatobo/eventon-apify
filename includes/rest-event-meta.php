@@ -673,16 +673,29 @@ function eventon_apify_normalize_repeat_intervals_input($intervals, $timezone_ke
     }
 
     $normalized = array();
-    foreach ($intervals as $interval) {
+    foreach (array_values($intervals) as $index => $interval) {
         $normalized_interval = eventon_apify_normalize_repeat_interval_item($interval, $timezone_key);
 
         if (is_wp_error($normalized_interval)) {
             return $normalized_interval;
         }
 
-        if ($normalized_interval) {
-            $normalized[] = $normalized_interval;
+        // An item with no recognizable start/end pair used to be dropped
+        // silently, so a malformed series saved with fewer occurrences than
+        // the client sent and no error.
+        if (!$normalized_interval) {
+            return new WP_Error(
+                'eventon_apify_invalid_repeat_interval',
+                sprintf(
+                    /* translators: %d: zero-based index of the repeat interval. */
+                    __('repeat.intervals[%d] must be an object with start_at and end_at, start_timestamp and end_timestamp, start_date (with optional start_time, end_date, end_time), or a [start, end] timestamp pair.', 'eventon-apify'),
+                    $index
+                ),
+                array('status' => 400)
+            );
         }
+
+        $normalized[] = $normalized_interval;
     }
 
     usort(

@@ -98,3 +98,34 @@ test('organizer link must be a valid URL', function () {
 test('repeat_frequency must be in the allowed set when non-empty', function () {
     eq(eventon_test_validate_code(array('repeat_frequency' => 'bogus')), 'eventon_apify_invalid_repeat_frequency');
 });
+
+// --- repeat.intervals items that cannot be read are rejected, not dropped ---
+
+test('an unreadable repeat interval is a 400 naming its index', function () {
+    $cases = array(
+        'scalar item' => array(array(100, 200), 'not-an-interval'),
+        'empty object' => array(array(100, 200), array()),
+        'start_at without end_at' => array(array('start_at' => '2030-01-01T09:00:00Z')),
+        'start timestamp only' => array(array('start_timestamp' => 100)),
+    );
+
+    foreach ($cases as $label => $intervals) {
+        $error = eventon_apify_normalize_repeat_intervals_input($intervals, 'UTC');
+        ok(is_wp_error($error), $label . ' must be rejected');
+        eq($error->get_error_code(), 'eventon_apify_invalid_repeat_interval', $label);
+        eq($error->get_error_data(), array('status' => 400), $label);
+        ok(strpos($error->get_error_message(), 'repeat.intervals[' . (count($intervals) - 1) . ']') !== false, $label . ' names the index: ' . $error->get_error_message());
+    }
+});
+
+test('readable repeat intervals still normalize, sort, and de-duplicate', function () {
+    eq(eventon_apify_normalize_repeat_intervals_input(array(array(300, 400), array(100, 200), array(100, 200)), 'UTC'), array(array(100, 200), array(300, 400)));
+    eq(eventon_apify_normalize_repeat_intervals_input(array(), 'UTC'), array());
+});
+
+test('event validation surfaces an unreadable repeat interval', function () {
+    $error = eventon_apify_validate_event_payload(array('repeat_intervals' => array(array(100, 200), 'junk')), false, 5);
+
+    ok(is_wp_error($error));
+    eq($error->get_error_code(), 'eventon_apify_invalid_repeat_interval');
+});
