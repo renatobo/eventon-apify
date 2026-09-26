@@ -71,6 +71,16 @@ function eventon_apify_register_settings() {
             'default' => false,
         )
     );
+
+    register_setting(
+        'eventon_apify_settings_group',
+        EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS,
+        array(
+            'type' => 'boolean',
+            'sanitize_callback' => 'eventon_apify_sanitize_checkbox',
+            'default' => true,
+        )
+    );
 }
 
 /**

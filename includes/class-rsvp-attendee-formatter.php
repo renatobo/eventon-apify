@@ -51,7 +51,7 @@ final class RSVP_Attendee_Formatter {
             $full_name = trim((string) $post->post_title);
         }
 
-        return array(
+        $attendee = array(
             'id' => $post->ID,
             'created_at' => eventon_apify_get_post_created_at_iso8601($post),
             'updated_at' => eventon_apify_get_rsvp_updated_at_iso8601($post),
@@ -74,5 +74,13 @@ final class RSVP_Attendee_Formatter {
             'other_attendees' => $other_attendees,
             'custom_fields' => eventon_apify_get_rsvp_custom_fields($meta),
         );
+
+        /**
+         * Filters one formatted RSVP attendee before it is returned.
+         *
+         * @param array<string, mixed> $attendee Formatted attendee payload.
+         * @param \WP_Post             $post     RSVP post.
+         */
+        return apply_filters('eventon_apify_format_rsvp_attendee', $attendee, $post);
     }
 }

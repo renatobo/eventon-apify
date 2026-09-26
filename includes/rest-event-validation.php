@@ -287,7 +287,19 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         return $datetime_validation;
     }
 
-    return true;
+    /**
+     * Filters the result of event payload validation, after every built-in
+     * check has passed. Return a WP_Error to reject the write; any other
+     * value lets it through.
+     *
+     * @param true                 $result    Built-in validation result.
+     * @param array<string, mixed> $params    Normalized request payload.
+     * @param bool                 $is_create Whether this is a create.
+     * @param int                  $post_id   Event post ID on update, 0 on create.
+     */
+    $result = apply_filters('eventon_apify_validate_event_payload', true, $params, (bool) $is_create, (int) $post_id);
+
+    return is_wp_error($result) ? $result : true;
 }
 
 /**

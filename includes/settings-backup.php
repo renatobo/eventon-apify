@@ -26,19 +26,24 @@ function eventon_apify_bootstrap_settings() {
 
     eventon_apify_restore_or_seed_boolean_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, $backup, 'enable_wp_v2_compat');
 
+    // Seeded on: the cascade ran unconditionally before it was a setting, so
+    // installs upgrading from then keep the behavior they already had.
+    eventon_apify_restore_or_seed_boolean_option(EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS, $backup, 'cascade_delete_rsvps', true);
+
     eventon_apify_sync_settings_backup();
 }
 
 /**
- * Seed a boolean option from its backup value, or false when no backup exists.
+ * Seed a boolean option from its backup value, or $default when no backup exists.
  *
  * No-op when the option already has a stored value.
  *
  * @param string               $option     Option name.
  * @param array<string, mixed> $backup     Settings backup snapshot.
  * @param string               $backup_key Key within the backup holding this option.
+ * @param bool                 $default    Value seeded when the backup has none.
  */
-function eventon_apify_restore_or_seed_boolean_option($option, array $backup, $backup_key) {
+function eventon_apify_restore_or_seed_boolean_option($option, array $backup, $backup_key, $default = false) {
     if (null !== get_option($option, null)) {
         return;
     }
@@ -48,7 +53,7 @@ function eventon_apify_restore_or_seed_boolean_option($option, array $backup, $b
         return;
     }
 
-    add_option($option, false);
+    add_option($option, (bool) $default);
 }
 
 /**
@@ -67,6 +72,7 @@ function eventon_apify_sync_settings_backup() {
         'enable_api' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_API, false),
         'api_capabilities' => eventon_apify_get_api_capabilities(),
         'enable_wp_v2_compat' => (bool) get_option(EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, false),
+        'cascade_delete_rsvps' => eventon_apify_is_rsvp_cascade_delete_enabled(),
     );
 
     update_option(EVENTON_APIFY_OPTION_SETTINGS_BACKUP, $backup, false);
@@ -117,6 +123,7 @@ function eventon_apify_is_tracked_settings_option($option) {
             EVENTON_APIFY_OPTION_ENABLE_API,
             EVENTON_APIFY_OPTION_API_CAPABILITIES,
             EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT,
+            EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS,
         ),
         true
     );

@@ -286,6 +286,48 @@ if ($wrapped_create_response->get_status() !== 201) {
     throw new RuntimeException('A fields-wrapper create must succeed, got status ' . $wrapped_create_response->get_status() . '.');
 }
 
+/*
+ * A published create is inserted as a draft and only transitions to publish
+ * once meta and terms are saved, so publish listeners always see a complete
+ * event. Record what a publish listener can read at that moment.
+ */
+$publish_saw_start = null;
+$publish_listener = static function ($new_status, $old_status, $post) use (&$publish_saw_start) {
+    // Only the transition into publish: a publish -> publish re-save after
+    // meta is written would otherwise overwrite what the first one saw.
+    if ($new_status === 'publish' && $old_status !== 'publish' && $post->post_type === 'ajde_events') {
+        $publish_saw_start = get_post_meta($post->ID, 'evcal_srow', true);
+    }
+};
+add_action('transition_post_status', $publish_listener, 10, 3);
+
+$published_create = new WP_REST_Request('POST', '/eventonapify/v1/events');
+$published_create->set_header('content-type', 'application/json');
+$published_create->set_body(wp_json_encode(array('title' => 'Published Create', 'start_date' => '2030-02-01', 'status' => 'publish')));
+$published_create_response = $server->dispatch($published_create);
+remove_action('transition_post_status', $publish_listener, 10);
+
+if ($published_create_response->get_status() !== 201 || ($published_create_response->get_data()['status'] ?? '') !== 'publish') {
+    throw new RuntimeException('A create with status publish must return 201 and a published event.');
+}
+
+if ((string) $publish_saw_start === '') {
+    throw new RuntimeException('The publish transition ran before the event start meta was saved.');
+}
+
+// The format filter reaches real REST output.
+$format_marker = static function ($event) {
+    $event['smoke_marker'] = true;
+    return $event;
+};
+add_filter('eventon_apify_format_event', $format_marker);
+$filtered_read = $server->dispatch(new WP_REST_Request('GET', '/eventonapify/v1/events/' . (int) $published_create_response->get_data()['id']));
+remove_filter('eventon_apify_format_event', $format_marker);
+
+if (empty($filtered_read->get_data()['smoke_marker'])) {
+    throw new RuntimeException('eventon_apify_format_event must filter single-event responses.');
+}
+
 // The master switch has to close the route for an otherwise authorized caller.
 update_option('eventon_apify_enable_api', false);
 $disabled_status = eventon_smoke_dispatch_status($server, 'GET', '/eventonapify/v1/events');

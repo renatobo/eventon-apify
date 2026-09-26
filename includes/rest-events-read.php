@@ -39,7 +39,7 @@ function eventon_apify_format_event(WP_Post $post) {
     $health = eventon_apify_get_health_payload($post->ID);
     $access_control = eventon_apify_get_access_control_payload($post->ID, $meta);
 
-    return array(
+    $event = array(
         'id' => $post->ID,
         'title' => $post->post_title,
         'status' => $post->post_status,
@@ -110,6 +110,14 @@ function eventon_apify_format_event(WP_Post $post) {
         'created' => $post->post_date_gmt ? get_date_from_gmt($post->post_date_gmt, 'c') : '',
         'modified' => $post->post_modified_gmt ? get_date_from_gmt($post->post_modified_gmt, 'c') : '',
     );
+
+    /**
+     * Filters one formatted event before it is returned by eventonapify/v1.
+     *
+     * @param array<string, mixed> $event Formatted event payload.
+     * @param WP_Post              $post  Event post.
+     */
+    return apply_filters('eventon_apify_format_event', $event, $post);
 }
 
 /**

@@ -30,7 +30,7 @@ function eventon_apify_assert_api_capability_is_ready($capability = '') {
         return new WP_Error(
             'eventon_apify_eventon_missing',
             __('EventON is not active or the ajde_events post type is unavailable.', 'eventon-apify'),
-            array('status' => 500)
+            array('status' => 503)
         );
     }
 

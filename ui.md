@@ -78,6 +78,7 @@
 - Keep the layout WordPress-admin friendly, not app-like.
 - Prefer flat cards, subtle borders, and native admin spacing.
 - Keep toggles and capability controls on the `Event API` tab.
+- The `RSVP cleanup on event delete` card sits below `API capabilities` on the `Event API` tab. Its copy must say that it applies to every permanent delete path (wp-admin, WP-CLI, other plugins), that it runs even when the Event API switch is off, and that API trashing does not trigger it. It defaults to on.
 - Keep `WP v2 compatibility`, `API Specs`, `MCP schema manifest`, `Request fields`, and `Application Passwords` as separate tabs.
 - Describe the MCP schema manifest as read-only discovery that still requires an authenticated administrator; do not describe either manifest route as public.
 - Keep the `API Specs` tab focused on checked-in artifact links for:

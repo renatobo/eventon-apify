@@ -15,6 +15,9 @@ final class EventON_APIfy_Event_Write_Coordinator {
     /**
      * Apply event metadata and terms, rolling back on failure.
      *
+     * $post_updates is applied before meta on an update, and after meta and
+     * terms on a create, where it carries the final status of the new draft.
+     *
      * @return true|WP_Error
      */
     public static function persist($post_id, array $params, $created = false, array $post_updates = array()) {
@@ -38,6 +41,23 @@ final class EventON_APIfy_Event_Write_Coordinator {
             self::rollback($post_id, $snapshot);
             return $term_result;
         }
+
+        if ($created && count($post_updates) > 1) {
+            $post_result = wp_update_post($post_updates, true);
+            if (is_wp_error($post_result)) {
+                self::rollback($post_id, $snapshot);
+                return eventon_apify_redact_wp_write_error($post_result);
+            }
+        }
+
+        /**
+         * Fires after an eventonapify/v1 create or update has fully succeeded.
+         *
+         * @param int                  $post_id Event post ID.
+         * @param array<string, mixed> $params  Normalized, validated request payload.
+         * @param bool                 $created Whether the event was just created.
+         */
+        do_action('eventon_apify_event_saved', (int) $post_id, $params, (bool) $created);
 
         return true;
     }

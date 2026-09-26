@@ -202,5 +202,7 @@ test('every handler refuses to run when EventON is unavailable', function () {
 
         ok(is_wp_error($result), $label . ' must not run without EventON');
         eq($result->get_error_code(), 'eventon_apify_eventon_missing', $label . ' error code');
+        // A missing dependency is an outage the client can retry, not a server fault.
+        eq($result->get_error_data(), array('status' => 503), $label . ' status');
     }
 });

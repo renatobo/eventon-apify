@@ -59,14 +59,29 @@ function eventon_apify_touch_rsvp_post($post_id) {
 }
 
 /**
+ * Whether permanently deleting an event also deletes its RSVP records.
+ *
+ * Defaults on when the option is missing, matching the seeded value.
+ */
+function eventon_apify_is_rsvp_cascade_delete_enabled() {
+    return (bool) get_option(EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS, true);
+}
+
+/**
  * Permanently delete RSVP records tied to an EventON event being deleted.
  *
  * Runs on before_delete_post so evo-rsvp posts are not orphaned when an
- * ajde_events post is erased permanently.
+ * ajde_events post is erased permanently. This fires for every deletion path
+ * (wp-admin, WP-CLI, other plugins), not only the API, so it is gated by its
+ * own setting and read at call time rather than at registration.
  *
  * @param int $post_id Post ID being deleted.
  */
 function eventon_apify_delete_event_rsvps_on_event_delete($post_id) {
+    if (!eventon_apify_is_rsvp_cascade_delete_enabled()) {
+        return;
+    }
+
     $post_id = absint($post_id);
 
     if ($post_id < 1 || get_post_type($post_id) !== 'ajde_events' || !post_type_exists('evo-rsvp')) {
@@ -88,11 +103,6 @@ function eventon_apify_delete_event_rsvps_on_event_delete($post_id) {
         wp_delete_post((int) $rsvp_id, true);
     }
 }
-
-// Registered at module load rather than in the composition root so the RSVP
-// module owns its cleanup integration; the callback self-guards on both the
-// deleted post type and the availability of the evo-rsvp post type.
-add_action('before_delete_post', 'eventon_apify_delete_event_rsvps_on_event_delete');
 
 /**
  * Return the RSVP summary (yes and waitlist buckets) for an EventON event.

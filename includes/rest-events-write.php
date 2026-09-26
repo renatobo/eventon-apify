@@ -59,13 +59,16 @@ function eventon_apify_create_event(WP_REST_Request $request) {
         return $validation;
     }
 
+    // Inserted as a draft so publish hooks (notifications, auto-posting,
+    // caches) never see an event without its meta and terms; the requested
+    // status is applied once the rest of the write has succeeded.
     $postarr = eventon_apify_apply_requested_slug(
         array(
             'post_type' => 'ajde_events',
             'post_title' => sanitize_text_field((string) $params['title']),
             'post_content' => wp_kses_post($params['description'] ?? ''),
             'post_excerpt' => sanitize_textarea_field((string) ($params['excerpt'] ?? '')),
-            'post_status' => eventon_apify_get_sanitized_status($params['status'] ?? 'draft'),
+            'post_status' => 'draft',
         ),
         $params
     );
@@ -76,7 +79,12 @@ function eventon_apify_create_event(WP_REST_Request $request) {
         return eventon_apify_redact_wp_write_error($post_id);
     }
 
-    $write_result = EventON_APIfy_Event_Write_Coordinator::persist($post_id, $params, true);
+    $write_result = EventON_APIfy_Event_Write_Coordinator::persist(
+        $post_id,
+        $params,
+        true,
+        eventon_apify_get_create_status_transition($post_id, eventon_apify_get_sanitized_status($params['status'] ?? 'draft'))
+    );
     if (is_wp_error($write_result)) {
         return $write_result;
     }
@@ -85,6 +93,23 @@ function eventon_apify_create_event(WP_REST_Request $request) {
     $response->set_status(201);
 
     return $response;
+}
+
+/**
+ * Return the post update that moves a newly created draft to its requested
+ * status, or an empty array when draft is the requested status.
+ *
+ * @return array<string, mixed>
+ */
+function eventon_apify_get_create_status_transition($post_id, $status) {
+    if ($status === 'draft') {
+        return array();
+    }
+
+    return array(
+        'ID' => (int) $post_id,
+        'post_status' => (string) $status,
+    );
 }
 
 /**
@@ -153,10 +178,18 @@ function eventon_apify_delete_event(WP_REST_Request $request) {
     if (!$deleted) {
         return new WP_Error(
             'eventon_apify_delete_failed',
-            'The event could not be moved to the trash.',
+            __('The event could not be moved to the trash.', 'eventon-apify'),
             array('status' => 500)
         );
     }
+
+    /**
+     * Fires after an eventonapify/v1 DELETE has moved an event to the trash.
+     *
+     * @param int     $post_id Event post ID.
+     * @param WP_Post $post    The event as it was before trashing.
+     */
+    do_action('eventon_apify_event_deleted', (int) $post->ID, $post);
 
     return rest_ensure_response(
         array(
@@ -178,7 +211,7 @@ function eventon_apify_get_event_post($post_id) {
     if (!$post || $post->post_type !== 'ajde_events') {
         return new WP_Error(
             'eventon_apify_not_found',
-            'Event not found.',
+            __('Event not found.', 'eventon-apify'),
             array('status' => 404)
         );
     }

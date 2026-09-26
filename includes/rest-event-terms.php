@@ -93,7 +93,11 @@ function eventon_apify_sync_simple_terms($post_id, $taxonomy, $terms) {
                 if (!$term || is_wp_error($term)) {
                     return new WP_Error(
                         'eventon_apify_invalid_term',
-                        'A requested ' . $taxonomy . ' term does not exist.',
+                        sprintf(
+                            /* translators: %s: taxonomy name. */
+                            __('A requested %s term does not exist.', 'eventon-apify'),
+                            $taxonomy
+                        ),
                         array('status' => 400)
                     );
                 }
@@ -192,7 +196,7 @@ function eventon_apify_sync_location_term($post_id, array $params) {
     if (!$term || !($term instanceof WP_Term)) {
         return new WP_Error(
             'eventon_apify_missing_location_term',
-            'location.name or location.term_id is required when setting location details.',
+            __('location.name or location.term_id is required when setting location details.', 'eventon-apify'),
             array('status' => 400)
         );
     }
@@ -284,7 +288,7 @@ function eventon_apify_sync_organizer_terms($post_id, array $params) {
         if (!$term || !($term instanceof WP_Term)) {
             return new WP_Error(
                 'eventon_apify_invalid_organizer',
-                'Each organizer must include a valid name or term_id.',
+                __('Each organizer must include a valid name or term_id.', 'eventon-apify'),
                 array('status' => 400)
             );
         }
@@ -354,7 +358,7 @@ function eventon_apify_sync_faq_terms($post_id, $items) {
     if (!taxonomy_exists('evo_faq')) {
         return new WP_Error(
             'eventon_apify_faq_taxonomy_unavailable',
-            'The EventON FAQ taxonomy is not available on this site.',
+            __('The EventON FAQ taxonomy is not available on this site.', 'eventon-apify'),
             array('status' => 400)
         );
     }
@@ -397,7 +401,7 @@ function eventon_apify_sync_faq_terms($post_id, $items) {
         if (!$term || !($term instanceof WP_Term)) {
             return new WP_Error(
                 'eventon_apify_invalid_faq',
-                'Each FAQ must include a valid question or term_id.',
+                __('Each FAQ must include a valid question or term_id.', 'eventon-apify'),
                 array('status' => 400)
             );
         }
@@ -454,7 +458,11 @@ function eventon_apify_resolve_taxonomy_term($taxonomy, array $item, $create_if_
         if (!$term || is_wp_error($term)) {
             return new WP_Error(
                 'eventon_apify_invalid_term_reference',
-                'The provided ' . $taxonomy . ' term_id does not exist.',
+                sprintf(
+                    /* translators: %s: taxonomy name. */
+                    __('The provided %s term_id does not exist.', 'eventon-apify'),
+                    $taxonomy
+                ),
                 array('status' => 400)
             );
         }
@@ -488,7 +496,7 @@ function eventon_apify_resolve_taxonomy_term($taxonomy, array $item, $create_if_
     if ($name === '') {
         return new WP_Error(
             'eventon_apify_missing_term_name',
-            'A taxonomy item must include a name or term_id.',
+            __('A taxonomy item must include a name or term_id.', 'eventon-apify'),
             array('status' => 400)
         );
     }
@@ -518,7 +526,11 @@ function eventon_apify_resolve_taxonomy_term($taxonomy, array $item, $create_if_
     if (!$create_if_missing) {
         return new WP_Error(
             'eventon_apify_missing_term',
-            'The referenced ' . $taxonomy . ' term does not exist.',
+            sprintf(
+                /* translators: %s: taxonomy name. */
+                __('The referenced %s term does not exist.', 'eventon-apify'),
+                $taxonomy
+            ),
             array('status' => 400)
         );
     }
@@ -545,7 +557,11 @@ function eventon_apify_resolve_taxonomy_term($taxonomy, array $item, $create_if_
 
     return $term instanceof WP_Term ? $term : new WP_Error(
         'eventon_apify_term_creation_failed',
-        'The ' . $taxonomy . ' term could not be loaded after creation.',
+        sprintf(
+            /* translators: %s: taxonomy name. */
+            __('The %s term could not be loaded after creation.', 'eventon-apify'),
+            $taxonomy
+        ),
         array('status' => 500)
     );
 }
@@ -589,7 +605,11 @@ function eventon_apify_update_taxonomy_term($taxonomy, WP_Term $term, array $ite
         if (!$term || is_wp_error($term)) {
             return new WP_Error(
                 'eventon_apify_term_update_failed',
-                'The ' . $taxonomy . ' term could not be loaded after update.',
+                sprintf(
+                    /* translators: %s: taxonomy name. */
+                    __('The %s term could not be loaded after update.', 'eventon-apify'),
+                    $taxonomy
+                ),
                 array('status' => 500)
             );
         }

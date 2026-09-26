@@ -11,6 +11,7 @@ function eventon_apify_render_settings_page() {
     $definitions = eventon_apify_get_api_capability_definitions();
     $wp_v2_compat_enabled = eventon_apify_is_wp_v2_compatibility_enabled();
     $rsvp_available = eventon_apify_is_eventon_rsvp_available();
+    $rsvp_cascade_enabled = eventon_apify_is_rsvp_cascade_delete_enabled();
     $openapi_spec_url = plugins_url('docs/eventon-apify-openapi.json', EVENTON_APIFY_PLUGIN_FILE);
     $postman_collection_url = plugins_url('docs/eventon-apify-postman-collection.json', EVENTON_APIFY_PLUGIN_FILE);
     $manifest_collection_url = $site_url . '/wp-json/' . EVENTON_APIFY_NAMESPACE . '/mcp-schema';
@@ -232,6 +233,29 @@ function eventon_apify_render_settings_page() {
                                 </label>
                             <?php endforeach; ?>
                         </fieldset>
+                    </div>
+
+                    <div class="eventon-apify-card">
+                        <div class="eventon-apify-switch-row">
+                            <div>
+                                <h3><?php esc_html_e('RSVP cleanup on event delete', 'eventon-apify'); ?></h3>
+                                <p>
+                                    <?php esc_html_e('When an event is permanently deleted, also permanently delete its', 'eventon-apify'); ?> <code>evo-rsvp</code> <?php esc_html_e('records so they are not left orphaned.', 'eventon-apify'); ?>
+                                </p>
+                                <p class="eventon-apify-note">
+                                    <?php esc_html_e('This applies to every permanent delete, including emptying the trash in wp-admin, WP-CLI, and other plugins, and it runs even while the Event API switch is off. Trashing an event through the API does not trigger it.', 'eventon-apify'); ?>
+                                </p>
+                            </div>
+                            <label class="eventon-apify-toggle">
+                                <input
+                                    type="checkbox"
+                                    name="<?php echo esc_attr(EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS); ?>"
+                                    value="1"
+                                    <?php checked(true, $rsvp_cascade_enabled, true); ?>
+                                />
+                                <span><?php esc_html_e('Delete RSVPs with their event', 'eventon-apify'); ?></span>
+                            </label>
+                        </div>
                     </div>
                 </section>
 
