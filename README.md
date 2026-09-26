@@ -22,6 +22,7 @@ WordPress plugin that exposes protected REST API endpoints for EventON `ajde_eve
 - [MCP compatibility](#mcp-compatibility)
 - [MCP schema manifest](#mcp-schema-manifest)
 - [API reference](#api-reference)
+- [Developer hooks](#developer-hooks)
 - [Automatic updates](#automatic-updates)
 - [Related packages](#related-packages)
 - [License](#license)
@@ -206,7 +207,7 @@ Recommended `mcp-wp` usage:
 - Use the MCP taxonomy tools for `event_type`, `event_location`, and `event_organizer` when you want direct taxonomy-level operations
 - Fetch the EventON APIfy MCP manifest first if your MCP server supports plugin-published content contracts
 
-Important: the `wp/v2` compatibility endpoints are also restricted to administrator-authenticated requests. Compatibility responses redact sensitive fields such as virtual access secrets and notification email metadata.
+Important: the EventON-specific compatibility fields are available to administrator-authenticated requests only, and their responses redact sensitive fields such as virtual access secrets and notification email metadata. Routes that compatibility mode itself adds to `wp/v2` are also administrator-only. EventON 5 already registers `ajde_events` and its `event_type` taxonomies on `wp/v2`; those routes keep the access EventON and WordPress core give them (block editor, public reads of published events), and compatibility mode only adds the admin-only fields on top.
 
 ## MCP schema manifest
 
@@ -267,6 +268,10 @@ curl -u your_username:your_application_password \
 | `Create events` | `POST` | `/events` | Event creation returns `403` |
 | `Update events` | `PUT`, `PATCH` | `/events/<id>` | Event updates return `403` |
 | `Delete events` | `DELETE` | `/events/<id>` | Event deletion returns `403` |
+
+### RSVP cleanup on event delete
+
+**Settings -> EventON APIfy -> Event API -> RSVP cleanup on event delete** (on by default). When on, permanently deleting an `ajde_events` post also permanently deletes the `evo-rsvp` records linked to it. It applies to every permanent delete path, including emptying the trash in wp-admin, WP-CLI, and other plugins, and it runs even while the Event API switch is off. `DELETE /events/<id>` only trashes, so it does not trigger the cleanup. Turn it off to keep RSVP records after their event is erased.
 
 ### List query parameters
 
@@ -562,6 +567,30 @@ Each event also includes `event_type_terms` and `tag_terms` arrays carrying `ter
 }
 ```
 
+- EventON not active (a dependency outage; retry once EventON is back):
+
+```json
+{
+  "code": "eventon_apify_eventon_missing",
+  "message": "EventON is not active or the ajde_events post type is unavailable.",
+  "data": {
+    "status": 503
+  }
+}
+```
+
+- Repeat input over a limit (see `eventon_apify_repeat_limits` under [Developer hooks](#developer-hooks)):
+
+```json
+{
+  "code": "eventon_apify_repeat_limit_exceeded",
+  "message": "repeat.count must not exceed 500.",
+  "data": {
+    "status": 400
+  }
+}
+```
+
 - Capability disabled in settings:
 
 ```json
@@ -573,6 +602,18 @@ Each event also includes `event_type_terms` and `tag_terms` arrays carrying `ter
   }
 }
 ```
+
+## Developer hooks
+
+| Hook | Type | Arguments | When |
+| --- | --- | --- | --- |
+| `eventon_apify_event_saved` | action | `int $post_id`, `array $params`, `bool $created` | After an `eventonapify/v1` create or update has fully succeeded (not on rollback). |
+| `eventon_apify_event_deleted` | action | `int $post_id`, `WP_Post $post` | After `DELETE /events/<id>` has moved an event to the trash. |
+| `eventon_apify_format_event` | filter | `array $event`, `WP_Post $post` | Each formatted event, before it is returned. Also feeds the `wp/v2` compatibility fields, which are redacted after this filter. |
+| `eventon_apify_format_rsvp_attendee` | filter | `array $attendee`, `WP_Post $post` | Each formatted RSVP attendee, before it is returned. |
+| `eventon_apify_validate_event_payload` | filter | `true $result`, `array $params`, `bool $is_create`, `int $post_id` | After every built-in check passes. Return a `WP_Error` to reject the write; any other value lets it through. |
+| `eventon_apify_repeat_limits` | filter | `array $limits` | Upper bounds for `repeat_count` (500), `repeat_gap` (365), and `repeat_intervals` items (500). Requests over a limit return `400 eventon_apify_repeat_limit_exceeded`. |
+| `eventon_apify_occurrence_scan_limit` | filter | `int $limit` | Maximum candidate events scanned for a date-range list filter (2000). |
 
 ## Automatic updates
 

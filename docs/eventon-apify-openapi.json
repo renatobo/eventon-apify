@@ -58,6 +58,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "$ref": "#/components/responses/ErrorResponse"
           }
         }
       }
@@ -101,6 +104,9 @@
             }
           },
           "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
             "$ref": "#/components/responses/ErrorResponse"
           }
         }
@@ -253,6 +259,9 @@
           },
           "500": {
             "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/ErrorResponse"
           }
         }
       },
@@ -298,6 +307,9 @@
             "$ref": "#/components/responses/ErrorResponse"
           },
           "500": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
             "$ref": "#/components/responses/ErrorResponse"
           }
         }
@@ -346,6 +358,9 @@
           },
           "404": {
             "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/ErrorResponse"
           }
         }
       },
@@ -391,6 +406,9 @@
             "$ref": "#/components/responses/ErrorResponse"
           },
           "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
             "$ref": "#/components/responses/ErrorResponse"
           }
         }
@@ -438,6 +456,9 @@
           },
           "404": {
             "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/ErrorResponse"
           }
         }
       },
@@ -473,6 +494,9 @@
             "$ref": "#/components/responses/ErrorResponse"
           },
           "500": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
             "$ref": "#/components/responses/ErrorResponse"
           }
         }
@@ -607,6 +631,9 @@
           },
           "404": {
             "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/ErrorResponse"
           }
         }
       }
@@ -663,6 +690,9 @@
             "$ref": "#/components/responses/ErrorResponse"
           },
           "404": {
+            "$ref": "#/components/responses/ErrorResponse"
+          },
+          "503": {
             "$ref": "#/components/responses/ErrorResponse"
           }
         }
@@ -1691,10 +1721,14 @@
             "type": "string"
           },
           "gap": {
-            "type": "integer"
+            "type": "integer",
+            "maximum": 365,
+            "description": "Gap between occurrences. Values above the limit return 400 eventon_apify_repeat_limit_exceeded; raise it with the eventon_apify_repeat_limits filter."
           },
           "count": {
-            "type": "integer"
+            "type": "integer",
+            "maximum": 500,
+            "description": "Number of occurrences. Values above the limit return 400 eventon_apify_repeat_limit_exceeded; raise it with the eventon_apify_repeat_limits filter."
           },
           "series_visible": {
             "type": "boolean"
@@ -1703,7 +1737,9 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RepeatInterval"
-            }
+            },
+            "maxItems": 500,
+            "description": "Explicit repeat intervals. More items than the limit return 400 eventon_apify_repeat_limit_exceeded."
           }
         }
       },

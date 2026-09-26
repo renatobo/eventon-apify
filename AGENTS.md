@@ -72,6 +72,7 @@
 
 - Never call `current_user_can()` inside `register_post_type_args` / `register_taxonomy_args` filters in `includes/rest-wp-v2-compat.php`. Those fire on `init`, before application-password auth resolves, so the current user is always 0 and `show_in_rest` would be forced false for every REST client.
 - Admin-only access is enforced at request time in `includes/wp-v2-compat.php` via `eventon_apify_should_filter_wp_v2_compatibility_for_request()`: a `rest_pre_dispatch` 401, REST index stripping, `/wp/v2/types` + `/wp/v2/taxonomies` response stripping, and the search-query exclusions.
+- Those guards apply only to objects compatibility mode itself exposed. The registration filters record them with `eventon_apify_mark_wp_v2_compat_exposed()` when they turn `show_in_rest` on; an object EventON already registers with `show_in_rest` (EventON 5 does for `ajde_events` and `event_type*`) is left untouched and keeps EventON's own access rules. The EventON fields stay admin-only either way.
 - Do not source the registration whitelist from `eventon_apify_get_wp_v2_compatibility_taxonomies()`. It has a `static $cache` and depends on `post_type_exists('ajde_events')`; calling it at `init` poisons the cache the request-time guards read, registering routes the guards no longer recognize.
 
 ## UI Documentation

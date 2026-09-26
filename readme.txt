@@ -89,12 +89,14 @@ Settings capability map:
 
 If the global Event API switch is on but one of the capability switches is off, only that operation returns `403`.
 
+RSVP cleanup on event delete (on by default): permanently deleting an event also permanently deletes its `evo-rsvp` records. It applies to every permanent delete path (wp-admin trash, WP-CLI, other plugins), runs even while the Event API switch is off, and is not triggered by API trashing. Turn it off under Settings -> EventON APIfy -> Event API.
+
 MCP / wp/v2 compatibility:
 - Enable "WP v2 compatibility" in Settings -> EventON APIfy.
 - Use `ajde_events` as the content type in generic WordPress clients.
 - Standard routes become available at `/wp-json/wp/v2/ajde_events` and related taxonomy routes.
 - EventON-specific fields can be sent either at the top level or through wrapper objects such as `custom_fields` / `fields`, using keys like `featured_media`, `start_date`, `start_time`, `timezone`, `event_status`, `location`, `organizers`, `flags`, `virtual`, `repeat`, and `rsvp`.
-- These `wp/v2` routes are restricted to administrator-authenticated requests, matching the custom namespace.
+- The EventON fields added to `wp/v2` are administrator-only. Routes that compatibility mode adds are administrator-only too; routes EventON already registers on `wp/v2` (EventON 5 and later) keep EventON's own access rules.
 - Compatibility responses redact sensitive fields such as virtual access secrets and notification email metadata.
 
 MCP schema manifest:
@@ -208,6 +210,18 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 3.4.0 =
+* Database errors on event create/update no longer leak SQL error text in the response.
+* `wp/v2` compatibility mode leaves routes EventON registers itself (EventON 5) with EventON's own access rules; only routes it adds are administrator-only.
+* A missing EventON returns `503` instead of `500`.
+* Repeat input is bounded (count 500, gap 365, 500 intervals), filterable with `eventon_apify_repeat_limits`.
+* Unfiltered RSVP lists are paged in SQL, and the RSVP summary no longer builds full attendee payloads.
+* Created events are published only after their meta and terms are saved.
+* Rollback restores only what the failed write changed, including a scoped `evo_tax_meta` restore.
+* New "RSVP cleanup on event delete" setting (on by default) for the existing cascade.
+* New developer hooks: `eventon_apify_event_saved`, `eventon_apify_event_deleted`, `eventon_apify_format_event`, `eventon_apify_format_rsvp_attendee`, `eventon_apify_validate_event_payload`.
+* Multisite-aware uninstall.
 
 = 3.3.2 =
 * Removed the textdomain loader that triggered `_load_textdomain_just_in_time` notices on WordPress 6.7+; the plugin ships no translations.
