@@ -11,6 +11,37 @@ if (!defined('ABSPATH')) {
  */
 final class RSVP_Attendee_Formatter {
     /**
+     * Return only the fields the RSVP summary needs.
+     *
+     * Read through the same accessors as format(), which uses this too, so
+     * the summary can never disagree with the attendee list; it just skips
+     * contact details, custom fields, and the per-event time string.
+     *
+     * @return array{id: int, rsvp: string, status: string, headcount: int, repeat_interval: int}
+     */
+    public function summary_fields(\WP_Post $post) {
+        $rsvp_object = class_exists('EVO_RSVP_CPT') ? new \EVO_RSVP_CPT($post->ID) : null;
+
+        return array('id' => (int) $post->ID) + $this->read_summary_fields($rsvp_object, get_post_meta($post->ID));
+    }
+
+    /**
+     * @param object|null                      $rsvp_object RSVP addon object.
+     * @param array<string, array<int, mixed>> $meta        Raw post meta.
+     * @return array{rsvp: string, status: string, headcount: int, repeat_interval: int}
+     */
+    private function read_summary_fields($rsvp_object, array $meta) {
+        return array(
+            'rsvp' => (string) eventon_apify_normalize_rsvp_response(
+                eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('get_rsvp_status'), array('rsvp'))
+            ),
+            'status' => strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('checkin_status'), array('status')))),
+            'headcount' => absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('count'), array('count'))),
+            'repeat_interval' => absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('repeat_interval'), array('repeat_interval'))),
+        );
+    }
+
+    /**
      * Format an RSVP attendee record into a stable API payload.
      *
      * @return array<string, mixed>
@@ -18,23 +49,16 @@ final class RSVP_Attendee_Formatter {
     public function format(\WP_Post $post) {
         $meta = get_post_meta($post->ID);
         $rsvp_object = class_exists('EVO_RSVP_CPT') ? new \EVO_RSVP_CPT($post->ID) : null;
+        $summary = $this->read_summary_fields($rsvp_object, $meta);
         $first_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('first_name'), array('first_name')));
         $last_name = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('last_name'), array('last_name')));
         $email = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('email'), array('email')));
         $phone = trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array(), array('phone')));
-        $stored_count = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('count'), array('count')));
+        $stored_count = $summary['headcount'];
         $event_id = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('event_id'), array('e_id')));
-        $repeat_interval = absint(eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('repeat_interval'), array('repeat_interval')));
-
-        $rsvp_value = eventon_apify_normalize_rsvp_response(
-            eventon_apify_get_rsvp_field_value(
-                $rsvp_object,
-                $meta,
-                array('get_rsvp_status'),
-                array('rsvp')
-            )
-        );
-        $status = strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('checkin_status'), array('status'))));
+        $repeat_interval = $summary['repeat_interval'];
+        $rsvp_value = $summary['rsvp'];
+        $status = $summary['status'];
         $rsvp_type = strtolower(trim((string) eventon_apify_get_rsvp_field_value($rsvp_object, $meta, array('get_rsvp_type'), array('rsvp_type'))));
         $other_attendees = eventon_apify_normalize_rsvp_other_attendees(
             eventon_apify_get_rsvp_field_value(

@@ -645,6 +645,8 @@ function eventon_apify_get_virtual_contract_shape() {
  * @return array<string, array<string, mixed>>
  */
 function eventon_apify_get_repeat_contract_shape() {
+    $limits = eventon_apify_get_repeat_limits();
+
     return array(
         'enabled' => array('type' => 'boolean', 'description' => 'Enable repeating EventON intervals.'),
         'frequency' => array(
@@ -652,13 +654,14 @@ function eventon_apify_get_repeat_contract_shape() {
             'description' => 'Repeat frequency key.',
             'allowed_values' => eventon_apify_get_allowed_repeat_frequencies(),
         ),
-        'gap' => array('type' => 'integer', 'description' => 'Gap between repeat occurrences.'),
-        'count' => array('type' => 'integer', 'description' => 'Number of repeat occurrences.'),
+        'gap' => array('type' => 'integer', 'description' => 'Gap between repeat occurrences.', 'maximum' => $limits['repeat_gap']),
+        'count' => array('type' => 'integer', 'description' => 'Number of repeat occurrences.', 'maximum' => $limits['repeat_count']),
         'series_visible' => array('type' => 'boolean', 'description' => 'Show the repeat series in EventON.'),
         'intervals' => array(
             'type' => 'array',
             'item_type' => 'object',
             'description' => 'Explicit repeat interval overrides.',
+            'max_items' => $limits['repeat_intervals'],
             'item_shape' => array(
                 'start_at' => array('type' => 'string', 'format' => 'date-time', 'description' => 'Interval start in ISO 8601 format.'),
                 'end_at' => array('type' => 'string', 'format' => 'date-time', 'description' => 'Interval end in ISO 8601 format.'),

@@ -94,6 +94,7 @@ final class Plugin {
         add_action('added_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
         add_action('updated_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
         add_action('deleted_post_meta', 'eventon_apify_touch_rsvp_post_on_meta_change', 10, 3);
+        add_action('shutdown', 'eventon_apify_flush_rsvp_touches');
         add_filter('register_post_type_args', 'eventon_apify_filter_post_type_args_for_wp_v2_compat', 10, 2);
         add_filter('register_taxonomy_args', 'eventon_apify_filter_taxonomy_args_for_wp_v2_compat', 10, 2);
         add_filter('rest_pre_dispatch', 'eventon_apify_restrict_wp_v2_compatibility_routes', 10, 3);

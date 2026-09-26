@@ -8,6 +8,13 @@ if (!defined('ABSPATH')) {
  * Seed and restore plugin settings so upgrades do not silently disable the API surface.
  */
 function eventon_apify_bootstrap_settings() {
+    // Runs on every request. Once this version has bootstrapped and every
+    // tracked option is present, nothing below would change anything, and
+    // every value read here is autoloaded, so the check costs no query.
+    if (eventon_apify_settings_are_bootstrapped()) {
+        return;
+    }
+
     $backup = get_option(EVENTON_APIFY_OPTION_SETTINGS_BACKUP, array());
     if (!is_array($backup)) {
         $backup = array();
@@ -31,6 +38,23 @@ function eventon_apify_bootstrap_settings() {
     eventon_apify_restore_or_seed_boolean_option(EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS, $backup, 'cascade_delete_rsvps', true);
 
     eventon_apify_sync_settings_backup();
+}
+
+/**
+ * Whether this version has bootstrapped and every tracked option still exists.
+ */
+function eventon_apify_settings_are_bootstrapped() {
+    if (get_option(EVENTON_APIFY_OPTION_INSTALLED_VERSION, '') !== EVENTON_APIFY_VERSION) {
+        return false;
+    }
+
+    foreach (array(EVENTON_APIFY_OPTION_ENABLE_API, EVENTON_APIFY_OPTION_ENABLE_WP_V2_COMPAT, EVENTON_APIFY_OPTION_CASCADE_DELETE_RSVPS) as $option) {
+        if (null === get_option($option, null)) {
+            return false;
+        }
+    }
+
+    return is_array(get_option(EVENTON_APIFY_OPTION_API_CAPABILITIES, null));
 }
 
 /**
@@ -76,7 +100,8 @@ function eventon_apify_sync_settings_backup() {
     );
 
     update_option(EVENTON_APIFY_OPTION_SETTINGS_BACKUP, $backup, false);
-    update_option(EVENTON_APIFY_OPTION_INSTALLED_VERSION, EVENTON_APIFY_VERSION, false);
+    // Autoloaded: the bootstrap fast path reads it on every request.
+    update_option(EVENTON_APIFY_OPTION_INSTALLED_VERSION, EVENTON_APIFY_VERSION, true);
 }
 
 /**

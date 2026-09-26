@@ -21,7 +21,7 @@ function eventon_apify_touch_rsvp_post_on_save($post_id, $post) {
         return;
     }
 
-    eventon_apify_touch_rsvp_post($post_id);
+    eventon_apify_queue_rsvp_touch($post_id);
 }
 
 /**
@@ -43,7 +43,40 @@ function eventon_apify_touch_rsvp_post_on_meta_change($_meta_id, $post_id, $meta
         return;
     }
 
-    eventon_apify_touch_rsvp_post($post_id);
+    eventon_apify_queue_rsvp_touch($post_id);
+}
+
+/**
+ * Queue an RSVP for one change-timestamp write at the end of the request.
+ *
+ * One EventON save touches a dozen or more meta keys. Writing at the end
+ * rather than at the first change keeps delta sync correct: a timestamp taken
+ * before the last change could equal a checkpoint a client read mid-request,
+ * and the later changes would never sort after it.
+ */
+function eventon_apify_queue_rsvp_touch($post_id) {
+    $GLOBALS['eventon_apify_pending_rsvp_touches'][absint($post_id)] = true;
+}
+
+/**
+ * Return the RSVP IDs waiting for a change-timestamp write.
+ *
+ * @return array<int, int>
+ */
+function eventon_apify_get_pending_rsvp_touches() {
+    return array_keys($GLOBALS['eventon_apify_pending_rsvp_touches'] ?? array());
+}
+
+/**
+ * Write one change timestamp per queued RSVP. Hooked on shutdown.
+ */
+function eventon_apify_flush_rsvp_touches() {
+    $pending = eventon_apify_get_pending_rsvp_touches();
+    $GLOBALS['eventon_apify_pending_rsvp_touches'] = array();
+
+    foreach ($pending as $post_id) {
+        eventon_apify_touch_rsvp_post($post_id);
+    }
 }
 
 /**
@@ -118,7 +151,9 @@ function eventon_apify_get_event_rsvp_summary(WP_REST_Request $request) {
         return $event;
     }
 
-    $attendees = eventon_apify_get_event_rsvp_attendees($event->ID);
+    // Summary rows carry only rsvp/status/headcount/repeat_interval, which is
+    // everything the repeat filter and the summary math read.
+    $attendees = eventon_apify_get_rsvp_repository()->find_summary_rows_by_event($event->ID);
     if (is_wp_error($attendees)) {
         return $attendees;
     }
@@ -289,11 +324,6 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         return $event;
     }
 
-    $attendees = eventon_apify_get_event_rsvp_attendees($event->ID);
-    if (is_wp_error($attendees)) {
-        return $attendees;
-    }
-
     $rsvp_filter = eventon_apify_sanitize_rsvp_response_filter($request->get_param('rsvp'));
     $status_filter = strtolower(trim((string) $request->get_param('status')));
     $search = strtolower(trim((string) $request->get_param('search')));
@@ -315,6 +345,31 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
             'The updated_after parameter cannot be combined with rsvp, status, or search filters.',
             array('status' => 400)
         );
+    }
+
+    $page = (int) $request->get_param('page');
+    $per_page = (int) $request->get_param('per_page');
+
+    if (eventon_apify_rsvp_list_can_page_in_sql($rsvp_filter, $status_filter, $search, $repeat_interval, $updated_after)) {
+        $sql_page = eventon_apify_get_rsvp_repository()->find_page_by_event($event->ID, $page, $per_page);
+        if (is_wp_error($sql_page)) {
+            return $sql_page;
+        }
+
+        return rest_ensure_response(
+            array(
+                'total' => $sql_page['total'],
+                'pages' => $sql_page['total'] > 0 ? (int) ceil($sql_page['total'] / $per_page) : 0,
+                'page' => $page,
+                'per_page' => $per_page,
+                'attendees' => $sql_page['items'],
+            )
+        );
+    }
+
+    $attendees = eventon_apify_get_event_rsvp_attendees($event->ID);
+    if (is_wp_error($attendees)) {
+        return $attendees;
     }
 
     $attendees = eventon_apify_filter_rsvp_attendees($attendees, $rsvp_filter, $status_filter, $search, $repeat_interval);
@@ -339,11 +394,7 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
         $attendees = array_column($keyed, 'data');
     }
 
-    $pagination = eventon_apify_paginate_list(
-        $attendees,
-        (int) $request->get_param('page'),
-        (int) $request->get_param('per_page')
-    );
+    $pagination = eventon_apify_paginate_list($attendees, $page, $per_page);
     $paged_attendees = $pagination['items'];
     $pages = $pagination['pages'];
     $page = $pagination['page'];
@@ -371,15 +422,41 @@ function eventon_apify_get_event_rsvps(WP_REST_Request $request) {
 }
 
 /**
+ * Whether an RSVP list request can be paged in SQL.
+ *
+ * Every filter except the page itself runs in PHP over formatted attendees,
+ * so SQL paging is only equivalent when none is set.
+ *
+ * @param string                 $rsvp_filter     Sanitized rsvp filter.
+ * @param string                 $status_filter   Lowercased status filter.
+ * @param string                 $search          Lowercased search term.
+ * @param int|null               $repeat_interval Repeat instance filter.
+ * @param DateTimeImmutable|null $updated_after   Delta-sync checkpoint.
+ */
+function eventon_apify_rsvp_list_can_page_in_sql($rsvp_filter, $status_filter, $search, $repeat_interval, $updated_after) {
+    return $rsvp_filter === 'all'
+        && ($status_filter === '' || $status_filter === 'all')
+        && $search === ''
+        && $repeat_interval === null
+        && !($updated_after instanceof DateTimeImmutable);
+}
+
+/**
+ * Return the RSVP attendee repository.
+ */
+function eventon_apify_get_rsvp_repository() {
+    return new \EventON_APIfy\RSVP_Attendee_Repository(
+        new \EventON_APIfy\RSVP_Attendee_Formatter()
+    );
+}
+
+/**
  * Return normalized RSVP attendee records for an EventON event.
  *
  * @return array<int, array<string, mixed>>|WP_Error
  */
 function eventon_apify_get_event_rsvp_attendees($event_id) {
-    $repository = new \EventON_APIfy\RSVP_Attendee_Repository(
-        new \EventON_APIfy\RSVP_Attendee_Formatter()
-    );
-    return $repository->find_by_event($event_id);
+    return eventon_apify_get_rsvp_repository()->find_by_event($event_id);
 }
 
 /**

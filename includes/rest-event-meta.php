@@ -534,9 +534,12 @@ function eventon_apify_save_repeat_meta($post_id, array $params) {
         ? absint($params['repeat_count'])
         : absint(get_post_meta($post_id, 'evcal_rep_num', true));
 
+    // Validation already rejects values over the limits; clamping here keeps
+    // any caller that skips validation from expanding an unbounded series.
+    $repeat_limits = eventon_apify_get_repeat_limits();
     $repeat_frequency = $repeat_frequency !== '' ? $repeat_frequency : 'daily';
-    $repeat_gap = $repeat_gap > 0 ? $repeat_gap : 1;
-    $repeat_count = $repeat_count > 0 ? $repeat_count : 1;
+    $repeat_gap = $repeat_gap > 0 ? min($repeat_gap, $repeat_limits['repeat_gap']) : 1;
+    $repeat_count = $repeat_count > 0 ? min($repeat_count, $repeat_limits['repeat_count']) : 1;
 
     update_post_meta($post_id, 'evcal_rep_freq', $repeat_frequency);
     update_post_meta($post_id, 'evcal_rep_gap', $repeat_gap);

@@ -270,6 +270,12 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         return $repeat_frequency_check;
     }
 
+    // Before interval parsing, so an oversized list is refused without being walked.
+    $repeat_bounds_check = eventon_apify_validate_repeat_bounds($params);
+    if (is_wp_error($repeat_bounds_check)) {
+        return $repeat_bounds_check;
+    }
+
     if (array_key_exists('repeat_intervals', $params)) {
         $repeat_timezone_state = eventon_apify_resolve_datetime_inputs($params, $post_id);
         $intervals = eventon_apify_normalize_repeat_intervals_input(
@@ -523,4 +529,78 @@ function eventon_apify_get_existing_datetime_state($post_id) {
         'span_hidden_end' => eventon_apify_get_yes_no_flag($meta, 'evo_span_hidden_end'),
         'virtual_end_enabled' => eventon_apify_get_yes_no_flag($meta, '_evo_virtual_endtime'),
     );
+}
+
+/**
+ * Return the upper bounds on repeat generation input.
+ *
+ * EventON expands count and gap into stored intervals, so unbounded values
+ * let one request exhaust memory or the time limit.
+ *
+ * @return array{repeat_count: int, repeat_gap: int, repeat_intervals: int}
+ */
+function eventon_apify_get_repeat_limits() {
+    $defaults = array(
+        'repeat_count' => 500,
+        'repeat_gap' => 365,
+        'repeat_intervals' => 500,
+    );
+
+    /**
+     * Filters the upper bounds on repeat.count, repeat.gap, and the number of
+     * repeat.intervals items accepted by event writes.
+     *
+     * @param array{repeat_count: int, repeat_gap: int, repeat_intervals: int} $limits Limits.
+     */
+    $limits = apply_filters('eventon_apify_repeat_limits', $defaults);
+    $limits = is_array($limits) ? $limits : array();
+
+    foreach ($defaults as $key => $default) {
+        $defaults[$key] = isset($limits[$key]) && absint($limits[$key]) > 0 ? absint($limits[$key]) : $default;
+    }
+
+    return $defaults;
+}
+
+/**
+ * Reject repeat input over the configured limits.
+ *
+ * @param array<string, mixed> $params Normalized request payload.
+ * @return true|WP_Error
+ */
+function eventon_apify_validate_repeat_bounds(array $params) {
+    $limits = eventon_apify_get_repeat_limits();
+    $labels = array(
+        'repeat_count' => 'repeat.count',
+        'repeat_gap' => 'repeat.gap',
+    );
+
+    foreach ($labels as $key => $label) {
+        if (array_key_exists($key, $params) && is_scalar($params[$key]) && absint($params[$key]) > $limits[$key]) {
+            return new WP_Error(
+                'eventon_apify_repeat_limit_exceeded',
+                sprintf(
+                    /* translators: 1: field name, 2: maximum value. */
+                    __('%1$s must not exceed %2$d.', 'eventon-apify'),
+                    $label,
+                    $limits[$key]
+                ),
+                array('status' => 400)
+            );
+        }
+    }
+
+    if (isset($params['repeat_intervals']) && is_array($params['repeat_intervals']) && count($params['repeat_intervals']) > $limits['repeat_intervals']) {
+        return new WP_Error(
+            'eventon_apify_repeat_limit_exceeded',
+            sprintf(
+                /* translators: %d: maximum number of repeat intervals. */
+                __('repeat.intervals must not contain more than %d items.', 'eventon-apify'),
+                $limits['repeat_intervals']
+            ),
+            array('status' => 400)
+        );
+    }
+
+    return true;
 }
