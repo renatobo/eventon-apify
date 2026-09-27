@@ -187,6 +187,7 @@ function eventon_apify_normalize_request_payload(array $params) {
                 'location_phone' => array('phone', 'loc_phone'),
                 'location_email' => array('email', 'loc_email'),
                 'location_getdir_latlng' => array('use_latlng_for_directions', 'location_getdir_latlng'),
+                'location_image_ids' => array('image_ids'),
             );
 
             $normalized = eventon_apify_apply_alias_map($normalized, $params['location'], $location_map);

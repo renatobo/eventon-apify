@@ -542,6 +542,7 @@ function eventon_apify_get_location_contract_shape() {
         'phone' => array('type' => 'string', 'description' => 'Venue phone number.'),
         'email' => array('type' => 'string', 'description' => 'Venue email address.'),
         'use_latlng_for_directions' => array('type' => 'boolean', 'description' => 'Use coordinates when building map directions.'),
+        'image_ids' => array('type' => array('integer', 'array'), 'description' => 'One image attachment ID or up to two IDs. An empty array clears the location images.'),
     );
 }
 

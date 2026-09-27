@@ -4,7 +4,7 @@ Tags: eventon, api, rest-api, events
 Requires at least: 7.1
 Tested up to: 7.1.2
 Requires PHP: 8.0
-Stable tag: 3.5.2
+Stable tag: 3.5.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -213,6 +213,10 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 3.5.3 =
+* Location payloads accept one or two image attachment IDs in `location.image_ids`; an empty array clears them. Invalid or non-image attachments return a 400 error.
+* Event reads return `location.image_ids` and full-size URLs in `location.images`. The MCP manifest, OpenAPI document, and Postman example describe the new fields.
 
 = 3.5.2 =
 * The `ajde_events` MCP manifest advertises `preferred_endpoint: eventonapify/v1/events` instead of `wp/v2/ajde_events`, so clients write through the transactional route. `wp/v2/ajde_events` moves to `related_endpoints` as a secondary route.

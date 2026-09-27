@@ -116,6 +116,13 @@ function eventon_apify_validate_event_payload(array $params, $is_create, $post_i
         }
     }
 
+    if (array_key_exists('location_image_ids', $params)) {
+        $location_images = eventon_apify_validate_location_image_ids($params['location_image_ids']);
+        if (is_wp_error($location_images)) {
+            return $location_images;
+        }
+    }
+
     foreach (array('event_color', 'event_color_secondary') as $color_key) {
         if (array_key_exists($color_key, $params) && eventon_apify_normalize_color_input($params[$color_key]) === null) {
             return new WP_Error(
