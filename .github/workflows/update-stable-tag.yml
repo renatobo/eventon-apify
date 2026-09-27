@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout repo
@@ -25,33 +26,49 @@ jobs:
 
       - name: Determine version
         id: extract_version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          set -e
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+            VERSION="$REQUESTED_VERSION"
           else
             VERSION=$(grep -E '^Stable tag:' readme.txt | awk '{print $3}')
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
         id: check_tag
+        env:
+          VERSION: ${{ steps.extract_version.outputs.version }}
         run: |
-          set -e
-          VERSION=${{ steps.extract_version.outputs.version }}
+          set -euo pipefail
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then
             echo "Tag v$VERSION already exists."
-            echo "tag_exists=true" >> $GITHUB_OUTPUT
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "tag_exists=false" >> $GITHUB_OUTPUT
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Tag new version
         if: steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          VERSION: ${{ steps.extract_version.outputs.version }}
         run: |
-          set -e
-          VERSION=${{ steps.extract_version.outputs.version }}
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "v$VERSION"
           git push origin "v$VERSION"
+
+      # A tag pushed with GITHUB_TOKEN does not trigger the tag-push workflow.
+      - name: Package newly tagged version
+        if: steps.check_tag.outputs.tag_exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.extract_version.outputs.version }}
+        run: gh workflow run package-plugin.yml --ref main -f "version=$VERSION"

@@ -4,10 +4,18 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release tag version (e.g. 1.2.3)'
+        required: true
+        type: string
 
 jobs:
   zip:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
     permissions:
       contents: write
     steps:
@@ -15,6 +23,20 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/v{0}', inputs.version) || github.ref }}
+
+      - name: Check release version
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG"
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          HEADER_VERSION="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' eventon-apify.php | head -n 1)"
+          if [[ "$HEADER_VERSION" != "$VERSION" ]]; then
+            echo "Plugin version $HEADER_VERSION does not match $RELEASE_TAG"
+            exit 1
+          fi
 
       - name: Build plugin package
         id: build
@@ -30,10 +52,10 @@ jobs:
       - name: Prepare release notes body
         id: notes
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           NOTES_FILE="release-notes/${VERSION}.md"
           BODY_FILE="${RUNNER_TEMP}/release-${VERSION}.md"
-          PREVIOUS_TAG="$(git tag --sort=-version:refname | grep -Fxv "${GITHUB_REF_NAME}" | head -n 1 || true)"
+          PREVIOUS_TAG="$(git tag --sort=-version:refname | grep -Fxv "$RELEASE_TAG" | head -n 1 || true)"
 
           if [[ ! -f "$NOTES_FILE" ]]; then
             echo "Missing release notes file: $NOTES_FILE"
@@ -52,11 +74,11 @@ jobs:
             printf '\n\nFull Changelog: https://github.com/%s/compare/%s...%s\n' \
               "${GITHUB_REPOSITORY}" \
               "$PREVIOUS_TAG" \
-              "${GITHUB_REF_NAME}" >> "$BODY_FILE"
+              "$RELEASE_TAG" >> "$BODY_FILE"
           else
             printf '\n\nFull Changelog: https://github.com/%s/releases/tag/%s\n' \
               "${GITHUB_REPOSITORY}" \
-              "${GITHUB_REF_NAME}" >> "$BODY_FILE"
+              "$RELEASE_TAG" >> "$BODY_FILE"
           fi
 
           echo "body_path=$BODY_FILE" >> "$GITHUB_OUTPUT"
@@ -64,6 +86,7 @@ jobs:
       - name: Create GitHub release and upload asset
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: ${{ steps.build.outputs.zip_path }}
           body_path: ${{ steps.notes.outputs.body_path }}
           fail_on_unmatched_files: true
