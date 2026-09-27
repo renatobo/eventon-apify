@@ -214,7 +214,7 @@ The API responds with a `400` error explaining which date/time combination could
 
 == Changelog ==
 
-= Unreleased =
+= 3.5.2 =
 * The `ajde_events` MCP manifest advertises `preferred_endpoint: eventonapify/v1/events` instead of `wp/v2/ajde_events`, so clients write through the transactional route. `wp/v2/ajde_events` moves to `related_endpoints` as a secondary route.
 * The manifest create rule is `required_for_create: ["title"]` plus the new `one_of_required_for_create: [["start_date", "start_at"]]`, matching the REST write, which accepts `start_at` in place of `start_date`. `start_date` no longer claims `required_on: create`.
 * `supported_operations` for `ajde_events` now includes `delete`.
