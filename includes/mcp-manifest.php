@@ -113,11 +113,11 @@ function eventon_apify_get_mcp_content_type_manifest() {
     return array(
         'slug' => 'ajde_events',
         'label' => 'EventON Event',
-        'description' => 'EventON events stored as ajde_events posts and exposed through the EventON APIfy read API plus wp/v2-compatible writes.',
-        'preferred_endpoint' => 'wp/v2/ajde_events',
+        'description' => 'EventON events stored as ajde_events posts. Reads and writes go through the transactional EventON APIfy eventonapify/v1/events routes, which save post fields, EventON meta, and terms in one request and roll earlier changes back when a later step fails.',
+        'preferred_endpoint' => 'eventonapify/v1/events',
         'read_endpoint' => 'eventonapify/v1/events',
         'preferred_write_mode' => 'fields',
-        'supported_operations' => array('list', 'get', 'create', 'update'),
+        'supported_operations' => array('list', 'get', 'create', 'update', 'delete'),
         'read_contract' => array(
             'resource_shape' => 'collection',
             'primary_date_field' => 'start_at',
@@ -178,6 +178,18 @@ function eventon_apify_get_mcp_content_type_manifest() {
         'validation_rules' => eventon_apify_get_mcp_validation_rules(),
         'examples' => eventon_apify_get_mcp_contract_examples(),
         'validation_notes' => eventon_apify_get_mcp_validation_notes(),
+        'related_endpoints' => array(
+            array(
+                'name' => 'item',
+                'endpoint' => 'eventonapify/v1/events/{id}',
+                'description' => 'Single event route for get (GET), update (POST, PUT, or PATCH), and delete (DELETE, which moves the event to the trash).',
+            ),
+            array(
+                'name' => 'wp_v2_compat',
+                'endpoint' => 'wp/v2/ajde_events',
+                'description' => 'WordPress core posts route. It carries the EventON fields only when WP v2 compatibility is enabled, and core saves the post before those fields without rolling it back on a field error, so prefer eventonapify/v1/events for writes.',
+            ),
+        ),
         'availability' => array(
             'eventon_available' => eventon_apify_is_eventon_available(),
             'wp_v2_compatibility_enabled' => eventon_apify_is_wp_v2_compatibility_enabled(),

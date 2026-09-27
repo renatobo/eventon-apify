@@ -237,10 +237,12 @@ EventON APIfy also publishes a read-only discovery contract for compatible MCP s
 
 The manifest describes:
 
-- `preferred_endpoint: "eventonapify/v1/events"`
+- `preferred_endpoint: "eventonapify/v1/events"`, the transactional route for reads and writes
+- `supported_operations: ["list", "get", "create", "update", "delete"]` for `ajde_events`; `event_rsvps` is `["list"]` only
+- `related_endpoints`: the single-event route `eventonapify/v1/events/{id}` and, as a secondary route only, `wp/v2/ajde_events` for WP v2 compatibility mode
 - `preferred_write_mode: "fields"` for structured client input
-- normalized EventON `fields` with nested object and array shapes
-- executable `validation_rules` plus additional runtime `validation_notes`
+- normalized EventON `fields` with nested object and array shapes, including `location.lat` / `location.lon` typed `["string", "number"]` and every `repeat.intervals` item key the write accepts (`start_at`, `end_at`, `start_timestamp`, `end_timestamp`, `start_date`, `start_time`, `end_date`, `end_time`)
+- executable `validation_rules` plus additional runtime `validation_notes`. Create requires `title` (`required_for_create: ["title"]`) and at least one of `start_date` or `start_at` (`one_of_required_for_create: [["start_date", "start_at"]]`, a list of groups where each group needs at least one field)
 - `examples.create` and `examples.update` payloads for MCP clients
 - coarse runtime availability such as whether EventON is active, the custom API is enabled, and `WP v2 compatibility` is on
 - when the RSVP addon is active, a read-only `event_rsvps` content type for `/wp-json/eventonapify/v1/events/{event_id}/rsvps`

@@ -70,9 +70,9 @@ function eventon_apify_get_contract_field_definitions() {
         ),
         'event_type' => array(
             'type' => 'array',
-            'item_type' => 'string',
+            'item_type' => array('string', 'integer'),
             'group' => 'taxonomy',
-            'description' => 'EventON event_type terms as names or slugs.',
+            'description' => 'EventON event_type terms as an array of term names, or one comma-separated string of names. Each name is matched exactly and created when missing; a numeric value is read as a term ID.',
             'also_accepts' => array('comma_separated_string'),
             'aliases' => array('event_types'),
             'transport' => array(
@@ -82,9 +82,9 @@ function eventon_apify_get_contract_field_definitions() {
         ),
         'tags' => array(
             'type' => 'array',
-            'item_type' => 'string',
+            'item_type' => array('string', 'integer'),
             'group' => 'taxonomy',
-            'description' => 'Standard WordPress post_tag terms attached to the EventON event.',
+            'description' => 'Standard WordPress post_tag terms attached to the EventON event, as an array of term names or one comma-separated string of names. Each name is matched exactly and created when missing; a numeric value is read as a term ID.',
             'guidance' => 'Populate recommended tags on create when tags are missing. If the event is cloned and no source tags were carried over, generate a short set of relevant tags from the title, venue/location, organizer/brand, format, and notable themes. Prefer 2 to 6 concise lowercase tags.',
             'also_accepts' => array('comma_separated_string'),
             'aliases' => array('post_tag'),
@@ -108,8 +108,7 @@ function eventon_apify_get_contract_field_definitions() {
             'type' => 'string',
             'format' => 'date',
             'group' => 'timing',
-            'required_on_create' => true,
-            'description' => 'Event start date in YYYY-MM-DD.',
+            'description' => 'Event start date in YYYY-MM-DD. On create, send start_date or start_at.',
             'transport' => array(
                 'custom_namespace' => 'start_date',
                 'wp_v2' => 'start_date',
@@ -536,8 +535,8 @@ function eventon_apify_get_location_contract_shape() {
         'state' => array('type' => 'string', 'description' => 'State or region.'),
         'country' => array('type' => 'string', 'description' => 'Country code or text.'),
         'zip' => array('type' => 'string', 'description' => 'Postal code.'),
-        'lat' => array('type' => 'string', 'description' => 'Latitude as a decimal-degree string, e.g. "34.2439". Numeric input is accepted on write and stored as a string.'),
-        'lon' => array('type' => 'string', 'description' => 'Longitude as a decimal-degree string, e.g. "-116.9114". Numeric input is accepted on write and stored as a string.'),
+        'lat' => array('type' => array('string', 'number'), 'description' => 'Latitude as a decimal-degree string, e.g. "34.2439". Numeric input is accepted on write and stored as a string.'),
+        'lon' => array('type' => array('string', 'number'), 'description' => 'Longitude as a decimal-degree string, e.g. "-116.9114". Numeric input is accepted on write and stored as a string.'),
         'link' => array('type' => 'string', 'format' => 'url', 'description' => 'External map or venue URL.'),
         'link_target' => array('type' => 'boolean', 'description' => 'Open the location link in a new tab.'),
         'phone' => array('type' => 'string', 'description' => 'Venue phone number.'),
@@ -660,11 +659,17 @@ function eventon_apify_get_repeat_contract_shape() {
         'intervals' => array(
             'type' => 'array',
             'item_type' => 'object',
-            'description' => 'Explicit repeat interval overrides.',
+            'description' => 'Explicit repeat interval overrides. Each item needs a start and end as start_at/end_at, start_timestamp/end_timestamp, or start_date (with optional start_time, end_date, end_time). A [start, end] timestamp pair is also accepted.',
             'max_items' => $limits['repeat_intervals'],
             'item_shape' => array(
                 'start_at' => array('type' => 'string', 'format' => 'date-time', 'description' => 'Interval start in ISO 8601 format.'),
                 'end_at' => array('type' => 'string', 'format' => 'date-time', 'description' => 'Interval end in ISO 8601 format.'),
+                'start_timestamp' => array('type' => 'integer', 'description' => 'Interval start in EventON storage space (wall clock interpreted as UTC). Used with end_timestamp.'),
+                'end_timestamp' => array('type' => 'integer', 'description' => 'Interval end in EventON storage space (wall clock interpreted as UTC). Used with start_timestamp.'),
+                'start_date' => array('type' => 'string', 'format' => 'date', 'description' => 'Interval start date in YYYY-MM-DD, used when start_at/end_at and timestamps are absent.'),
+                'start_time' => array('type' => 'string', 'format' => 'time', 'description' => 'Interval start time in HH:MM 24-hour format. Defaults to 00:00.'),
+                'end_date' => array('type' => 'string', 'format' => 'date', 'description' => 'Interval end date in YYYY-MM-DD. Defaults to start_date.'),
+                'end_time' => array('type' => 'string', 'format' => 'time', 'description' => 'Interval end time in HH:MM 24-hour format. Defaults to start_time.'),
             ),
         ),
     );
