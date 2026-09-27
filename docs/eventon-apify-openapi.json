@@ -4,7 +4,7 @@
     "title": "EventON APIfy REST API",
     "summary": "OpenAPI definition for administrator-protected discovery and EventON event endpoints.",
     "description": "EventON APIfy exposes a protected EventON CRUD API, optional RSVP reporting routes, and authenticated MCP discovery documents. GitHub Releases is the primary distribution channel for this plugin, and Git Updater is the intended update mechanism for GitHub installs.",
-    "version": "3.5.2"
+    "version": "3.5.3"
   },
   "externalDocs": {
     "description": "Plugin repository",
@@ -770,7 +770,7 @@
         "example": {
           "schema_version": "1.0.0",
           "provider": "eventon-apify",
-          "provider_version": "3.5.2",
+          "provider_version": "3.5.3",
           "generated_at": "2026-03-30T00:00:00Z",
           "site_url": "https://example.com",
           "namespace": "eventonapify/v1",
@@ -1078,7 +1078,8 @@
             "address": "456 Summit Rd",
             "city": "Lake Arrowhead",
             "state": "CA",
-            "country": "US"
+            "country": "US",
+            "image_ids": [456]
           },
           "flags": {
             "featured": false,
@@ -1317,6 +1318,8 @@
             "city": "Big Bear Lake",
             "state": "CA",
             "country": "US",
+            "image_ids": [456],
+            "images": [{"id": 456, "url": "https://example.com/uploads/location.jpg"}],
             "map_enabled": true,
             "open_google_maps_link": true
           },
@@ -1425,6 +1428,26 @@
           },
           "zip": {
             "type": "string"
+          },
+          "image_ids": {
+            "description": "Up to two image attachment IDs. On write, one integer is accepted and an empty array clears the images.",
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "images": {
+            "description": "Full-size location image URLs in the same order as image_ids. Read-only.",
+            "type": "array",
+            "readOnly": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "integer"},
+                "url": {"type": "string", "format": "uri"}
+              }
+            }
           },
           "lat": {
             "type": "string"

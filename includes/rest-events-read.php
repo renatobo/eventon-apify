@@ -504,6 +504,8 @@ function eventon_apify_get_location_payload($post_id, array $meta) {
         'phone' => '',
         'email' => '',
         'description' => '',
+        'image_ids' => array(),
+        'images' => array(),
         'use_latlng_for_directions' => false,
         'map_enabled' => eventon_apify_get_yes_no_flag($meta, 'evcal_gmap_gen'),
         'open_google_maps_link' => eventon_apify_get_yes_no_flag($meta, 'evcal_gmap_link'),
@@ -533,6 +535,17 @@ function eventon_apify_get_location_payload($post_id, array $meta) {
         $location['email'] = $term_meta['loc_email'] ?? '';
         $location['use_latlng_for_directions'] = eventon_apify_is_yes($term_meta['location_getdir_latlng'] ?? '');
         $location['description'] = $term->description;
+        $raw_images = $term_meta['evo_loc_img'] ?? '';
+        $stored_ids = is_array($raw_images) ? $raw_images : explode(',', (string) $raw_images);
+        foreach ($stored_ids as $stored_id) {
+            $id = filter_var($stored_id, FILTER_VALIDATE_INT);
+            if ($id === false || $id <= 0) {
+                continue;
+            }
+            $location['image_ids'][] = $id;
+            $url = wp_get_attachment_image_url($id, 'full');
+            $location['images'][] = array('id' => $id, 'url' => $url ?: '');
+        }
     } else {
         // Fallback for events created before this compatibility pass.
         $location['name'] = eventon_apify_get_meta_text($meta, 'evcal_location_name_t');

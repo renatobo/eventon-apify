@@ -47,6 +47,7 @@ function eventon_apify_save_event_terms($post_id, array $params) {
             'location_phone',
             'location_email',
             'location_getdir_latlng',
+            'location_image_ids',
         )
     )) {
         $location_result = eventon_apify_sync_location_term($post_id, $params);
@@ -243,6 +244,14 @@ function eventon_apify_sync_location_term($post_id, array $params) {
         $term_meta['location_getdir_latlng'] = eventon_apify_to_yes_no($params['location_getdir_latlng']);
     }
 
+    if (array_key_exists('location_image_ids', $params)) {
+        $image_ids = eventon_apify_validate_location_image_ids($params['location_image_ids']);
+        if (is_wp_error($image_ids)) {
+            return $image_ids;
+        }
+        $term_meta['evo_loc_img'] = implode(',', $image_ids);
+    }
+
     if (!empty($term_meta)) {
         $term_meta_result = eventon_apify_save_term_meta_payload('event_location', (int) $term->term_id, $term_meta);
         if (is_wp_error($term_meta_result)) {
@@ -252,6 +261,28 @@ function eventon_apify_sync_location_term($post_id, array $params) {
     eventon_apify_clear_legacy_location_meta($post_id);
 
     return true;
+}
+
+/**
+ * Validate EventON location image IDs before any event write.
+ *
+ * @param mixed $value One attachment ID or up to two IDs.
+ * @return array<int, int>|WP_Error
+ */
+function eventon_apify_validate_location_image_ids($value) {
+    $ids = is_int($value) ? array($value) : $value;
+    if (!is_array($ids) || array_values($ids) !== $ids || count($ids) > 2 || count($ids) !== count(array_unique($ids, SORT_REGULAR))) {
+        return new WP_Error('eventon_apify_invalid_location_images', 'location.image_ids must contain up to two distinct image attachment IDs.', array('status' => 400));
+    }
+
+    foreach ($ids as $id) {
+        $post = is_int($id) && $id > 0 ? get_post($id) : null;
+        if (!($post instanceof WP_Post) || $post->post_type !== 'attachment' || !wp_attachment_is_image($id)) {
+            return new WP_Error('eventon_apify_invalid_location_images', 'location.image_ids must reference existing image attachments.', array('status' => 400));
+        }
+    }
+
+    return $ids;
 }
 
 /**

@@ -39,6 +39,9 @@ function eventon_test_reset_wp_state() {
     $GLOBALS['__eventon_test_routes'] = array();
     $GLOBALS['eventon_apify_wp_v2_exposed'] = array();
     $GLOBALS['__eventon_test_posts'] = array();
+    $GLOBALS['__eventon_test_attachment_urls'] = array();
+    $GLOBALS['__eventon_test_terms'] = array();
+    $GLOBALS['__eventon_test_term_objects'] = array();
     $GLOBALS['__eventon_test_wp_update_post_result'] = null;
     $GLOBALS['__eventon_test_multisite'] = false;
     $GLOBALS['__eventon_test_sites'] = array(1);
@@ -494,6 +497,55 @@ if (!function_exists('get_post')) {
     }
 }
 
+if (!function_exists('wp_attachment_is_image')) {
+    function wp_attachment_is_image($attachment_id) {
+        $post = get_post($attachment_id);
+        return $post instanceof WP_Post && $post->post_type === 'attachment' && str_starts_with((string) ($post->post_mime_type ?? ''), 'image/');
+    }
+}
+
+if (!function_exists('wp_get_attachment_image_url')) {
+    function wp_get_attachment_image_url($attachment_id, $size = 'thumbnail') {
+        return $GLOBALS['__eventon_test_attachment_urls'][(int) $attachment_id] ?? false;
+    }
+}
+
+if (!function_exists('get_term_link')) {
+    function get_term_link($term, $taxonomy = '') {
+        return 'https://example.test/' . $taxonomy . '/' . $term->slug;
+    }
+}
+
+if (!class_exists('WP_Term')) {
+    class WP_Term {
+        public $term_id = 0;
+        public $name = '';
+        public $slug = '';
+        public $description = '';
+        public function __construct(array $fields = array()) {
+            foreach ($fields as $key => $value) {
+                $this->$key = $value;
+            }
+        }
+    }
+}
+
+if (!function_exists('get_term')) {
+    function get_term($term_id, $taxonomy = '') {
+        return $GLOBALS['__eventon_test_term_objects'][$taxonomy][(int) $term_id] ?? null;
+    }
+}
+
+if (!function_exists('wp_set_post_terms')) {
+    function wp_set_post_terms($post_id, $terms, $taxonomy, $append = false) {
+        $GLOBALS['__eventon_test_terms'][(int) $post_id][$taxonomy] = array_values(array_filter(array_map(
+            static function ($id) use ($taxonomy) { return get_term($id, $taxonomy); },
+            $terms
+        )));
+        return $terms;
+    }
+}
+
 if (!function_exists('wp_update_post')) {
     function wp_update_post($postarr, $wp_error = false) {
         $GLOBALS['__eventon_test_wp_update_post_calls'][] = $postarr;
@@ -571,6 +623,7 @@ if (!class_exists('WP_Post')) {
         public $post_type = 'post';
         public $post_title = '';
         public $post_status = 'publish';
+        public $post_mime_type = '';
         public $post_date_gmt = '';
         public $post_modified_gmt = '';
 
