@@ -52,6 +52,12 @@ function eventon_apify_build_mcp_contract_field_definition($field_name, array $d
         $field['guidance'] = $definition['guidance'];
     }
 
+    // Clients validate input before sending, so alternate accepted forms
+    // (e.g. one comma-separated string for an array field) must be published.
+    if (!empty($definition['also_accepts']) && is_array($definition['also_accepts'])) {
+        $field['also_accepts'] = array_values($definition['also_accepts']);
+    }
+
     $aliases = eventon_apify_get_mcp_contract_field_aliases($field_name);
     if (!empty($aliases)) {
         $field['aliases'] = $aliases;
@@ -127,7 +133,8 @@ function eventon_apify_export_contract_shape_definitions(array $shape) {
 function eventon_apify_build_mcp_contract_items_definition($field_name, array $definition) {
     $item_type = $definition['item_type'] ?? '';
 
-    if (!is_string($item_type) || $item_type === '') {
+    // A JSON-Schema-style type list (e.g. string or integer) is published as-is.
+    if ((!is_string($item_type) || $item_type === '') && (!is_array($item_type) || $item_type === array())) {
         return array();
     }
 

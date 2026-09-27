@@ -4,7 +4,9 @@ test('canonical create schema identifies required domain fields', function () {
     $args = eventon_apify_get_event_write_args(true);
 
     ok($args['title']['required']);
-    ok($args['start_date']['required']);
+    // start_at is an accepted alternative, so neither start field is required on its own.
+    eq($args['start_date']['required'], false);
+    eq($args['start_at']['required'], false);
     eq($args['slug']['required'], false);
 });
 
@@ -40,8 +42,8 @@ test('wp v2 custom fields expose schema metadata', function () {
 test('REST schema exports nested object and array shapes', function () {
     $args = eventon_apify_get_event_write_args(false);
 
-    eq($args['location']['properties']['lat']['type'], 'string');
-    eq($args['location']['properties']['lon']['type'], 'string');
+    eq($args['location']['properties']['lat']['type'], array('string', 'number'));
+    eq($args['location']['properties']['lon']['type'], array('string', 'number'));
     eq($args['organizers']['items']['properties']['email']['type'], 'string');
 });
 

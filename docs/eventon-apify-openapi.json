@@ -788,8 +788,11 @@
               "slug": "ajde_events",
               "preferred_endpoint": "eventonapify/v1/events",
               "supported_operations": [
+                "list",
+                "get",
                 "create",
-                "update"
+                "update",
+                "delete"
               ]
             }
           }

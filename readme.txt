@@ -105,6 +105,8 @@ MCP schema manifest:
 - `GET /wp-json/eventonapify/v1/mcp-schema/ajde_events`
 - `GET /wp-json/eventonapify/v1/mcp-schema/event_rsvps` when the RSVP addon is active
 - The manifest publishes an executable EventON content contract with `preferred_endpoint`, `preferred_write_mode`, normalized `fields`, executable `validation_rules`, and `examples.create` / `examples.update`.
+- `ajde_events` advertises `supported_operations` `list`, `get`, `create`, `update`, and `delete`. Create requires `title` plus one of `start_date` or `start_at`, published as `required_for_create: ["title"]` and `one_of_required_for_create: [["start_date", "start_at"]]`.
+- `related_endpoints` lists the single-event route `eventonapify/v1/events/{id}` and, as a secondary route, `wp/v2/ajde_events` for WP v2 compatibility mode.
 - When the RSVP addon is active, the manifest also publishes a read-only `event_rsvps` contract for `/events/{event_id}/rsvps`, including the related yes-only summary endpoint.
 - The manifest is discovery-only. Compatible MCP servers should follow the advertised `preferred_endpoint`, which for `ajde_events` is `/wp-json/eventonapify/v1/events`.
 
@@ -211,6 +213,16 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= Unreleased =
+* The `ajde_events` MCP manifest advertises `preferred_endpoint: eventonapify/v1/events` instead of `wp/v2/ajde_events`, so clients write through the transactional route. `wp/v2/ajde_events` moves to `related_endpoints` as a secondary route.
+* The manifest create rule is `required_for_create: ["title"]` plus the new `one_of_required_for_create: [["start_date", "start_at"]]`, matching the REST write, which accepts `start_at` in place of `start_date`. `start_date` no longer claims `required_on: create`.
+* `supported_operations` for `ajde_events` now includes `delete`.
+* `location.lat` and `location.lon` are typed `["string", "number"]` in the manifest and in the `wp/v2` field schema, so numeric coordinates pass `wp/v2` validation.
+* The `repeat.intervals` item shape now lists `start_timestamp`, `end_timestamp`, `start_date`, `start_time`, `end_date`, and `end_time` alongside `start_at` and `end_at`.
+* `event_type` and `tags` descriptions now say that string items are exact term names and numeric values are term IDs.
+* Field definitions in the manifest now publish `also_accepts`, so clients accept the comma-separated form of `event_type` and `tags`. Their items are typed `["string", "integer"]` for numeric term IDs.
+* The manifest `schema_version` stays `1.0.0`; every change is additive or a value change.
 
 = 3.5.1 =
 * `repeat.intervals` items with no readable start and end now return `400 eventon_apify_invalid_repeat_interval` naming the item's index, instead of being dropped silently.

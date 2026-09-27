@@ -11,7 +11,11 @@ if (!defined('ABSPATH')) {
  */
 function eventon_apify_get_mcp_validation_rules() {
     return array(
-        'required_for_create' => array('title', 'start_date'),
+        'required_for_create' => array('title'),
+        // Each group lists alternatives: at least one field per group is required on create.
+        'one_of_required_for_create' => array(
+            array('start_date', 'start_at'),
+        ),
         'required_for_update' => array(),
         'required_together' => array(),
         'one_of_required' => array(),
@@ -36,8 +40,8 @@ function eventon_apify_get_mcp_validation_notes() {
             'id' => 'start_date_required',
             'level' => 'error',
             'when' => 'create_or_update',
-            'fields' => array('start_date'),
-            'message' => 'start_date is required for EventON events.',
+            'fields' => array('start_date', 'start_at'),
+            'message' => 'An EventON event needs a start date: send start_date or start_at on create. An update that clears the start date is rejected.',
         ),
         array(
             'id' => 'datetime_range',
