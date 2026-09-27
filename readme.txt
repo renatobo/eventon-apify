@@ -4,7 +4,7 @@ Tags: eventon, api, rest-api, events
 Requires at least: 7.1
 Tested up to: 7.1.2
 Requires PHP: 8.0
-Stable tag: 3.5.3
+Stable tag: 3.5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -213,6 +213,9 @@ Send `event_type` as an array or a comma-separated string in create or update re
 The API responds with a `400` error explaining which date/time combination could not be parsed.
 
 == Changelog ==
+
+= 3.5.4 =
+* The stable-tag workflow now starts the release packaging workflow after creating a tag, so GitHub Releases receive the installable plugin zip automatically.
 
 = 3.5.3 =
 * Location payloads accept one or two image attachment IDs in `location.image_ids`; an empty array clears them. Invalid or non-image attachments return a 400 error.
