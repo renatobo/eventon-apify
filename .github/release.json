@@ -1,0 +1,31 @@
+{
+  "main": "eventon-apify.php",
+  "constant": "EVENTON_APIFY_VERSION",
+  "slug": "eventon-apify",
+  "zip": "eventon-apify-{version}.zip",
+  "build": "bash build.sh",
+  "php": "8.3",
+  "gates": [
+    "php-tests.yml"
+  ],
+  "specs": [
+    [
+      "docs/eventon-apify-openapi.json",
+      [
+        "info",
+        "version"
+      ]
+    ],
+    [
+      "docs/eventon-apify-openapi.json",
+      [
+        "components",
+        "schemas",
+        "McpManifest",
+        "example",
+        "provider_version"
+      ]
+    ]
+  ],
+  "readme": true
+}

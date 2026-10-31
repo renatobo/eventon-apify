@@ -112,26 +112,11 @@ CI runs the quality gate with Xdebug, uploads the coverage report, and separatel
 
 ## Releases
 
-To publish a GitHub release with the WordPress-ready zip attached:
+Prepare matching version metadata and `release-notes/X.Y.Z.md` in a PR into
+`main`. Apply the **`release`** label before merging. GitHub runs the exact
+merge commit through the existing CI gates and publishes its tested ZIP and
+checksum automatically. See `AGENTS.md` for the complete procedure and retries.
 
-```bash
-./release.sh x.y.z
-```
-
-That script:
-
-- updates the plugin version in `eventon-apify.php`
-- updates the stable tag in `readme.txt`
-- requires `release-notes/x.y.z.md` with `New Features`, `Improvements`, and `Bug Fixes` sections
-- commits the version bump
-- creates and pushes the git tag `vx.y.z`
-- verifies that the plugin header, `EVENTON_APIFY_VERSION`, and `Stable tag` all match
-
-Pushing the tag triggers GitHub Actions, which runs `./build.sh`, creates or updates the GitHub Release for that tag, uploads the generated zip asset automatically, and publishes the release body from `release-notes/x.y.z.md` plus the full changelog comparison link.
-
-Example release notes file:
-
-```md
 ## New Features
 
 - Add RSVP attendee delta sync with canonical `updated_at` timestamps.
