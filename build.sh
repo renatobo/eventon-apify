@@ -35,7 +35,7 @@ trap cleanup EXIT
 mkdir -p "$PACKAGE_DIR"
 
 rsync -a \
-  --exclude '.git/' \
+  --exclude '.git' \
   --exclude '.github/' \
   --exclude '.DS_Store' \
   --exclude '.env' \
@@ -55,6 +55,7 @@ rsync -a \
   --exclude 'release.sh' \
   --exclude 'scripts/' \
   --exclude 'tests/' \
+  --exclude 'release-notes/' \
   ./ "$PACKAGE_DIR/"
 
 if [[ -f "README.md" ]]; then
